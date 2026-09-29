@@ -3,41 +3,75 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blog</title>
+  <!-- XP's Internet Explorer titled a window "<the page> - Microsoft
+       Internet Explorer"; blog.js keeps it that way as the page changes. -->
+  <title>Techtrash - Microsoft Internet Explorer</title>
   <script src="/js/app.js"></script>
   <link rel="stylesheet" href="/css/tokens.css">
-  <link rel="stylesheet" href="/css/xp.css">
-  <link rel="stylesheet" href="/pages/blog/blog.css">
+  <link rel="stylesheet" href="/pages/blog/site.css">
+  <script src="/pages/blog/cosmos/planet.js" defer></script>
+  <script type="module" src="/pages/blog/space.js"></script>
   <script type="module" src="/pages/blog/blog.js"></script>
 </head>
-<body class="app">
-  <!-- Drawn by blog.js: the topics, a topic, or a post. -->
-  <main class="doc" id="blog">
+<body>
+  <!-- The planets and stars, drawn by space.js with cosmos.js. -->
+  <div class="sky" aria-hidden="true"></div>
+
+  <header class="bar">
+    <div class="wrap bar__inner">
+      <a class="brand hue-1" href="./"><span class="brand__path">~/</span>techtrash</a>
+      <nav class="nav" aria-label="Site">
+        <a class="button hue-5" href="./" data-nav="home">Home</a>
+        <a class="button hue-4" href="./#topics" data-nav="topics">Topics</a>
+        <a class="button hue-6" href="https://msaunders.dev">About me</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Drawn by blog.js: the front page, a topic, or a post. -->
+  <main class="page wrap" id="page">
     <p class="meta">Loading...</p>
   </main>
 
+  <footer class="foot wrap">techtrash.org</footer>
+
+  <!-- The front page's top panel. -->
+  <template id="hero">
+    <section class="panel">
+      <h1 class="title" aria-label="Techtrash">
+        <span aria-hidden="true"><span class="title__letter hue-1">T</span><span class="title__letter hue-2">e</span><span class="title__letter hue-3">c</span><span class="title__letter hue-4">h</span><span class="title__letter hue-5">t</span><span class="title__letter hue-6">r</span><span class="title__letter hue-1">a</span><span class="title__letter hue-2">s</span><span class="title__letter hue-3">h</span><span class="caret">_</span></span>
+      </h1>
+      <!-- Placeholder: what the site is, in a sentence. -->
+      <p class="lede">My road to working on human spaceflight, written down as it happens, plus space, code, science, music, travel, the outdoors, and the occasional bad joke.</p>
+      <div class="button-row">
+        <a class="button hue-2" href="#topics">Read the blog</a>
+        <a class="button hue-3" href="https://msaunders.dev">Who's writing</a>
+      </div>
+    </section>
+  </template>
+
   <!-- The admin's forms. Only drawn for the admin, and the server checks again. -->
   <template id="new-topic">
-    <form class="blog-form">
+    <form class="form">
       <fieldset>
         <legend>New topic</legend>
-        <label class="field-stack">Title<input name="title" maxlength="100" required></label>
-        <label class="field-stack">Description<textarea name="description" rows="3" maxlength="1000"></textarea></label>
-        <label class="field-stack">Picture<input type="file" name="picture" accept="image/*"></label>
+        <label>Title<input name="title" maxlength="100" required></label>
+        <label>Description<textarea name="description" rows="3" maxlength="1000"></textarea></label>
+        <label>Picture<input type="file" name="picture" accept="image/*"></label>
         <div class="button-row"><button class="button">Post topic</button></div>
-        <p class="blog-form__message" role="status"></p>
+        <p class="form__message meta" role="status"></p>
       </fieldset>
     </form>
   </template>
 
   <template id="new-post">
-    <form class="blog-form">
+    <form class="form">
       <fieldset>
         <legend>New post</legend>
-        <label class="field-stack">Title<input name="title" maxlength="100" required></label>
-        <label class="field-stack">Text<textarea name="body" rows="10" maxlength="50000" required></textarea></label>
+        <label>Title<input name="title" maxlength="100" required></label>
+        <label>Text<textarea name="body" rows="10" maxlength="50000" required></textarea></label>
         <div class="button-row"><button class="button">Post</button></div>
-        <p class="blog-form__message" role="status"></p>
+        <p class="form__message meta" role="status"></p>
       </fieldset>
     </form>
   </template>

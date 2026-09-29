@@ -20,3 +20,16 @@ DejaVu Sans Mono
   Bitstream and the DejaVu project.
   Bitstream Vera license: /fonts/DejaVu-LICENSE.txt
   dejavu-fonts.github.io
+
+JetBrains Mono (the website)
+  The JetBrains Mono Project Authors.
+  SIL Open Font License 1.1: /fonts/JetBrainsMono-OFL.txt
+  github.com/JetBrains/JetBrainsMono
+
+
+PLANETS
+
+cosmos.js
+  Matthew Saunders.
+  MIT: /pages/blog/cosmos/LICENSE
+  github.com/mattsaund/cosmos.js

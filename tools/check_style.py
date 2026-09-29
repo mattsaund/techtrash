@@ -34,7 +34,8 @@ SKIP_DIRS = {"fonts"}
 # query can't read a custom property, so CSS writes the number out and this
 # makes sure it's that number.
 BREAKPOINTS = set(re.findall(r"--breakpoint:\s*([\d.]+px)", TOKENS.read_text()))
-WEIGHTS = {"400", "700", "inherit"}
+# XP is 400 and 700 (Tahoma has nothing between); the website is 400 and 500.
+WEIGHTS = {"400", "500", "700", "inherit"}
 
 HEX = re.compile(r"#[0-9a-f]{3,8}\b", re.I)
 COLOR_FN = re.compile(r"\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(", re.I)
@@ -102,7 +103,7 @@ def check_value(prop, value):
     if prop == "line-height" and not re.fullmatch(r"var\(--lh-[\w-]+\)|inherit", value.strip()):
         problems.append("line-height must be a --lh-* token")
     if prop == "font-weight" and value.strip().lower() not in WEIGHTS:
-        problems.append(f"font-weight '{value.strip()}': only 400 and 700")
+        problems.append(f"font-weight '{value.strip()}': only 400, 500 (the website) and 700 (XP)")
     if prop == "z-index" and not re.fullmatch(r"var\(--z-[\w-]+\)|auto|inherit", value.strip()):
         problems.append("z-index must be a --z-* token")
     return problems

@@ -1,0 +1,249 @@
+/* ============================================================
+   techtrash.org : the website
+
+   The page every visit opens up to, inside the Internet Explorer
+   window. Its own look, not XP's: msaunders.dev's (black, JetBrains
+   Mono, hairline panels over a sky of cosmos.js planets), but
+   multicolor, with a real top bar and real buttons.
+
+   Colors come in through .hue-1 to .hue-6, which set --hue for
+   everything inside: a link, a button, a label's "~/", a card's
+   edge. Nothing picks a color of its own. Tokens only, like every
+   other stylesheet (see "THE WEBSITE" in css/tokens.css).
+   ============================================================ */
+
+/* --- the six hues ------------------------------------------ */
+.hue-1 { --hue: var(--site-hue-1); }
+.hue-2 { --hue: var(--site-hue-2); }
+.hue-3 { --hue: var(--site-hue-3); }
+.hue-4 { --hue: var(--site-hue-4); }
+.hue-5 { --hue: var(--site-hue-5); }
+.hue-6 { --hue: var(--site-hue-6); }
+
+/* --- base -------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+/* At least the window's height, so the sky fills it on a short page. */
+html { height: 100%; -webkit-text-size-adjust: 100%; color-scheme: dark; }
+body {
+  --hue: var(--site-hue-5);
+  position: relative;
+  min-height: 100%;
+  margin: 0;
+  background: var(--site-bg);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+}
+
+h1, h2, h3, p, ul, ol, figure, fieldset { margin: 0; }
+img { display: block; max-width: 100%; height: auto; }
+a { color: var(--hue); text-underline-offset: var(--sp-4); }
+a:hover { color: var(--site-fg); }
+::selection { background: var(--hue); color: var(--site-bg); }
+:focus-visible { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-2); }
+
+.wrap {
+  max-width: var(--site-wrap);
+  margin: 0 auto;
+  padding: 0 var(--sp-24);
+}
+
+/* --- the sky ----------------------------------------------- *
+   cosmos.js planets and a scatter of stars, drawn by space.js,
+   over the whole page and behind everything on it. The panels
+   dim what's behind them, so a star under a paragraph reads as
+   sky rather than noise. */
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-site-sky);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.star { position: absolute; color: var(--hue); opacity: var(--site-stars); }
+.planet {
+  position: absolute;
+  margin: 0;
+  color: var(--hue);
+  opacity: var(--site-planets);
+  font: 400 var(--fs-site-art)/var(--lh-site-art) var(--font-site);
+  white-space: pre;
+}
+/* Where each one sits, as a share of the page, so they spread out
+   over however long it is. Each overhangs an edge a little. */
+.planet--1 { top: 2%; right: -6%; }
+.planet--2 { top: 38%; left: -4%; }
+.planet--3 { top: 64%; right: -2%; }
+.planet--4 { top: 86%; left: 6%; }
+
+.bar, .page, .foot { position: relative; z-index: var(--z-site-page); }
+
+/* --- the top bar ------------------------------------------- */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-site-bar);
+  background: var(--site-bg);
+  border-bottom: var(--hairline) solid var(--site-line);
+}
+.bar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8) var(--sp-24);
+  padding-top: var(--sp-8);
+  padding-bottom: var(--sp-8);
+}
+.brand {
+  color: var(--site-fg);
+  font: 500 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
+  text-decoration: none;
+}
+.brand__path { color: var(--hue); }
+.nav { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+
+/* --- buttons ----------------------------------------------- *
+   Real ones: an edge, a fill, and the hue. Under the pointer, or
+   for the page you're on, they fill with it. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-12);
+  border: var(--hairline) solid var(--hue);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--hue);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover,
+.button[aria-current="page"] { background: var(--hue); color: var(--site-bg); }
+.button:disabled { opacity: var(--site-stars); cursor: default; }
+.button:disabled:hover { background: var(--site-field); color: var(--hue); }
+.button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+
+/* --- panels ------------------------------------------------ */
+.page { padding-top: var(--sp-16); }
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  margin-bottom: var(--sp-16);
+  padding: var(--sp-24);
+  background: var(--site-panel);
+  border: var(--hairline) solid var(--site-line);
+}
+
+/* A section's name, the msaunders.dev way: "~/topics", the path in
+   the section's hue. */
+.label { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
+.label__path { color: var(--hue); }
+
+.lede { color: var(--site-fg-2); }
+.meta { color: var(--site-fg-3); }
+.crumb { color: var(--site-fg-3); }
+
+/* --- the headline ------------------------------------------ *
+   "Techtrash", a letter in each hue, and msaunders.dev's caret. */
+.title { font: 500 var(--fs-site-title)/var(--lh-site-title) var(--font-site); }
+.title__letter { color: var(--hue); }
+.caret { color: var(--site-hue-1); animation: blink var(--site-blink) steps(1, end) infinite; }
+@keyframes blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .caret { animation: none; }
+}
+
+/* A topic's or a post's title, on its own page. */
+.head { font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site); }
+
+/* --- topics ------------------------------------------------ */
+.topics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--site-card-min)), 1fr));
+  align-items: start;   /* each card as tall as what's on it */
+  gap: var(--sp-16);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--site-field);
+  border: var(--hairline) solid var(--site-line);
+  color: var(--site-fg);
+  text-decoration: none;
+}
+.card:hover { border-color: var(--hue); color: var(--site-fg); }
+.card__cover {
+  width: 100%;
+  aspect-ratio: var(--site-cover);
+  object-fit: cover;
+  border-bottom: var(--hairline) solid var(--site-line);
+}
+.card__body { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-16); }
+.card__text { color: var(--site-fg-2); }
+
+/* A title in a list: "/Title>", the marks in the hue, as
+   msaunders.dev writes its entries. */
+.named { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
+.named::before { content: "/"; color: var(--hue); }
+.named::after { content: ">"; color: var(--hue); }
+
+/* --- a topic's posts ---------------------------------------- */
+.entries { display: flex; flex-direction: column; gap: var(--sp-12); padding: 0; list-style: none; }
+.entry { display: flex; flex-direction: column; }
+.entry a { color: var(--site-fg); text-decoration-color: var(--hue); }
+.entry a:hover { color: var(--hue); }
+
+.topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
+
+/* --- a post ------------------------------------------------ */
+.post-body {
+  max-width: var(--site-measure);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- the admin's forms -------------------------------------- */
+.form fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  max-width: var(--site-measure);
+  padding: var(--sp-16);
+  border: var(--hairline) solid var(--site-line);
+  border-radius: var(--r-control);
+}
+.form legend { padding: 0 var(--sp-4); color: var(--hue); }
+.form label { display: flex; flex-direction: column; gap: var(--sp-4); color: var(--site-fg-2); }
+.form input:not([type="file"]),
+.form textarea {
+  width: 100%;
+  padding: var(--sp-4) var(--sp-8);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+}
+.form input:focus-visible,
+.form textarea:focus-visible { outline: 0; border-color: var(--hue); }
+.form textarea { resize: vertical; }
+.form input[type="file"] { color: var(--site-fg-2); font: inherit; }
+.form__message:empty { display: none; }
+
+/* --- the foot ---------------------------------------------- */
+.foot { padding-top: var(--sp-32); padding-bottom: var(--sp-48); color: var(--site-fg-3); text-align: center; }
+
+/* --- a phone, or a narrow window ------------------------------ */
+@media (max-width: 640px) {
+  .wrap { padding: 0 var(--sp-16); }
+  .panel { padding: var(--sp-16); }
+  .title { font-size: var(--fs-site-title-s); line-height: var(--lh-site-title-s); }
+  .planet--2, .planet--4 { display: none; }
+}

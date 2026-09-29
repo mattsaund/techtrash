@@ -165,6 +165,10 @@ function create(app, rest, maximized) {
     const inner = frame.contentWindow;
     if (!frame.contentDocument) return;
     rename(frame.contentDocument.title || app.title);
+    // ...and follows it when the page changes it without loading again, as
+    // the blog does once it knows which topic or post it's showing.
+    new MutationObserver(() => rename(frame.contentDocument.title || app.title))
+      .observe(frame.contentDocument.head, { subtree: true, childList: true, characterData: true });
     const path = inner.location.pathname + inner.location.search;
     win.rest = path.startsWith(app.url) ? path.slice(app.url.length) : "";
     inner.addEventListener("pointerdown", () => {

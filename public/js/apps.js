@@ -25,7 +25,7 @@
 const XP = "/img/icons/xp";
 
 const LIST = [
-  { id: "blog",    title: "Blog",         icon: `${XP}/internet-explorer.png`, kind: "page", home: true },
+  { id: "blog",    title: "Techtrash.org blog", icon: `${XP}/internet-shortcut.png`, kind: "page", home: true },
 
   { id: "files",   title: "File Browser", icon: `${XP}/explorer.png`,          kind: "program", desktop: true },
   { id: "notepad", title: "Notepad",      icon: `${XP}/notepad.png`,           kind: "program", listed: false },

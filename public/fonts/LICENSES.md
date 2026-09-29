@@ -1,6 +1,13 @@
 # fonts
 
-All three files are built by `tools/make_fonts.py`. Don't edit them by hand.
+The Tahoma and DejaVu files are built by `tools/make_fonts.py`. Don't edit them
+by hand.
+
+## jetbrains-mono-latin.woff2
+
+JetBrains Mono, the website's face, copied from msaunders.dev (where it's
+subset to Latin, one variable file for every weight). SIL Open Font License
+1.1: see `JetBrainsMono-OFL.txt`. https://github.com/JetBrains/JetBrainsMono
 
 ## tahoma-latin.woff2, tahoma-bold-latin.woff2
 

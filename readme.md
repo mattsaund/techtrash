@@ -1,15 +1,28 @@
 # techtrash.org
 
-My blog, first. Every visit opens it in a window, maximized, and that's the
-site. Minimize or close it, though, and behind it is a Windows XP desktop that
-everyone shares: one giant easter egg. Anyone on the site is on the same
-desktop, and what they move, everyone sees move. Over time people will save
-things to it too, so it keeps changing: part art piece, part my own place on
-the internet.
+## The idea
 
-- **The desktop icons are my pages.** For now that's just the blog, which
-  covers everything: posts, the journal, pictures, music, projects, tech,
-  space, memes.
+> Techtrash opens up to the XP emulated website of techtrash.org in Internet
+> Explorer, fullscreened. The user can minimize or close the window and use
+> the XP emulated website like a big easter egg. The art is, the XP OS is
+> shared amongst all visitors: if you create a file everyone can see it, if
+> you draw a picture everyone can see it, if you change the theme everyone can
+> see it. The blog documents my path and journey to becoming a contributor to
+> human spaceflight and sciences for humanity. I also use it to talk about my
+> interests in space, coding, science, music, traveling, the outdoors, etc.,
+> with funny, lighthearted jokes and stuff.
+
+So there are two sites here, one inside the other:
+
+- **The website**, techtrash.org itself: my blog, in an Internet Explorer
+  window, maximized, on every visit. Its own look (see "The website").
+- **The desktop** behind it, a Windows XP that everyone shares, for whoever
+  closes the window.
+
+On the desktop:
+
+- **The desktop icons are my pages.** For now that's just the
+  **Techtrash.org blog**, a shortcut to the website, which covers everything.
 - **The start menu holds programs:** the File Browser now, and games, Paint
   and whatever else later.
 - **The File Browser** is where everything saved on the site ends up, like
@@ -26,7 +39,12 @@ Everything in `public/` is the site, and each file's address is its path inside
 ```
 public/index.html            The desktop: Welcome screen, icons, windows, start
                              menu, taskbar, Log Off
-public/pages/<id>/           My pages, one folder each: blog (see "The blog")
+public/pages/<id>/           My pages, one folder each: blog, the website (see
+                             "The website" and "The blog")
+public/pages/blog/site.css   The website's look
+public/pages/blog/blog.js    Its pages: the front page, a topic, a post
+public/pages/blog/space.js   Its sky: stars, and planets drawn with cosmos.js
+public/pages/blog/cosmos/    cosmos.js's planet renderer, copied unchanged
 public/programs/<id>/        Programs: files (the File Browser), notepad
 public/files/                Text files Notepad opens: credits.txt
 
@@ -197,17 +215,50 @@ npx wrangler secret put ADMIN_PASSWORD
   The blog's forms only appear for the admin as a convenience. And anything
   that changes something has to come from the site's own pages.
 
+## The website
+
+What every visit opens up to: `public/pages/blog/`, in a window the desktop
+titles the way XP's Internet Explorer did (`Techtrash - Microsoft Internet
+Explorer`, and `First launch - Techtrash - Microsoft Internet Explorer` on a
+post). It isn't XP: it has its own look, after msaunders.dev, but multicolor
+where msaunders.dev is all blue.
+
+- **The look.** Black, JetBrains Mono, and see-through panels with hairline
+  edges over a sky of planets and stars. A real top bar (`~/techtrash`, then
+  Home, Topics, About me) and real buttons: an edge, a fill and a hue, filled
+  in under the pointer or for the page you're on. The headline is
+  "Techtrash", a letter in each hue, with msaunders.dev's caret after it.
+- **The multicolor** is six hues (`--site-hue-1` to `-6`: red, orange,
+  yellow, green, blue, violet), and nothing picks a color of its own: an
+  element takes one through a `.hue-1` to `.hue-6` class, and everything
+  inside it (links, buttons, a label's `~/`, a card's edge) follows. A topic
+  gets its hue from its number and keeps it on its card, its page and its
+  posts.
+- **The sky** is `space.js`: 140 stars in the six hues, the same on every
+  visit, and four planets drawn with **cosmos.js**
+  (github.com/mattsaund/cosmos.js), its renderer copied unchanged into
+  `cosmos/`. Each planet is the cosmos.js editor's own settings (texture, rows,
+  tilt, rings, speed, seed) in `PLANETS`, so a planet tuned in the editor
+  drops straight in. Its color is a hue class, and where it sits is its
+  `.planet--N` rule in `site.css`, as a share of the page. They turn slowly,
+  and stand still for anyone who's asked their computer for less motion.
+- **The rules** are the same as everywhere: every value is a token, in their
+  own section of `tokens.css` ("THE WEBSITE"). Four sizes (body 14/23, label
+  16/23, head 28/36, title 50/60, 40/48 on a phone), two weights (400 and
+  500), the spacing scale, and the six hues. Only motion is different: the
+  caret blinks and the planets turn, where XP holds still.
+
 ## The blog
 
 Topics, and posts under a topic. A topic has a title, a description and a
 picture if it wants one. Anyone reads; the admin also gets a **New topic**
-form on the list of topics, a **New post** form inside a topic, and delete
+form on the front page, a **New post** form inside a topic, and delete
 buttons that take two clicks (deleting a topic deletes its posts and picture).
-It's plain for now: the look comes later.
 
-- **The page** is `public/pages/blog/`: the list of topics, `?topic=<id>`, or
-  `?post=<id>`, so the address bar follows along (`techtrash.org/#blog/?post=3`).
-  A post is shown exactly as typed, with web links made clickable.
+- **The pages** are the front page (the headline, then every topic, the one
+  with the newest post first), `?topic=<id>`, and `?post=<id>`, so the address
+  bar follows along (`techtrash.org/#blog/?post=3`). A post is shown exactly
+  as typed, with web links made clickable.
 - **The server** is `server/blog.js`, the same way tcc.place's blog works:
   topics and posts in the D1 database `DB` (the tables are made the first time
   they're needed), and a topic's picture in the KV store `PICTURES`, served at
@@ -329,6 +380,8 @@ The full set, with every chrome color, is in `tokens.css` and drawn on
 
 ### Type
 
+(The desktop's type. The website has its own: see "The website".)
+
 Three faces, four sizes and one for the Welcome screen, two weights, and
 nothing else.
 
@@ -414,11 +467,13 @@ never reach the taskbar.
 - **Scripts set geometry only:** where a window or an icon is, how big a
   window is, and what's in front. How anything looks is a class in `css/`, and
   every length or wait a script needs it reads from `tokens.css`.
-- **No animation.** Hover and press states change instantly, as XP's did. The
-  one pause is `--wait` (800ms), the moment XP spent loading or saving your
-  settings.
-- **The hand cursor is for links.** Buttons, menus, icons and title bars keep
-  the arrow.
+- **No animation** on the desktop. Hover and press states change instantly, as
+  XP's did. The one pause is `--wait` (800ms), the moment XP spent loading or
+  saving your settings. (The website inside the Internet Explorer window is
+  the web, not XP: its caret blinks and its planets turn.)
+- **The hand cursor is for links** on the desktop. Buttons, menus, icons and
+  title bars keep the arrow. (The website's buttons get the hand, as buttons
+  on the web do.)
 - **One drop shadow**, `--shadow-pop`, on menus, tooltips and the Log Off
   dialog. XP's windows cast none.
 - **One breakpoint**, `--breakpoint` (640px). At and under it the screen is a
