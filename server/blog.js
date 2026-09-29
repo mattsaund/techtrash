@@ -42,6 +42,7 @@ import { apiError, clientKey, done, fresh } from "./http.js";
 const MAX_LENGTH = { flag: 40, title: 120, description: 1000, body: 500_000, name: 40, comment: 2000 };
 const MAX_PICTURE_BYTES = 10 * 1024 * 1024;
 const PICTURES = "blog/";
+const FIRST_PICTURES = "topics/";   // where the first blog kept a topic's picture
 export const PICTURE_NAME = /^[\w-]+\.(?:png|jpg|gif|webp|avif)$/;
 
 // --- the tables ------------------------------------------------------------------
@@ -92,11 +93,56 @@ function ensureSchema(env) {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS comments_by_post ON comments (post_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS topics_by_flag ON topic_flags (flag_id)"),
     ]);
+    await upgrade(env);
   })().catch((error) => {
     schemaReady = undefined;
     throw error;
   });
   return schemaReady;
+}
+
+// The first blog (September 2026) made topics and posts without the columns
+// added since, and kept a post as plain text. CREATE TABLE IF NOT EXISTS
+// leaves a table that's already there as it is, so this brings one up to date.
+// Two Worker instances can try at once: adding a column that's there fails,
+// and the one that fails leaves it to the other.
+async function upgrade(env) {
+  const columns = async (table) => {
+    const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+    return new Set(results.map((column) => column.name));
+  };
+  const alreadyThere = (error) => {
+    if (!/duplicate column/i.test(error.message)) throw error;
+  };
+  if (!(await columns("topics")).has("updated")) {
+    await env.DB.prepare("ALTER TABLE topics ADD COLUMN updated INTEGER").run().catch(alreadyThere);
+  }
+  const posts = await columns("posts");
+  if (!posts.has("updated")) {
+    await env.DB.prepare("ALTER TABLE posts ADD COLUMN updated INTEGER").run().catch(alreadyThere);
+  }
+  if (!posts.has("comments_open")) {
+    // The posts were plain text; now they're HTML. In one go with the new
+    // column, so they're only ever turned into HTML once.
+    const { results } = await env.DB.prepare("SELECT id, body FROM posts").all();
+    await env.DB.batch([
+      env.DB.prepare("ALTER TABLE posts ADD COLUMN comments_open INTEGER NOT NULL DEFAULT 1"),
+      ...results.map((post) => env.DB.prepare("UPDATE posts SET body = ? WHERE id = ?").bind(textToHtml(post.body), post.id)),
+    ]).catch(alreadyThere);
+  }
+}
+
+// A first-blog post, as the HTML that shows it the way it showed then: a
+// paragraph for each blank line, a line break for each line, links clickable.
+function textToHtml(text) {
+  const escaped = text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  return escaped
+    .split(/\n{2,}/)
+    .map((paragraph) => {
+      const linked = paragraph.replace(/https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]']/g, (url) => `<a href="${url}">${url}</a>`);
+      return `<p>${linked.replace(/\n/g, "<br>")}</p>`;
+    })
+    .join("");
 }
 
 // --- small things ----------------------------------------------------------------
@@ -166,7 +212,8 @@ async function storePicture(env, file) {
 const hasFile = (value) => value instanceof Blob && value.size > 0;
 
 export async function servePicture(name, env) {
-  const found = await env.PICTURES.getWithMetadata(PICTURES + name, { type: "stream" });
+  let found = await env.PICTURES.getWithMetadata(PICTURES + name, { type: "stream" });
+  if (!found.value) found = await env.PICTURES.getWithMetadata(FIRST_PICTURES + name, { type: "stream" });
   if (!found.value) return new Response("not found", { status: 404 });
   return new Response(found.value, {
     headers: {
@@ -179,7 +226,7 @@ export async function servePicture(name, env) {
 
 async function deletePicture(env, name) {
   if (!name) return;
-  await env.PICTURES.delete(PICTURES + name);
+  await Promise.all([env.PICTURES.delete(PICTURES + name), env.PICTURES.delete(FIRST_PICTURES + name)]);
 }
 
 // The pictures a post's body shows, by name.

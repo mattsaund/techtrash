@@ -42,30 +42,44 @@ const BLOG = {
 
 export default {
   async fetch(request, env) {
-    const { pathname } = new URL(request.url);
-    const method = request.method;
-    const reading = method === "GET" || method === "HEAD";
-
-    if (pathname === "/api/desktop") return env.DESKTOP.get(env.DESKTOP.idFromName("desktop")).fetch(request);
-    if (pathname.startsWith("/api/") && !reading && !fromThisSite(request)) {
-      return apiError(403, "That has to come from techtrash.org itself.");
+    try {
+      return await route(request, env);
+    } catch (error) {
+      // In the Worker's logs (the dashboard's Observability, or `npx wrangler tail`),
+      // and said plainly to the page rather than as Cloudflare's error page.
+      console.error(request.method, new URL(request.url).pathname, error);
+      if (new URL(request.url).pathname.startsWith("/api/")) {
+        return apiError(500, "Something broke on the server. Try again, and if it keeps happening, check the Worker's logs.");
+      }
+      throw error;
     }
-
-    if (pathname === "/api/me" && reading) return fresh({ admin: await isAdmin(request, env) });
-    if (pathname === "/api/logon" && method === "POST") return logon(request, env);
-    if (pathname === "/api/logoff" && method === "POST") return logoff(request);
-
-    if (pathname.startsWith("/api/blog/")) {
-      const route = BLOG[`${reading ? "GET" : method} ${pathname.slice("/api/blog/".length)}`];
-      if (route) return reading || route === blog.createComment ? route(request, env) : adminOnly(request, env, route);
-    }
-    if (reading && pathname.startsWith("/blog/img/")) {
-      const name = pathname.slice("/blog/img/".length);
-      if (blog.PICTURE_NAME.test(name)) return blog.servePicture(name, env);
-    }
-
-    if (pathname.startsWith("/api/")) return apiError(404, "Not found.");
-    const page = await env.ASSETS.fetch(new URL("/404", request.url));
-    return new Response(page.body, { status: 404, headers: { "content-type": "text/html; charset=utf-8" } });
   },
 };
+
+async function route(request, env) {
+  const { pathname } = new URL(request.url);
+  const method = request.method;
+  const reading = method === "GET" || method === "HEAD";
+
+  if (pathname === "/api/desktop") return env.DESKTOP.get(env.DESKTOP.idFromName("desktop")).fetch(request);
+  if (pathname.startsWith("/api/") && !reading && !fromThisSite(request)) {
+    return apiError(403, "That has to come from techtrash.org itself.");
+  }
+
+  if (pathname === "/api/me" && reading) return fresh({ admin: await isAdmin(request, env) });
+  if (pathname === "/api/logon" && method === "POST") return logon(request, env);
+  if (pathname === "/api/logoff" && method === "POST") return logoff(request);
+
+  if (pathname.startsWith("/api/blog/")) {
+    const handler = BLOG[`${reading ? "GET" : method} ${pathname.slice("/api/blog/".length)}`];
+    if (handler) return reading || handler === blog.createComment ? handler(request, env) : adminOnly(request, env, handler);
+  }
+  if (reading && pathname.startsWith("/blog/img/")) {
+    const name = pathname.slice("/blog/img/".length);
+    if (blog.PICTURE_NAME.test(name)) return blog.servePicture(name, env);
+  }
+
+  if (pathname.startsWith("/api/")) return apiError(404, "Not found.");
+  const page = await env.ASSETS.fetch(new URL("/404", request.url));
+  return new Response(page.body, { status: 404, headers: { "content-type": "text/html; charset=utf-8" } });
+}
