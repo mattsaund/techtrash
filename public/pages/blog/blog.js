@@ -85,7 +85,7 @@ async function showFront() {
 
   let sort = remembered.get(SORT) === "flags" ? "flags" : "topics";
   const sortButton = (mode, text) => {
-    const button = el("button", { class: "button", type: "button", textContent: text });
+    const button = el("button", { class: "button button--small", type: "button", textContent: text });
     button.addEventListener("click", () => {
       sort = mode;
       remembered.set(SORT, mode);
@@ -122,7 +122,7 @@ async function showFront() {
     el("div", { class: "panel__head" },
       label("Blog", flag?.name),
       flag
-        ? el("a", { class: "button", href: "./#blog", textContent: "All topics" })
+        ? el("a", { class: "button button--small", href: "./#blog", textContent: "All topics" })
         : el("div", { class: "sort", role: "group", "aria-label": "Sort by" }, el("span", { class: "meta", textContent: "Sort by" }), byTopic, byFlag)));
 
   if (admin) {

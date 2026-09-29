@@ -239,8 +239,9 @@ where msaunders.dev is all blue.
 
 - **The look.** Black, JetBrains Mono, and see-through panels with hairline
   edges over a sky of planets and stars. A real top bar (Home and About me,
-  on the right) and real buttons: an edge, a fill and a hue, filled
-  in under the pointer or for the page you're on. The headline is
+  on the right) and real buttons: an edge in a hue, black inside, and filled
+  with the hue only when selected (the page you're on, the sort that's
+  picked). The headline is
   "Techtrash", a letter in each hue, with msaunders.dev's caret after it,
   and under it a button for each part of the site: **Blog** (the topics),
   and **Pictures**, **Travel** and **Misc**, which go to the "under
@@ -260,11 +261,11 @@ where msaunders.dev is all blue.
   `.planet--N` rule in `site.css`, as a share of the page. They turn slowly,
   and stand still for anyone who's asked their computer for less motion.
 - **The rules** are the same as everywhere: every value is a token, in their
-  own section of `tokens.css` ("THE WEBSITE"). Five sizes (body 14/23, label
-  16/23, sub 20/28, head 28/36, title 50/60, 40/48 on a phone), two weights
-  (400 and 500, and 700 for bold words in a post), the spacing scale, and the
-  six hues. Only motion is different: the
-  caret blinks and the planets turn, where XP holds still.
+  own section of `tokens.css` ("THE WEBSITE"). Six sizes (small 12/18, body
+  14/23, label 16/23, sub 20/28, head 28/36, title 50/60, 40/48 on a phone),
+  two weights (400 and 500, and 700 for bold words in a post), the spacing
+  scale, and the six hues. Only motion is different: the caret blinks and the
+  planets turn, where XP holds still.
 
 ## The blog
 

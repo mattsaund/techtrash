@@ -382,7 +382,7 @@
                "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   /* --- type -------------------------------------------------
-     Five sizes, each with its one line height, and two weights:
+     Six sizes, each with its one line height, and two weights:
      400 and 500, msaunders.dev's. Bold words in a post are 700, so
      they read as bold (and so the editor's B button knows them).
 
@@ -391,12 +391,15 @@
      label  16/23  anything that names something: the top bar,
                    section labels, topic and post titles in a list,
                    a small heading in a post
+     small  12/18  a small button beside a panel's name (the Blog's
+                   sort buttons)
      sub    20/28  a heading in a post
      head   28/36  a topic's or a post's title, on its own page
      title  50/60  "Techtrash", once. 40/48 on a phone.
 
      art    5/1    the planets: a glyph of cosmos.js's is one cell
                    of a picture, not text */
+  --fs-site-small:   12px;  --lh-site-small:   18px;
   --fs-site-body:    14px;  --lh-site-body:    23px;
   --fs-site-label:   16px;  --lh-site-label:   23px;
   --fs-site-sub:     20px;  --lh-site-sub:     28px;

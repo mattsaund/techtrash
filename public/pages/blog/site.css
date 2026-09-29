@@ -100,25 +100,31 @@ a:hover { color: var(--site-fg); }
 .nav { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 
 /* --- buttons ----------------------------------------------- *
-   Real ones: an edge, a fill, and the hue. Under the pointer, or
-   for the page you're on, they fill with it. */
+   An edge in the hue, and nothing inside it: black, whatever's
+   behind. Only a selected one (the page you're on, the sort that's
+   picked) fills with its hue. Under the pointer, its words go white. */
 .button {
   display: inline-flex;
   align-items: center;
   padding: var(--sp-4) var(--sp-12);
   border: var(--hairline) solid var(--hue);
   border-radius: var(--r-control);
-  background: var(--site-field);
+  background: none;
   color: var(--hue);
   font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
   text-decoration: none;
   cursor: pointer;
 }
-.button:hover,
+.button:hover { color: var(--site-fg); }
 .button[aria-current="page"],
 .button[aria-pressed="true"] { background: var(--hue); color: var(--site-bg); }
 .button:disabled { opacity: var(--site-stars); cursor: default; }
-.button:disabled:hover { background: var(--site-field); color: var(--hue); }
+.button:disabled:hover { color: var(--hue); }
+/* A small one, for a control beside a panel's name. */
+.button--small {
+  padding: var(--sp-2) var(--sp-8);
+  font: 400 var(--fs-site-small)/var(--lh-site-small) var(--font-site);
+}
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 
 /* --- panels ------------------------------------------------ */
@@ -133,9 +139,21 @@ a:hover { color: var(--site-fg); }
   border: var(--hairline) solid var(--site-line);
 }
 
-/* A panel's name, and whatever sits beside it (the Blog's sort buttons). */
-.panel__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-24); }
-.sort { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+/* A panel's name on the left, and in the other corner, on the same
+   line, whatever goes with it (the Blog's sort buttons). */
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8) var(--sp-24);
+}
+.sort {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font: 400 var(--fs-site-small)/var(--lh-site-small) var(--font-site);
+}
 
 /* A section's name, in the section's hue, and after it what it's
    showing, if that needs saying ("Topics · Music"). */
@@ -313,13 +331,13 @@ a.group__name:hover { text-decoration: underline; }
   padding: 0 var(--sp-8);
   border: var(--hairline) solid var(--site-line-2);
   border-radius: var(--r-control);
-  background: var(--site-field);
+  background: none;
   color: var(--site-fg-2);
   font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
   cursor: pointer;
 }
 .tool:hover { border-color: var(--hue); color: var(--site-fg); }
-.tool[aria-pressed="true"] { border-color: var(--hue); color: var(--hue); }
+.tool[aria-pressed="true"] { border-color: var(--hue); background: var(--hue); color: var(--site-bg); }
 .tool--bold { font-weight: 700; }
 .tool--italic { font-style: italic; }
 .tool--underline { text-decoration: underline; }
@@ -451,7 +469,7 @@ a.group__name:hover { text-decoration: underline; }
   padding: var(--sp-4) var(--sp-12);
   border: var(--hairline) solid var(--hue);
   border-radius: var(--r-control);
-  background: var(--site-field);
+  background: none;
   color: var(--hue);
   font: inherit;
   cursor: pointer;
