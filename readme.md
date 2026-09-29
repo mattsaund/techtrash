@@ -42,7 +42,15 @@ public/index.html            The desktop: Welcome screen, icons, windows, start
 public/pages/<id>/           My pages, one folder each: blog, the website (see
                              "The website" and "The blog")
 public/pages/blog/site.css   The website's look
-public/pages/blog/blog.js    Its pages: the front page, a topic, a post
+public/pages/blog/blog.js    Its pages: the front page, a topic, a post, and
+                             the admin's editor page
+public/pages/blog/editor.js  The admin's post editor
+public/pages/blog/content.js What a post is made of: cleaning it, its players,
+                             Markdown
+public/pages/blog/comments.js  A post's comments and their threads
+public/pages/blog/forms.js   The admin's topic and flag forms
+public/pages/blog/util.js    Small things the rest share
+public/pages/blog/vendor/    marked and DOMPurify, copied unchanged
 public/pages/blog/space.js   Its sky: stars, and planets drawn with cosmos.js
 public/pages/blog/cosmos/    cosmos.js's planet renderer, copied unchanged
 public/programs/<id>/        Programs: files (the File Browser), notepad
@@ -80,7 +88,7 @@ public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 worker.js                    The server: which address goes where
 server/desktop.js            The shared desktop (see "The shared desktop")
 server/admin.js              The admin account (see "The admin")
-server/blog.js               The blog's topics, posts and pictures
+server/blog.js               The blog: flags, topics, posts, comments, pictures
 server/http.js               Small helpers the rest share
 wrangler.jsonc               The Worker's Cloudflare settings
 tools/check_style.py         Enforces the rules. Run it before you push.
@@ -216,9 +224,10 @@ npx wrangler secret put ADMIN_PASSWORD
 - **Log Off or Switch User** as the admin ends the session.
 - **Guessing:** 5 tries a minute per person (`LOGON_LIMITER`), and the
   comparison takes the same time however close a guess is.
-- **Every post and delete** is checked on the server, whatever the page shows.
-  The blog's forms only appear for the admin as a convenience. And anything
-  that changes something has to come from the site's own pages.
+- **Every post, change and delete** is checked on the server, whatever the
+  page shows. The blog's forms and editor only appear for the admin as a
+  convenience. And anything that changes something has to come from the site's
+  own pages.
 
 ## The website
 
@@ -248,38 +257,84 @@ where msaunders.dev is all blue.
   `.planet--N` rule in `site.css`, as a share of the page. They turn slowly,
   and stand still for anyone who's asked their computer for less motion.
 - **The rules** are the same as everywhere: every value is a token, in their
-  own section of `tokens.css` ("THE WEBSITE"). Four sizes (body 14/23, label
-  16/23, head 28/36, title 50/60, 40/48 on a phone), two weights (400 and
-  500), the spacing scale, and the six hues. Only motion is different: the
+  own section of `tokens.css` ("THE WEBSITE"). Five sizes (body 14/23, label
+  16/23, sub 20/28, head 28/36, title 50/60, 40/48 on a phone), two weights
+  (400 and 500, and 700 for bold words in a post), the spacing scale, and the
+  six hues. Only motion is different: the
   caret blinks and the planets turn, where XP holds still.
 
 ## The blog
 
-Topics, and posts under a topic. A topic has a title, a description and a
-picture if it wants one. Anyone reads; the admin also gets a **New topic**
-form on the front page, a **New post** form inside a topic, and delete
-buttons that take two clicks (deleting a topic deletes its posts and picture).
+**Flags**, **topics**, **posts** and **comments**, all made, changed and
+deleted on the site itself, logged on as admin. (Anyone can read, and
+comment.)
 
-- **The pages** are the front page (the headline, then every topic, the one
-  with the newest post first), `?topic=<id>`, and `?post=<id>`, so the address
-  bar follows along (`techtrash.org/#blog/?post=3`). A post is shown exactly
-  as typed, with web links made clickable.
+- **A topic** has a title, a description if it wants one, a picture if it
+  wants one, and flags. On the front page it's a card; click it for its posts.
+- **A flag** is a label for topics: Music, Space, Trips. A topic can wear any
+  number. The front page has a button for each flag that's worn; press one
+  and only its topics show (`?flag=<id>`). The admin makes flags right in a
+  topic's form, and renames or deletes them with **Edit flags** on the front
+  page (deleting one takes it off its topics, nothing else).
+- **A post** lives in a topic, and is written in the editor (`editor.js`):
+  what you see is what the post looks like. Bold, italic, underline,
+  strikethrough, code, headings, quotes, code blocks, lists, alignment, the
+  six hues, links and dividers, with undo. **Pictures** go anywhere, from the
+  picture button, a paste or a drop, and are uploaded as they go in; click one
+  to describe it or sit it small on the left, middle or right with the words
+  around it. **A video's or a song's link** on its own line becomes its
+  player: YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok,
+  Spotify, SoundCloud, Apple Music, or a link to a video or sound file.
+  **A Markdown file** comes in from the `.md` button or dropped on the box,
+  and its `# Title` becomes the post's title. Anything pasted from another page
+  keeps its formatting but not its looks. A post being written is kept in the
+  browser as it's typed until it's posted, so closing the window loses
+  nothing. Ctrl+S posts, Ctrl+K makes a link.
+- **Changing** anything is the same form or editor again, with everything in
+  it: a topic's title, description, picture and flags; a post's title, words,
+  topic and comments setting.
+- **Comments** are anyone's, with a name, on a post or in reply to another
+  comment, so each one can start a thread (replies step in 4 deep, then line
+  up). The admin's own are marked `[author]`. **Turn comments off** on a post
+  and what's there stays; nobody can add more until they're back on. The
+  admin can delete any comment: its words go, and replies under it stay. 5
+  comments a minute per person (`COMMENT_LIMITER`), and a field only bots fill
+  in turns them away.
+- **Safety.** A post's body is HTML, and it's cleaned by DOMPurify (to the
+  short list of tags and classes in `content.js`) before it's saved and again
+  every time it's shown, so nothing in it can run, whatever is in the
+  database. Players are drawn from the link as the post is shown; the post
+  only ever stores the link. Comments are plain text, shown as text.
+- **The pages** are the front page, `?flag=<id>`, `?topic=<id>`, `?post=<id>`,
+  and the admin's `?topic=<id>&write` and `?post=<id>&edit`, so the address bar
+  follows along (`techtrash.org/#blog/?post=3`).
 - **The server** is `server/blog.js`, the same way tcc.place's blog works:
-  topics and posts in the D1 database `DB` (the tables are made the first time
-  they're needed), and a topic's picture in the KV store `PICTURES`, served at
+  everything in the D1 database `DB` (the tables are made the first time
+  they're needed), and pictures in the KV store `PICTURES`, served at
   `/blog/img/<name>`. A picture is shrunk in the browser before it's sent (at
   most 1920px, which also strips phone metadata like GPS), and the server
   checks it really is a picture from its first bytes.
+- **Borrowed:** `vendor/marked.js` (Markdown, MIT) and `vendor/purify.js`
+  (DOMPurify, Apache 2.0 or MPL 2.0), copied unchanged, licenses beside them.
 
 | | | |
 |---|---|---|
-| `GET /api/blog/topics` | anyone | every topic, the one with the newest post first |
-| `GET /api/blog/topic?id=` | anyone | a topic and its posts |
-| `GET /api/blog/post?id=` | anyone | a post |
-| `POST /api/blog/topics` | admin | a new topic: a form with `title`, `description`, `picture` |
-| `POST /api/blog/posts` | admin | a new post: `{ topic, title, body }` |
-| `DELETE /api/blog/topic?id=` | admin | a topic, its posts and its picture |
-| `DELETE /api/blog/post?id=` | admin | a post |
+| `GET /api/blog/flags` | anyone | every flag, and how many topics wear it |
+| `POST /api/blog/flags` | admin | a new flag: `{ name }` |
+| `PUT /api/blog/flag?id=` | admin | a new name: `{ name }` |
+| `DELETE /api/blog/flag?id=` | admin | a flag (it comes off every topic) |
+| `GET /api/blog/topics[?flag=]` | anyone | topics (wearing a flag), the one with the newest post first |
+| `GET /api/blog/topic?id=` | anyone | a topic, its flags and its posts |
+| `POST /api/blog/topics` | admin | a new topic: a form with `title`, `description`, `flags` (ids, `3,7`), `picture` |
+| `PUT /api/blog/topic?id=` | admin | the same form, plus `removePicture=1` |
+| `DELETE /api/blog/topic?id=` | admin | a topic, its posts, their comments, its picture |
+| `GET /api/blog/post?id=` | anyone | a post, its topic and its comments |
+| `POST /api/blog/posts` | admin | a new post: `{ topic, title, body, comments }` |
+| `PUT /api/blog/post?id=` | admin | any of `{ topic, title, body, comments }` |
+| `DELETE /api/blog/post?id=` | admin | a post and its comments |
+| `POST /api/blog/pictures` | admin | a picture for a post: a form with `picture`; says its address |
+| `POST /api/blog/comments` | anyone | `{ post, parent, name, body }`, while the post's comments are on |
+| `DELETE /api/blog/comment?id=` | admin | a comment's words (its replies stay) |
 
 ## Windows
 

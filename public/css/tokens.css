@@ -382,13 +382,16 @@
                "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   /* --- type -------------------------------------------------
-     Four sizes, each with its one line height, and two weights:
-     400 and 500, msaunders.dev's.
+     Five sizes, each with its one line height, and two weights:
+     400 and 500, msaunders.dev's. Bold words in a post are 700, so
+     they read as bold (and so the editor's B button knows them).
 
      body   14/23  everything it says: copy, lists, buttons, dates,
-                   the footer
+                   the footer, comments
      label  16/23  anything that names something: the top bar,
-                   section labels, topic and post titles in a list
+                   section labels, topic and post titles in a list,
+                   a small heading in a post
+     sub    20/28  a heading in a post
      head   28/36  a topic's or a post's title, on its own page
      title  50/60  "Techtrash", once. 40/48 on a phone.
 
@@ -396,6 +399,7 @@
                    of a picture, not text */
   --fs-site-body:    14px;  --lh-site-body:    23px;
   --fs-site-label:   16px;  --lh-site-label:   23px;
+  --fs-site-sub:     20px;  --lh-site-sub:     28px;
   --fs-site-head:    28px;  --lh-site-head:    36px;
   --fs-site-title:   50px;  --lh-site-title:   60px;
   --fs-site-title-s: 40px;  --lh-site-title-s: 48px;
@@ -406,11 +410,26 @@
   --site-measure:  640px;   /* the longest line of a post, about 75 characters */
   --site-card-min: 272px;   /* a topic's card, at its narrowest */
   --site-cover:    16 / 9;  /* a topic's picture, on its card */
+  --site-thumb:    144px;   /* a topic's picture, in the form that changes it */
+  --site-float:    50%;     /* a picture in a post with the words around it, at most */
+  --site-editor:   360px;   /* the editor's box, at its shortest */
+  --site-bar-h:    50px;    /* the top bar's height, which the editor's buttons
+                               sit under. The editor measures the real one. */
+
+  /* A player in a post: a video's shape, a phone video's (and how
+     wide it gets), and how tall a song's and an album's are. */
+  --site-video:        16 / 9;
+  --site-video-tall:   9 / 16;
+  --site-video-tall-w: 340px;
+  --site-song:         166px;
+  --site-album:        380px;
 
   /* --- layers, inside the page -------------------------------- */
   --z-site-sky:  0;   /* the planets and stars, behind everything */
   --z-site-page: 1;   /* the panels */
   --z-site-bar:  2;   /* the top bar, over what scrolls under it */
+  --z-site-tools: 1;  /* the editor's buttons, over the post scrolling under
+                         them (inside the page, under the top bar) */
 
   /* --- color ------------------------------------------------ */
   --site-bg:     #000000;

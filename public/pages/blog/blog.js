@@ -1,62 +1,34 @@
 // techtrash.org : the website's pages.
 //
-// Three views, picked by the address:
-//   (nothing)    the front page: the headline, and every topic, the one with
-//                the newest post first
-//   ?topic=<id>  one topic, and its posts
-//   ?post=<id>   one post
+// Picked by the address:
+//   (nothing)            the front page: the headline, the flags, and every
+//                        topic, the one with the newest post first
+//   ?flag=<id>           the same, with only the topics that wear that flag
+//   ?topic=<id>          one topic, and its posts
+//   ?post=<id>           one post, and its comments
+//   ?topic=<id>&write    the admin: a new post in a topic
+//   ?post=<id>&edit      the admin: changing a post
 //
-// Each topic has one of the six hues (from its number), and keeps it: its
-// card, its page and its posts all wear it.
+// Each topic has one of the six hues (from its number) and keeps it: its
+// card, its page and its posts all wear it. So does each flag.
 //
-// Anyone can read. The admin (server/admin.js) also gets a form for a new
-// topic, one for a new post in a topic, and buttons to delete them. The server
-// checks it's the admin again for every one of those: the forms are only a
-// convenience, not the lock.
+// Anyone can read and comment. The admin (server/admin.js) also gets the
+// buttons and forms to make, change and delete everything. The server checks
+// it's the admin again for every one of those: they're a convenience, not
+// the lock.
 
-import { MAX_UPLOAD_BYTES, shrinkImage } from "/js/shrink-image.js";
+import { commentsPanel } from "./comments.js";
+import { renderBody } from "./content.js";
+import { flagManager, topicForm } from "./forms.js";
+import { api, crumb, date, el, hueOf, label, pictureUrl, plural, remembered, status, twoClick } from "./util.js";
 
 const page = document.getElementById("page");
 const params = new URLSearchParams(location.search);
-const dateFormat = new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric" });
-const date = (ms) => dateFormat.format(ms);
-const pictureUrl = (name) => `/blog/img/${encodeURIComponent(name)}`;
-const postCount = (n) => (n === 1 ? "1 post" : `${n} posts`);
-const hueOf = (topicId) => `hue-${((Number(topicId) - 1) % 6 + 6) % 6 + 1}`;
 
 // XP's Internet Explorer named its window after the page.
 const titled = (name) => { document.title = `${name} - Microsoft Internet Explorer`; };
 
-const admin = await fetch("/api/me")
-  .then((response) => (response.ok ? response.json() : {}))
-  .then((me) => me.admin === true)
-  .catch(() => false);
-
-function el(tag, props = {}, ...children) {
-  const element = Object.assign(document.createElement(tag), props);
-  element.append(...children.filter((child) => child != null));
-  return element;
-}
-
-// Plain text, exactly as typed; web links become clickable. (As on tcc.place.)
-function textWithLinks(text) {
-  const out = document.createDocumentFragment();
-  text.split(/(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]'])/).forEach((part, i) => {
-    if (i % 2 === 0) out.append(part);
-    else out.append(el("a", { href: part, textContent: part, rel: "noopener nofollow" }));
-  });
-  return out;
-}
-
-async function getJson(url) {
-  const response = await fetch(url);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error ?? "Something went wrong. Try again.");
-  return body;
-}
-
-const label = (path, name) => el("h2", { className: "label" }, el("span", { className: "label__path", textContent: path }), name);
-const crumb = (...parts) => el("p", { className: "crumb" }, el("a", { href: "./", textContent: "~/topics" }), ...parts.flatMap((part) => [" / ", part]));
+const admin = await api("/api/me").then((me) => me.admin === true, () => false);
 
 // The top bar's button for the page you're on is filled in.
 function markNav(which) {
@@ -66,163 +38,285 @@ function markNav(which) {
   }
 }
 
-// --- views ---------------------------------------------------------------------
+const flagLink = (flag, current) => el("a", {
+  class: `button flag ${hueOf(flag.id)}`,
+  href: `?flag=${flag.id}#topics`,
+  textContent: flag.name,
+  "aria-current": current ? "page" : null,
+});
+
+// Shows one of two things in a spot: the admin's form, or what was there.
+function swap(spot, form) {
+  const was = [...spot.childNodes];
+  spot.replaceChildren(form);
+  return () => spot.replaceChildren(...was);
+}
+
+// --- the front page --------------------------------------------------------------
 
 async function showFront() {
-  titled("Techtrash");
+  const flagId = Number(params.get("flag")) || null;
+  const [{ topics }, { flags }] = await Promise.all([
+    api(`/api/blog/topics${flagId ? `?flag=${flagId}` : ""}`),
+    api("/api/blog/flags"),
+  ]);
+  const flag = flags.find((f) => f.id === flagId);
+  titled(flag ? `${flag.name} - Techtrash` : "Techtrash");
   markNav("home");
-  const { topics } = await getJson("/api/blog/topics");
-  const section = el("section", { className: "panel hue-4", id: "topics" }, label("~/", "topics"));
-  if (admin) section.append(newTopicForm());
-  if (topics.length === 0) section.append(el("p", { className: "meta", textContent: "No topics yet." }));
-  else {
-    section.append(el("div", { className: "topics" }, ...topics.map((topic) => el("a", { className: `card ${hueOf(topic.id)}`, href: `?topic=${topic.id}` },
-      topic.picture ? el("img", { className: "card__cover", src: pictureUrl(topic.picture), alt: "" }) : null,
-      el("span", { className: "card__body" },
-        el("span", { className: "named", textContent: topic.title }),
-        topic.description ? el("span", { className: "card__text", textContent: topic.description }) : null,
+
+  const section = el("section", { class: "panel hue-4", id: "topics" }, label("~/", flag ? `topics/${flag.name}` : "topics"));
+
+  // A button for each flag with something in it; pressing one shows only its topics.
+  const worn = flags.filter((f) => f.topic_count > 0 || f.id === flagId);
+  if (worn.length) {
+    section.append(el("nav", { class: "button-row", "aria-label": "Flags" },
+      el("a", { class: "button hue-5", href: "./#topics", textContent: "All", "aria-current": flag ? null : "page" }),
+      worn.map((f) => flagLink(f, f.id === flagId))));
+  }
+
+  if (admin) {
+    const spot = el("div");
+    const newTopic = el("button", { class: "button hue-4", type: "button", textContent: "New topic" });
+    const editFlags = el("button", { class: "button hue-6", type: "button", textContent: "Edit flags" });
+    newTopic.addEventListener("click", () => {
+      const back = swap(spot, topicForm({ flags, done: (topic) => location.assign(`?topic=${topic.id}`), cancel: () => back() }));
+      spot.querySelector("input").focus();
+    });
+    editFlags.addEventListener("click", () => swap(spot, flagManager(flags, showFront)));
+    spot.append(el("div", { class: "button-row" }, newTopic, editFlags));
+    section.append(spot);
+  }
+
+  if (topics.length === 0) {
+    section.append(el("p", { class: "meta", textContent: flag ? `No topics wear ${flag.name} yet.` : "No topics yet." }));
+  } else {
+    section.append(el("div", { class: "topics" }, topics.map((topic) => el("a", { class: `card ${hueOf(topic.id)}`, href: `?topic=${topic.id}` },
+      topic.picture ? el("img", { class: "card__cover", src: pictureUrl(topic.picture), alt: "" }) : null,
+      el("span", { class: "card__body" },
+        el("span", { class: "named", textContent: topic.title }),
+        topic.description ? el("span", { class: "card__text", textContent: topic.description }) : null,
         el("span", {
-          className: "meta",
-          textContent: postCount(topic.post_count) + (topic.last_post ? `, the newest ${date(topic.last_post)}` : ""),
-        })),
+          class: "meta",
+          textContent: plural(topic.post_count, "post") + (topic.last_post ? `, the newest ${date(topic.last_post)}` : ""),
+        }),
+        topic.flags.length ? el("span", { class: "tags" }, topic.flags.map((f) => el("span", { class: `tag ${hueOf(f.id)}`, textContent: f.name }))) : null),
     ))));
   }
+
   page.replaceChildren(document.getElementById("hero").content.cloneNode(true), section);
   if (location.hash === "#topics") section.scrollIntoView();
 }
 
+// --- a topic ---------------------------------------------------------------------
+
 async function showTopic(id) {
-  const topic = await getJson(`/api/blog/topic?id=${id}`);
+  const topic = await api(`/api/blog/topic?id=${id}`);
   titled(`${topic.title} - Techtrash`);
   markNav("topics");
   const hue = hueOf(topic.id);
-  const head = el("section", { className: `panel ${hue}` },
+
+  const head = el("section", { class: `panel ${hue}` },
     crumb(el("span", { textContent: topic.title })),
-    topic.picture ? el("img", { className: "topic-cover", src: pictureUrl(topic.picture), alt: "" }) : null,
-    el("h1", { className: "head", textContent: topic.title }),
-    topic.description ? el("p", { className: "lede", textContent: topic.description }) : null,
-  );
-  const posts = el("section", { className: `panel ${hue}` }, label("~/", "posts"));
-  if (admin) posts.append(newPostForm(topic.id));
-  if (topic.posts.length === 0) posts.append(el("p", { className: "meta", textContent: "No posts yet." }));
+    topic.picture ? el("img", { class: "topic-cover", src: pictureUrl(topic.picture), alt: "" }) : null,
+    el("h1", { class: "head", textContent: topic.title }),
+    topic.description ? el("p", { class: "lede", textContent: topic.description }) : null,
+    topic.flags.length ? el("nav", { class: "button-row", "aria-label": "Flags" }, topic.flags.map((f) => flagLink(f))) : null);
+
+  if (admin) {
+    const edit = el("button", { class: "button hue-5", type: "button", textContent: "Edit topic" });
+    edit.addEventListener("click", async () => {
+      const { flags } = await api("/api/blog/flags");
+      const back = swap(head, topicForm({ topic, flags, done: () => showTopic(topic.id), cancel: () => back() }));
+    });
+    head.append(el("div", { class: "button-row" },
+      el("a", { class: "button hue-4", href: `?topic=${topic.id}&write`, textContent: "Write a post" }),
+      edit,
+      twoClick("Delete topic", `Click again: ${plural(topic.posts.length, "post")} go${topic.posts.length === 1 ? "es" : ""} with it`, async () => {
+        await api(`/api/blog/topic?id=${topic.id}`, { method: "DELETE" });
+        location.assign("./#topics");
+      })));
+  }
+
+  const posts = el("section", { class: `panel ${hue}` }, label("~/", "posts"));
+  if (topic.posts.length === 0) posts.append(el("p", { class: "meta", textContent: "No posts yet." }));
   else {
-    posts.append(el("ul", { className: "entries" }, ...topic.posts.map((post) => el("li", { className: "entry" },
-      el("span", { className: "named" }, el("a", { href: `?post=${post.id}`, textContent: post.title })),
-      el("span", { className: "meta", textContent: date(post.created) }),
+    posts.append(el("ul", { class: "entries" }, topic.posts.map((post) => el("li", { class: "entry" },
+      el("span", { class: "named" }, el("a", { href: `?post=${post.id}`, textContent: post.title })),
+      el("span", { class: "meta", textContent: `${date(post.created)}, ${plural(post.comment_count, "comment")}` }),
     ))));
   }
-  if (admin) posts.append(deleteButton("Delete this topic and its posts", `/api/blog/topic?id=${topic.id}`, "./"));
   page.replaceChildren(head, posts);
 }
 
+// --- a post ----------------------------------------------------------------------
+
 async function showPost(id) {
-  const post = await getJson(`/api/blog/post?id=${id}`);
+  const post = await api(`/api/blog/post?id=${id}`);
   titled(`${post.title} - Techtrash`);
   markNav("topics");
-  const article = el("article", { className: `panel ${hueOf(post.topic_id)}` },
+  const hue = hueOf(post.topic_id);
+
+  const article = el("article", { class: `panel ${hue}` },
     crumb(el("a", { href: `?topic=${post.topic_id}`, textContent: post.topic_title })),
-    el("h1", { className: "head", textContent: post.title }),
-    el("p", { className: "meta", textContent: date(post.created) }),
-    el("div", { className: "post-body" }, textWithLinks(post.body)),
-  );
-  if (admin) article.append(deleteButton("Delete this post", `/api/blog/post?id=${post.id}`, `?topic=${post.topic_id}`));
-  page.replaceChildren(article);
-}
+    el("h1", { class: "head", textContent: post.title }),
+    el("p", { class: "meta", textContent: date(post.created) + (post.updated ? `, changed ${date(post.updated)}` : "") }));
+  const comments = commentsPanel(post, { admin, hue });
 
-// --- the admin's forms ------------------------------------------------------------
-
-function fromTemplate(id) {
-  return document.getElementById(id).content.firstElementChild.cloneNode(true);
-}
-
-// Sends a form's request, saying what's going on, and hands what comes back to
-// done. The button stays off while it's sending.
-async function send(form, url, options, done) {
-  const button = form.querySelector(".button");
-  const message = form.querySelector(".form__message");
-  button.disabled = true;
-  message.textContent = "Posting...";
-  try {
-    const response = await fetch(url, options);
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error ?? "That didn't work. Try again.");
-    done(body);
-  } catch (error) {
-    message.textContent = error.message === "Failed to fetch" ? "Can't reach techtrash.org right now." : error.message;
-    button.disabled = false;
-  }
-}
-
-function newTopicForm() {
-  const form = fromTemplate("new-topic");
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const message = form.querySelector(".form__message");
-    const data = new FormData();
-    data.append("title", form.elements.title.value);
-    data.append("description", form.elements.description.value);
-    const file = form.elements.picture.files[0];
-    if (file) {
-      message.textContent = "Getting the picture ready...";
-      let picture;
+  if (admin) {
+    const toggle = el("button", { class: "button hue-3", type: "button" });
+    const say = () => { toggle.textContent = post.comments_open ? "Turn comments off" : "Turn comments on"; };
+    say();
+    toggle.addEventListener("click", async () => {
+      toggle.disabled = true;
       try {
-        picture = await shrinkImage(file);
-      } catch {
-        message.textContent = "That picture couldn't be read.";
-        return;
+        await api(`/api/blog/post?id=${post.id}`, { method: "PUT", json: { comments: !post.comments_open } });
+        post.comments_open = post.comments_open ? 0 : 1;
+        say();
+        const next = commentsPanel(await api(`/api/blog/post?id=${post.id}`), { admin, hue });
+        document.getElementById("comments").replaceWith(next);
+      } catch (error) {
+        toggle.textContent = error.message;
       }
-      if (picture.size > MAX_UPLOAD_BYTES) {
-        message.textContent = "That picture is too big (10 MB at most).";
-        return;
-      }
-      data.append("picture", picture, file.name);
+      toggle.disabled = false;
+    });
+    article.append(el("div", { class: "button-row" },
+      el("a", { class: "button hue-4", href: `?post=${post.id}&edit`, textContent: "Edit post" }),
+      toggle,
+      twoClick("Delete post", "Click again to delete it", async () => {
+        await api(`/api/blog/post?id=${post.id}`, { method: "DELETE" });
+        location.assign(`?topic=${post.topic_id}`);
+      })));
+  }
+
+  article.append(el("div", { class: "prose" }, renderBody(post.body)));
+  page.replaceChildren(article, comments);
+  if (location.hash.startsWith("#comment")) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
+}
+
+// --- the admin's editor ------------------------------------------------------------
+
+// A post being written is kept in this browser as it's typed, until it's
+// posted or thrown away: closing the window loses nothing.
+async function showEditor({ postId, topicId }) {
+  const { createEditor } = await import("./editor.js");
+  const [{ topics }, post] = await Promise.all([
+    api("/api/blog/topics"),
+    postId ? api(`/api/blog/post?id=${postId}`) : null,
+  ]);
+  const topic = topics.find((t) => t.id === Number(post?.topic_id ?? topicId));
+  if (!topic) throw new Error("That topic isn't here anymore.");
+  const key = `techtrash:draft:${post ? `post-${post.id}` : `topic-${topic.id}`}`;
+  const draft = remembered.get(key);
+  const back = post ? `?post=${post.id}` : `?topic=${topic.id}`;
+  titled(post ? `Editing ${post.title} - Techtrash` : "New post - Techtrash");
+  markNav("topics");
+
+  let leaving = false;
+  let keeping;
+  const keep = () => {
+    clearTimeout(keeping);
+    keeping = setTimeout(() => {
+      if (leaving) return;
+      remembered.set(key, { title: title.value, body: editor.html(), topic: where.value, comments: comments.checked, saved: Date.now() });
+    }, 500);
+  };
+
+  const title = el("input", { class: "editor__title", maxlength: "120", placeholder: "Title", "aria-label": "Title", value: draft?.title ?? post?.title ?? "" });
+  title.addEventListener("input", keep);
+  const editor = createEditor(draft?.body ?? post?.body ?? "", {
+    onChange: keep,
+    onTitle: (name) => {
+      if (title.value.trim()) return;
+      title.value = name;
+      keep();
+    },
+  });
+  const where = el("select", { "aria-label": "Topic" }, topics.map((t) => el("option", { value: t.id, textContent: t.title })));
+  where.value = draft?.topic ?? topic.id;
+  where.addEventListener("change", keep);
+  const comments = el("input", { type: "checkbox", checked: draft ? draft.comments : post ? Boolean(post.comments_open) : true });
+  comments.addEventListener("change", keep);
+
+  const message = status();
+  const save = el("button", { class: "button hue-4", type: "button", textContent: post ? "Save changes" : "Post it" });
+  const publish = async () => {
+    if (!title.value.trim()) {
+      message.textContent = "It needs a title.";
+      return title.focus();
     }
-    send(form, "/api/blog/topics", { method: "POST", body: data }, (topic) => location.assign(`?topic=${topic.id}`));
+    if (editor.empty()) {
+      message.textContent = "Write something first.";
+      return editor.focus();
+    }
+    save.disabled = true;
+    message.textContent = post ? "Saving..." : "Posting...";
+    const data = { topic: Number(where.value), title: title.value, body: editor.html(), comments: comments.checked };
+    try {
+      const saved = post
+        ? await api(`/api/blog/post?id=${post.id}`, { method: "PUT", json: data })
+        : await api("/api/blog/posts", { method: "POST", json: data });
+      leaving = true;
+      remembered.forget(key);
+      location.assign(`?post=${saved.id}`);
+    } catch (error) {
+      message.textContent = error.message;
+      save.disabled = false;
+    }
+  };
+  save.addEventListener("click", publish);
+  addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      if (!save.disabled) publish();
+    }
   });
-  return form;
-}
 
-function newPostForm(topicId) {
-  const form = fromTemplate("new-post");
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    send(form, "/api/blog/posts", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topic: topicId, title: form.elements.title.value, body: form.elements.body.value }),
-    }, (post) => location.assign(`?post=${post.id}`));
-  });
-  return form;
-}
-
-// Deleting takes two clicks: the first one asks, the second one does it.
-function deleteButton(text, url, after) {
-  const button = el("button", { className: "button hue-1", type: "button", textContent: text });
-  let armed = false;
-  button.addEventListener("click", async () => {
-    if (!armed) {
-      armed = true;
-      button.textContent = "Click again to delete";
+  // Cancel throws the changes away: a second click, if there are any.
+  const cancel = el("button", { class: "button hue-1", type: "button", textContent: "Cancel" });
+  let sure = false;
+  cancel.addEventListener("click", () => {
+    if (remembered.get(key) && !sure) {
+      sure = true;
+      cancel.textContent = "Click again to throw the changes away";
       return;
     }
-    button.disabled = true;
-    const response = await fetch(url, { method: "DELETE" }).catch(() => null);
-    if (response?.ok) location.assign(after);
-    else {
-      button.textContent = "That didn't work. Try again.";
-      button.disabled = false;
-      armed = false;
-    }
+    leaving = true;
+    remembered.forget(key);
+    location.assign(back);
   });
-  return el("div", { className: "button-row" }, button);
+
+  let kept = null;
+  if (draft) {
+    const throwAway = el("button", { class: "link-button", type: "button", textContent: "Throw them away" });
+    throwAway.addEventListener("click", () => {
+      leaving = true;
+      remembered.forget(key);
+      location.reload();
+    });
+    kept = el("p", { class: "meta" }, `Picked up where you left off: changes from ${new Date(draft.saved).toLocaleString()} that weren't ${post ? "saved" : "posted"}. `, throwAway);
+  }
+
+  page.replaceChildren(el("section", { class: `panel ${hueOf(topic.id)}` },
+    crumb(el("a", { href: `?topic=${topic.id}`, textContent: topic.title }), post ? el("a", { href: back, textContent: post.title }) : null, el("span", { textContent: post ? "edit" : "new post" })),
+    kept,
+    title,
+    editor.element,
+    el("div", { class: "form settings" },
+      el("label", {}, "Topic", where),
+      el("label", { class: "check" }, comments, "Comments on")),
+    el("div", { class: "button-row" }, save, cancel),
+    message));
+  if (!post && !draft) title.focus();
 }
 
 // --- start ---------------------------------------------------------------------
 
 try {
-  if (params.has("post")) await showPost(params.get("post"));
+  if (admin && params.has("post") && params.has("edit")) await showEditor({ postId: params.get("post") });
+  else if (params.has("post")) await showPost(params.get("post"));
+  else if (admin && params.has("topic") && params.has("write")) await showEditor({ topicId: params.get("topic") });
   else if (params.has("topic")) await showTopic(params.get("topic"));
   else await showFront();
 } catch (error) {
-  page.replaceChildren(el("section", { className: "panel hue-1" }, crumb(), el("p", { textContent: error.message })));
+  page.replaceChildren(el("section", { class: "panel hue-1" }, crumb(), el("p", { textContent: error.message })));
 }

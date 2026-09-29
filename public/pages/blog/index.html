@@ -28,7 +28,7 @@
     </div>
   </header>
 
-  <!-- Drawn by blog.js: the front page, a topic, or a post. -->
+  <!-- Drawn by blog.js: the front page, a topic, a post, or the admin's editor. -->
   <main class="page wrap" id="page">
     <p class="meta">Loading...</p>
   </main>
@@ -48,32 +48,6 @@
         <a class="button hue-3" href="https://msaunders.dev">Who's writing</a>
       </div>
     </section>
-  </template>
-
-  <!-- The admin's forms. Only drawn for the admin, and the server checks again. -->
-  <template id="new-topic">
-    <form class="form">
-      <fieldset>
-        <legend>New topic</legend>
-        <label>Title<input name="title" maxlength="100" required></label>
-        <label>Description<textarea name="description" rows="3" maxlength="1000"></textarea></label>
-        <label>Picture<input type="file" name="picture" accept="image/*"></label>
-        <div class="button-row"><button class="button">Post topic</button></div>
-        <p class="form__message meta" role="status"></p>
-      </fieldset>
-    </form>
-  </template>
-
-  <template id="new-post">
-    <form class="form">
-      <fieldset>
-        <legend>New post</legend>
-        <label>Title<input name="title" maxlength="100" required></label>
-        <label>Text<textarea name="body" rows="10" maxlength="50000" required></textarea></label>
-        <div class="button-row"><button class="button">Post</button></div>
-        <p class="form__message meta" role="status"></p>
-      </fieldset>
-    </form>
   </template>
 </body>
 </html>

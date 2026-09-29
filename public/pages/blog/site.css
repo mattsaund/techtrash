@@ -202,12 +202,219 @@ a:hover { color: var(--site-fg); }
 
 .topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
 
-/* --- a post ------------------------------------------------ */
-.post-body {
+/* --- flags ------------------------------------------------ *
+   A button each, "#Music", in the flag's hue. On a topic's card
+   they're just words. */
+.flag::before, .tag::before { content: "#"; }
+.tags { display: flex; flex-wrap: wrap; gap: 0 var(--sp-12); color: var(--site-fg-3); }
+.tag::before { color: var(--hue); }
+
+/* --- a post ------------------------------------------------ *
+   What the editor makes, the same in the editor as on the page.
+   Headings are marked the Markdown way, in the hue. */
+.prose {
+  display: flow-root;   /* holds a picture the words go around */
   max-width: var(--site-measure);
-  white-space: pre-wrap;
+  color: var(--site-fg-2);
   overflow-wrap: anywhere;
 }
+.prose > * + * { margin-top: var(--sp-16); }
+.prose h2, .prose h3, .prose h4, .prose strong, .prose b { color: var(--site-fg); }
+.prose h2 { margin-top: var(--sp-32); font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
+.prose h3 { margin-top: var(--sp-24); font: 500 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
+.prose h4 { font: 500 var(--fs-site-body)/var(--lh-site-body) var(--font-site); }
+.prose h2::before { content: "# "; color: var(--hue); }
+.prose h3::before { content: "## "; color: var(--hue); }
+.prose h4::before { content: "### "; color: var(--hue); }
+.prose > :first-child { margin-top: 0; }
+.prose strong, .prose b { font-weight: 700; }
+.prose ul, .prose ol { padding-left: var(--sp-24); }
+.prose li + li, .prose li > ul, .prose li > ol { margin-top: var(--sp-4); }
+.prose li::marker { color: var(--hue); }
+.prose blockquote {
+  margin: 0;
+  padding-left: var(--sp-16);
+  border-left: var(--hairline) solid var(--hue);
+  font-style: italic;
+}
+.prose code {
+  padding: 0 var(--sp-4);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg);
+}
+.prose pre {
+  padding: var(--sp-12) var(--sp-16);
+  overflow-x: auto;
+  border: var(--hairline) solid var(--site-line);
+  background: var(--site-field);
+  color: var(--site-fg);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.prose pre code { padding: 0; border: 0; background: none; }
+.prose hr { margin: var(--sp-24) 0; border: 0; border-top: var(--hairline) solid var(--site-line-2); }
+.prose img { border: var(--hairline) solid var(--site-line); }
+.prose .pic--left, .prose .pic--right, .prose .pic--center { max-width: var(--site-float); }
+.prose .pic--left { float: left; margin: 0 var(--sp-16) var(--sp-8) 0; }
+.prose .pic--right { float: right; margin: 0 0 var(--sp-8) var(--sp-16); }
+.prose .pic--center { margin-left: auto; margin-right: auto; }
+.prose span[class*="hue-"] { color: var(--hue); }
+.prose .align-center { text-align: center; }
+.prose .align-right { text-align: right; }
+.prose .table-scroll { overflow-x: auto; }
+.prose table { border-collapse: collapse; }
+.prose th, .prose td { padding: var(--sp-4) var(--sp-8); border: var(--hairline) solid var(--site-line-2); text-align: left; }
+.prose th { color: var(--site-fg); font-weight: 500; }
+
+/* A video's or a song's player: a paragraph that was only its link. */
+.embed { clear: both; margin-left: 0; margin-right: 0; border: var(--hairline) solid var(--site-line); background: var(--site-field); }
+.embed iframe, .embed video, .embed audio { display: block; width: 100%; border: 0; }
+.embed--video iframe, .embed--file video { aspect-ratio: var(--site-video); }
+.embed--tall { max-width: var(--site-video-tall-w); }
+.embed--tall iframe { aspect-ratio: var(--site-video-tall); }
+.embed--song iframe { height: var(--site-song); }
+.embed--list iframe { height: var(--site-album); }
+
+/* --- the admin's editor -------------------------------------- *
+   The buttons stay in reach under the top bar as a long post
+   scrolls; the box under them is drawn the way the post will be. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+}
+.editor:focus-within { border-color: var(--hue); }
+.editor__head {
+  position: sticky;
+  top: var(--site-bar-h);
+  z-index: var(--z-site-tools);
+  background: var(--site-bg);
+  border-bottom: var(--hairline) solid var(--site-line);
+}
+.editor__tools, .editor__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8) var(--sp-12);
+  padding: var(--sp-8);
+}
+.editor__row { border-top: var(--hairline) solid var(--site-line); }
+.tools__group { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.tool {
+  padding: 0 var(--sp-8);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg-2);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+  cursor: pointer;
+}
+.tool:hover { border-color: var(--hue); color: var(--site-fg); }
+.tool[aria-pressed="true"] { border-color: var(--hue); color: var(--hue); }
+.tool--bold { font-weight: 700; }
+.tool--italic { font-style: italic; }
+.tool--underline { text-decoration: underline; }
+.tool--strike { text-decoration: line-through; }
+/* a swatch of the hue it paints words with */
+.tool--hue::before {
+  content: "";
+  display: inline-block;
+  width: var(--sp-12);
+  height: var(--sp-12);
+  background: var(--hue);
+  vertical-align: middle;
+}
+.editor__label { color: var(--site-fg-3); }
+.editor__field {
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--sp-8);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+}
+.editor__field:focus-visible { outline: 0; border-color: var(--hue); }
+.editor__area {
+  position: relative;
+  min-height: var(--site-editor);
+  padding: var(--sp-16);
+  outline: 0;
+}
+.editor__area.is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--site-fg-3);
+  pointer-events: none;
+}
+.editor__area img { cursor: pointer; }
+.editor__area img.is-picked { outline: var(--sp-2) solid var(--hue); }
+.editor__area .embed { user-select: none; }
+.embed__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
+  color: var(--site-fg-3);
+}
+.embed__address { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  padding: var(--sp-4) var(--sp-8);
+  border-top: var(--hairline) solid var(--site-line);
+}
+.editor__title {
+  width: 100%;
+  padding: var(--sp-4) 0;
+  border: 0;
+  border-bottom: var(--hairline) solid var(--site-line-2);
+  background: none;
+  color: var(--site-fg);
+  font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site);
+}
+.editor__title:focus-visible { outline: 0; border-color: var(--hue); }
+.settings { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-16) var(--sp-24); }
+
+/* --- comments ------------------------------------------------ *
+   Threads: each reply a step in, on a line in the post's hue. */
+.thread { display: flex; flex-direction: column; gap: var(--sp-16); padding: 0; list-style: none; }
+.thread .thread {
+  margin-top: var(--sp-12);
+  padding-left: var(--sp-16);
+  border-left: var(--hairline) solid var(--site-line-2);
+}
+.comment { display: flex; flex-direction: column; gap: var(--sp-4); }
+.comment.is-new > .comment__head .comment__name { color: var(--hue); }
+.comment__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-12); }
+.comment__name { color: var(--site-fg); font-weight: 500; }
+.comment__badge { color: var(--hue); }
+.comment__badge::before { content: "["; }
+.comment__badge::after { content: "]"; }
+.comment__date { color: var(--site-fg-3); text-decoration: none; }
+.comment__date:hover { color: var(--hue); }
+.comment__body { max-width: var(--site-measure); color: var(--site-fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment__actions { display: flex; gap: var(--sp-16); }
+.comment .comment-form { margin-top: var(--sp-8); }
+
+/* A button that looks like a link: Reply, Delete. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hue);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: var(--sp-4);
+  cursor: pointer;
+}
+.link-button:hover { color: var(--site-fg); }
+.link-button:disabled { color: var(--site-fg-3); cursor: default; }
 
 /* --- the admin's forms -------------------------------------- */
 .form fieldset {
@@ -235,7 +442,41 @@ a:hover { color: var(--site-fg); }
 .form textarea:focus-visible { outline: 0; border-color: var(--hue); }
 .form textarea { resize: vertical; }
 .form input[type="file"] { color: var(--site-fg-2); font: inherit; }
+.form input[type="file"]::file-selector-button {
+  margin-right: var(--sp-8);
+  padding: var(--sp-4) var(--sp-12);
+  border: var(--hairline) solid var(--hue);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--hue);
+  font: inherit;
+  cursor: pointer;
+}
+.form select,
+.settings select {
+  padding: var(--sp-4) var(--sp-8);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+}
+.form input[type="checkbox"] { accent-color: var(--hue); }
+.form label.check { flex-direction: row; align-items: center; gap: var(--sp-8); }
 .form__message:empty { display: none; }
+.form__picture { max-width: var(--site-thumb); border: var(--hairline) solid var(--site-line); }
+
+/* A field and its button, side by side. */
+.inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+.form .inline input { flex: 1; width: auto; min-width: 0; }
+
+/* The flags a topic wears, to tick. */
+.form .picker { padding: var(--sp-12); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp-8) var(--sp-16); }
+.form label.chip { flex-direction: row; align-items: center; gap: var(--sp-4); color: var(--hue); }
+
+/* The field only a bot fills in: there, but out of sight. */
+.trap { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
 
 /* --- the foot ---------------------------------------------- */
 .foot { padding-top: var(--sp-32); padding-bottom: var(--sp-48); color: var(--site-fg-3); text-align: center; }
@@ -246,4 +487,7 @@ a:hover { color: var(--site-fg); }
   .panel { padding: var(--sp-16); }
   .title { font-size: var(--fs-site-title-s); line-height: var(--lh-site-title-s); }
   .planet--2, .planet--4 { display: none; }
+  /* no room for words beside a picture */
+  .prose .pic--left, .prose .pic--right { float: none; max-width: 100%; margin: 0; }
+  .thread .thread { padding-left: var(--sp-8); }
 }

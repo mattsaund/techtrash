@@ -11,7 +11,7 @@ attribute in public/, and lists everything that breaks a rule:
     and so are percentages and fr
   - a font-family, or a font shorthand, that isn't a --font-* token
   - a line-height that isn't a --lh-* token
-  - a font-weight other than 400 or 700
+  - a font-weight other than 400, 500 or 700
   - a z-index that isn't a --z-* token
   - a media query at any width but the breakpoint below
   - a var(--name) that nothing defines, which is almost always a typo
@@ -34,7 +34,8 @@ SKIP_DIRS = {"fonts"}
 # query can't read a custom property, so CSS writes the number out and this
 # makes sure it's that number.
 BREAKPOINTS = set(re.findall(r"--breakpoint:\s*([\d.]+px)", TOKENS.read_text()))
-# XP is 400 and 700 (Tahoma has nothing between); the website is 400 and 500.
+# XP is 400 and 700 (Tahoma has nothing between); the website is 400 and 500,
+# and 700 for bold words in a post.
 WEIGHTS = {"400", "500", "700", "inherit"}
 
 HEX = re.compile(r"#[0-9a-f]{3,8}\b", re.I)
@@ -103,7 +104,7 @@ def check_value(prop, value):
     if prop == "line-height" and not re.fullmatch(r"var\(--lh-[\w-]+\)|inherit", value.strip()):
         problems.append("line-height must be a --lh-* token")
     if prop == "font-weight" and value.strip().lower() not in WEIGHTS:
-        problems.append(f"font-weight '{value.strip()}': only 400, 500 (the website) and 700 (XP)")
+        problems.append(f"font-weight '{value.strip()}': only 400, 500 and 700")
     if prop == "z-index" and not re.fullmatch(r"var\(--z-[\w-]+\)|auto|inherit", value.strip()):
         problems.append("z-index must be a --z-* token")
     return problems

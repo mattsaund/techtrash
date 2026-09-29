@@ -10,11 +10,11 @@
     "binding": "ASSETS"
   },
   "d1_databases": [
-    // the blog's topics and posts; Cloudflare creates it on the first deploy
+    // the blog's flags, topics, posts and comments; Cloudflare creates it on the first deploy
     { "binding": "DB" }
   ],
   "kv_namespaces": [
-    // the blog's topic pictures; Cloudflare creates it on the first deploy
+    // the blog's pictures; Cloudflare creates it on the first deploy
     { "binding": "PICTURES" }
   ],
   "durable_objects": {
@@ -29,7 +29,9 @@
   ],
   "ratelimits": [
     // 5 admin log on tries a minute per person, so the password can't be guessed
-    { "name": "LOGON_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }
+    { "name": "LOGON_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
+    // 5 blog comments a minute per person
+    { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
   ]
   // The admin's user name and password are secrets, not settings: ADMIN_USERNAME
   // and ADMIN_PASSWORD. See "The admin" in readme.md.

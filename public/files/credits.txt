@@ -33,3 +33,16 @@ cosmos.js
   Matthew Saunders.
   MIT: /pages/blog/cosmos/LICENSE
   github.com/mattsaund/cosmos.js
+
+
+THE BLOG
+
+marked (reads Markdown files)
+  Christopher Jeffrey and the MarkedJS contributors.
+  MIT: /pages/blog/vendor/marked-LICENSE.md
+  github.com/markedjs/marked
+
+DOMPurify (cleans every post)
+  Cure53 and contributors.
+  Apache 2.0 or MPL 2.0: /pages/blog/vendor/dompurify-LICENSE.txt
+  github.com/cure53/DOMPurify
