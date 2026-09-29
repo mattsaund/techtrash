@@ -45,6 +45,8 @@ ICONS = {
     "folder.png": XPICONS + "FolderClosed.png",
     "my-pictures.png": XPICONS + "MyPictures.png",
     "my-music.png": XPICONS + "MyMusic.png",
+    "admin-key.png": XPICONS + "Key.png",                         # the admin's picture
+    "go.png": XPICONS + "Go.png",                                 # the log on arrow
 }
 AS_IS = {
     "user-chess.png": WINXP + "user.png",                         # the user picture

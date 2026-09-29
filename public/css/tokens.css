@@ -144,6 +144,8 @@
   --logoff-w:    312px;  /* the Log Off dialog, XP's width */
   --logon-band-h: 80px;  /* the dark bands across the top and bottom of the
                             Welcome screen */
+  --logon-field-w: 144px; /* the admin's user name and password boxes */
+  --thumb:       96px;   /* a topic's picture in the blog's list of topics */
   --drag:        4px;    /* how far a press moves before it's a drag and not
                             a click: XP's own 4 */
   --measure:     480px;  /* longest line of reading text, about 75 characters */

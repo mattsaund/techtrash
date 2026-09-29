@@ -1,9 +1,11 @@
 # techtrash.org
 
-A Windows XP desktop that everyone shares. Anyone who comes to the site logs on
-to the same desktop, and what they move, everyone sees move. Over time people
-will save things to it too, so it keeps changing: part art piece, part my blog
-and my own place on the internet.
+My blog, first. Every visit opens it in a window, maximized, and that's the
+site. Minimize or close it, though, and behind it is a Windows XP desktop that
+everyone shares: one giant easter egg. Anyone on the site is on the same
+desktop, and what they move, everyone sees move. Over time people will save
+things to it too, so it keeps changing: part art piece, part my own place on
+the internet.
 
 - **The desktop icons are my pages.** For now that's just the blog, which
   covers everything: posts, the journal, pictures, music, projects, tech,
@@ -24,7 +26,7 @@ Everything in `public/` is the site, and each file's address is its path inside
 ```
 public/index.html            The desktop: Welcome screen, icons, windows, start
                              menu, taskbar, Log Off
-public/pages/<id>/           My pages, one folder each: blog
+public/pages/<id>/           My pages, one folder each: blog (see "The blog")
 public/programs/<id>/        Programs: files (the File Browser), notepad
 public/files/                Text files Notepad opens: credits.txt
 
@@ -34,8 +36,9 @@ public/js/desktop.js         The window manager, the start menu, the taskbar
 public/js/icons.js           The desktop icons: selecting, dragging, snapping
 public/js/grid.js            The grid's rules, used by the page and the server
 public/js/shared.js          The line to the server that shares the desktop
-public/js/session.js         The Welcome screen, logging on and off
+public/js/session.js         The Welcome screen, logging on and off, who's on
 public/js/app.js             Loaded by every app page (see "Windows")
+public/js/shrink-image.js    Shrinks a picture before it's posted (from tcc.place)
 
 public/css/tokens.css        The rules: every color, font, size, space, radius,
                              layer and wait on the site. The only file with raw
@@ -51,7 +54,11 @@ public/fonts/                Tahoma and DejaVu Sans Mono, self-hosted, and their
 public/img/icons/xp/         Windows XP's own icons (see "Icons")
 public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 
-worker.js                    The server: the shared desktop (see below)
+worker.js                    The server: which address goes where
+server/desktop.js            The shared desktop (see "The shared desktop")
+server/admin.js              The admin account (see "The admin")
+server/blog.js               The blog's topics, posts and pictures
+server/http.js               Small helpers the rest share
 wrangler.jsonc               The Worker's Cloudflare settings
 tools/check_style.py         Enforces the rules. Run it before you push.
 tools/make_fonts.py          Rebuilds public/fonts/ from Wine's Tahoma and DejaVu
@@ -64,6 +71,15 @@ The whole thing, shared desktop included, needs Node:
 
 ```sh
 npx wrangler dev                                   # http://127.0.0.1:8787
+```
+
+To log on as admin locally, put a user name and password in a `.dev.vars`
+file next to `wrangler.jsonc` (it's gitignored, so it never leaves your
+machine):
+
+```
+ADMIN_USERNAME=something
+ADMIN_PASSWORD=something-long
 ```
 
 For a quick look at the pages without Node, any file server on `public/`
@@ -87,8 +103,12 @@ shared desktop lives in, so the Pages project gets swapped for a Worker, once:
 3. On the new Worker, **Settings → Domains & Routes → Add → Custom domain**:
    `techtrash.org`.
 4. Delete the old Pages project.
+5. On the Worker, **Settings → Variables and Secrets → Add**, type **Secret**:
+   `ADMIN_USERNAME` and `ADMIN_PASSWORD`, the admin's log on (see "The
+   admin"). Until both are there, nobody can log on as admin.
 
-Durable Objects run on the free plan.
+The first deploy creates the blog's database (D1) and picture store (KV) by
+itself, as tcc.place's did. Durable Objects, D1 and KV all run on the free plan.
 
 ## The shared desktop
 
@@ -133,16 +153,77 @@ over a WebSocket at `/api/desktop` (`public/js/shared.js`).
   the site someone else made. Notepad opens any `.txt` in `public/files/`:
   `/#notepad/?file=credits.txt`. Start menu entries like it are `SHORTCUTS`
   in `public/js/apps.js`.
-- **Logging on:** a new tab starts at the Welcome screen, user `techtrash`.
-  Clicking it shows "Loading your personal settings..." for a moment, then the
-  desktop. A reload stays logged on (`sessionStorage`). A link to a window
-  (`/#blog`) opens it behind the Welcome screen, ready when you log on.
+- **Arriving:** straight into the blog, maximized, every time. No Welcome
+  screen: nothing stands between a visitor and the blog. A link into the
+  blog (`/#blog/some/post`) opens it there; a link to another app (`/#files`)
+  opens that too, in front of the blog.
+- **Logging on:** the Welcome screen is only for after Log Off or Switch User.
+  It has two users. **techtrash** is everyone: one click. **admin** is me: it
+  opens a user name and password box under the name, as XP's password box
+  did, with XP's green arrow to log on (see "The admin"). Either one shows
+  "Loading your personal settings..." for a moment, then the desktop, and the
+  start menu shows who's on. A tab that's logged off stays logged off through
+  a reload (`sessionStorage`).
 - **Logging off:** Start → Log Off asks first, with the screen gone gray behind
   the question, as XP's did. **Switch User** goes back to the Welcome screen
   with the windows left open. **Log Off** closes every window, shows "Saving
   your settings...", then the Welcome screen.
 - **Without JavaScript** there's no Welcome screen and no desktop, just a list
-  of the pages, which all work on their own.
+  of the pages.
+
+## The admin
+
+Only I can post. Everyone else is the `techtrash` user and can read
+everything. The admin logs on from the Welcome screen (Start → Log Off →
+Switch User → admin) with a user name and password that live in the Worker's
+secrets, `ADMIN_USERNAME` and `ADMIN_PASSWORD`, never in this repo. Set them
+in the dashboard (step 5 of "Deploying") or with:
+
+```sh
+npx wrangler secret put ADMIN_USERNAME
+npx wrangler secret put ADMIN_PASSWORD
+```
+
+`server/admin.js` does the rest:
+
+- **Logging on** gets a cookie that says "admin" for 30 days, so a reload or a
+  new tab is still the admin. It's signed with a key made from the user name
+  and password, so changing either one logs every admin session out. Scripts
+  on the page can't read it, and it's only sent with requests from this site.
+- **Log Off or Switch User** as the admin ends the session.
+- **Guessing:** 5 tries a minute per person (`LOGON_LIMITER`), and the
+  comparison takes the same time however close a guess is.
+- **Every post and delete** is checked on the server, whatever the page shows.
+  The blog's forms only appear for the admin as a convenience. And anything
+  that changes something has to come from the site's own pages.
+
+## The blog
+
+Topics, and posts under a topic. A topic has a title, a description and a
+picture if it wants one. Anyone reads; the admin also gets a **New topic**
+form on the list of topics, a **New post** form inside a topic, and delete
+buttons that take two clicks (deleting a topic deletes its posts and picture).
+It's plain for now: the look comes later.
+
+- **The page** is `public/pages/blog/`: the list of topics, `?topic=<id>`, or
+  `?post=<id>`, so the address bar follows along (`techtrash.org/#blog/?post=3`).
+  A post is shown exactly as typed, with web links made clickable.
+- **The server** is `server/blog.js`, the same way tcc.place's blog works:
+  topics and posts in the D1 database `DB` (the tables are made the first time
+  they're needed), and a topic's picture in the KV store `PICTURES`, served at
+  `/blog/img/<name>`. A picture is shrunk in the browser before it's sent (at
+  most 1920px, which also strips phone metadata like GPS), and the server
+  checks it really is a picture from its first bytes.
+
+| | | |
+|---|---|---|
+| `GET /api/blog/topics` | anyone | every topic, the one with the newest post first |
+| `GET /api/blog/topic?id=` | anyone | a topic and its posts |
+| `GET /api/blog/post?id=` | anyone | a post |
+| `POST /api/blog/topics` | admin | a new topic: a form with `title`, `description`, `picture` |
+| `POST /api/blog/posts` | admin | a new post: `{ topic, title, body }` |
+| `DELETE /api/blog/topic?id=` | admin | a topic, its posts and its picture |
+| `DELETE /api/blog/post?id=` | admin | a post |
 
 ## Windows
 
@@ -152,9 +233,10 @@ all the code it wants without touching the desktop or anything else, and each
 one can be written and tested by opening its page.
 
 - **Addresses.** The address bar follows the window in front:
-  `techtrash.org/#blog`, and as an app moves around inside itself,
-  `#blog/some/page/?x=1`. Anything in front can be copied and shared, and
-  opening that address opens that window. An app page opened on its own (a
+  `techtrash.org/#files`, and as an app moves around inside itself,
+  `#files/some/page/?x=1`. The blog's front page is the plain
+  `techtrash.org`, and anywhere else in it is `#blog/...`. Anything in front
+  can be copied and shared, and opening that address opens that window. An app page opened on its own (a
   search result, an old link) sends the visitor to the desktop with itself
   open, at the same place. That's `public/js/app.js`.
 - **Links inside an app.** A link to another app opens that app's window. A

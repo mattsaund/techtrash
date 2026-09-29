@@ -25,7 +25,7 @@
 const XP = "/img/icons/xp";
 
 const LIST = [
-  { id: "blog",    title: "Blog",         icon: `${XP}/internet-explorer.png`, kind: "page" },
+  { id: "blog",    title: "Blog",         icon: `${XP}/internet-explorer.png`, kind: "page", home: true },
 
   { id: "files",   title: "File Browser", icon: `${XP}/explorer.png`,          kind: "program", desktop: true },
   { id: "notepad", title: "Notepad",      icon: `${XP}/notepad.png`,           kind: "program", listed: false },
@@ -37,6 +37,10 @@ export const APPS = LIST.map((app) => ({
 }));
 
 export const findApp = (id) => APPS.find((app) => app.id === id);
+
+// The site itself: every visit opens it, maximized, and its front page is
+// the site's plain address. The desktop behind it is the easter egg.
+export const HOME = APPS.find((app) => app.home);
 
 // The apps with an icon on the desktop, in order: every page, and any
 // program that asks for one.

@@ -6,14 +6,12 @@
   <title>techtrash</title>
   <link rel="icon" href="/img/icons/xp/internet-shortcut.png">
   <script>
-    // Before anything paints: a tab that hasn't logged on starts at the
-    // Welcome screen (js/session.js does the rest). Without JavaScript this
-    // never runs, so the Welcome screen never shows and the page still works.
+    // Before anything paints: a visitor arrives logged on, straight into the
+    // blog. Only a tab that has logged off comes back to the Welcome screen
+    // (js/session.js does the rest).
     try {
-      if (!sessionStorage.getItem("techtrash:logged-on")) document.documentElement.classList.add("is-logged-off");
-    } catch {
-      document.documentElement.classList.add("is-logged-off");
-    }
+      if (sessionStorage.getItem("techtrash:logged-off")) document.documentElement.classList.add("is-logged-off");
+    } catch {}
   </script>
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
@@ -92,15 +90,31 @@
         <p class="logon__prompt" role="status"></p>
       </div>
       <div class="logon__divider"></div>
+      <!-- Everyone is techtrash. admin is me: it asks for a user name and
+           password, and can post (server/admin.js). -->
       <ul class="logon__users" aria-label="Users">
-        <li>
-          <button class="logon__user">
+        <li class="logon__entry">
+          <button class="logon__user" data-user="techtrash">
             <img class="logon__picture" src="/img/icons/xp/user-chess.png" alt="">
             <span class="logon__who">
               <span class="logon__name">techtrash</span>
               <span class="logon__status" role="status"></span>
             </span>
           </button>
+        </li>
+        <li class="logon__entry">
+          <button class="logon__user" data-user="admin" aria-expanded="false" aria-controls="logon-admin">
+            <img class="logon__picture" src="/img/icons/xp/admin-key.png" alt="">
+            <span class="logon__who">
+              <span class="logon__name">admin</span>
+              <span class="logon__status" role="status"></span>
+            </span>
+          </button>
+          <form class="logon__form" id="logon-admin" hidden>
+            <input name="username" placeholder="User name" aria-label="User name" autocomplete="username" required>
+            <input type="password" name="password" placeholder="Password" aria-label="Password" autocomplete="current-password" required>
+            <button class="logon__go" aria-label="Log on"><img src="/img/icons/xp/go.png" alt=""></button>
+          </form>
         </li>
       </ul>
     </div>

@@ -1,3 +1,5 @@
 __pycache__/
 .wrangler/
 node_modules/
+# local secrets for wrangler dev (ADMIN_USERNAME, ADMIN_PASSWORD)
+.dev.vars

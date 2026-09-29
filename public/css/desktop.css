@@ -294,7 +294,15 @@ html, body { height: 100%; overflow: hidden; }
 .logon__brand { font: italic 700 var(--fs-display)/var(--lh-display) var(--font-ui); }
 .logon__divider { align-self: stretch; background: var(--logon-divider); }
 
-.logon__users { justify-self: start; margin: 0; padding: 0; list-style: none; }
+.logon__users {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .logon__user {
   display: flex;
   align-items: center;
@@ -308,7 +316,8 @@ html, body { height: 100%; overflow: hidden; }
 }
 .logon__user:focus-visible { outline: 0; }
 .logon__user:focus-visible,
-.logon.is-logging-on .logon__user { background: var(--logon-picked); }
+.logon__user[aria-expanded="true"],
+.logon__user.is-picked { background: var(--logon-picked); }
 .logon__picture {
   width: var(--icon-l);
   height: var(--icon-l);
@@ -324,6 +333,27 @@ html, body { height: 100%; overflow: hidden; }
   text-shadow: var(--logon-shadow);
 }
 .logon__status { font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui); }
+
+/* The admin's user name and password, opened under the name as XP's
+   password box was, with XP's green arrow to log on. */
+.logon__form {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+  padding-left: calc(var(--sp-8) + var(--icon-l) + var(--sp-16));
+}
+.logon__form input { width: var(--logon-field-w); }
+.logon__go {
+  width: var(--field-h);
+  height: var(--field-h);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.logon__go img { width: 100%; height: 100%; }
+.logon__go:hover img { filter: var(--lift); }
+.logon__go:focus-visible { outline-color: var(--ink-inverse); }
 
 .logon.is-busy .logon__main { grid-template-columns: 1fr; }
 .logon.is-busy .logon__intro { justify-self: center; text-align: center; }

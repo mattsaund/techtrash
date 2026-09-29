@@ -5,18 +5,22 @@
 // shown in its window through an iframe. The icons are js/icons.js, and
 // logging on and off is js/session.js.
 //
+// The blog is the site. Every visit opens it, maximized, and the desktop is
+// what's behind it for whoever closes it: the easter egg.
+//
 // Windows are each visitor's own. The icons are shared: everyone on the site
 // sees the same desktop.
 //
-// The address follows the window in front: techtrash.org/#blog opens the
-// blog, and the address changes as you move between windows, so whatever's
-// in front can always be copied and shared.
+// The address follows the window in front: techtrash.org/#files opens the
+// File Browser, and the address changes as you move between windows, so
+// whatever's in front can always be copied and shared. The blog's front page
+// is the plain techtrash.org.
 //
 // Only geometry is set from here: position, size and stacking order. How
 // anything looks is a class in css/, and every length is read out of
 // css/tokens.css rather than written here.
 
-import { APPS, SHORTCUTS, findApp } from "./apps.js";
+import { APPS, HOME, SHORTCUTS, findApp } from "./apps.js";
 import { setUpIcons } from "./icons.js";
 import { setUpSession } from "./session.js";
 
@@ -109,7 +113,12 @@ document.addEventListener("keydown", (e) => {
 
 // Log Off asks first (js/session.js). Logging off closes every window, as
 // XP's closed every program.
-const session = setUpSession({ closeAll: () => [...stack].forEach(close) });
+const session = setUpSession({
+  closeAll: () => [...stack].forEach(close),
+  // A different user may do different things (the admin can post), so every
+  // open window starts over as them.
+  onUser: () => stack.forEach((win) => win.frame.contentWindow.location.reload()),
+});
 startMenu.querySelector("[data-ask-log-off]").addEventListener("click", () => {
   showStart(false);
   session.askToLogOff();
@@ -117,18 +126,18 @@ startMenu.querySelector("[data-ask-log-off]").addEventListener("click", () => {
 
 // --- windows ---------------------------------------------------------------
 
-function open(id, rest = "") {
+function open(id, rest = "", { maximized = false } = {}) {
   const app = findApp(id);
   if (!app) return;
   let win = stack.find((w) => w.app === app);
-  if (!win) win = create(app, rest);
+  if (!win) win = create(app, rest, maximized);
   else if (rest && rest !== win.rest) win.frame.src = app.url + rest;
   win.el.hidden = false;
   activate(win);
   win.frame.focus();
 }
 
-function create(app, rest) {
+function create(app, rest, maximized) {
   const el = template.content.firstElementChild.cloneNode(true);
   const bar = el.querySelector(".title-bar");
   const title = el.querySelector(".title-bar__text");
@@ -141,7 +150,9 @@ function create(app, rest) {
   el.setAttribute("aria-labelledby", title.id);
   el.querySelector(".title-bar__icon").src = app.icon;
 
-  const win = { app, el, frame, task, rest, maximized: false, rect: firstRect() };
+  // A window that opens maximized still gets a place of its own, for when
+  // it's restored.
+  const win = { app, el, frame, task, rest, maximized, rect: firstRect() };
   const rename = (text) => {
     title.textContent = label.textContent = text;
     frame.title = task.title = text;
@@ -329,7 +340,9 @@ function close(win) {
 // --- the address -----------------------------------------------------------
 
 function address() {
-  const hash = front ? `#${front.app.id}${front.rest ? `/${front.rest}` : ""}` : "";
+  let hash = front ? `#${front.app.id}${front.rest ? `/${front.rest}` : ""}` : "";
+  // The blog's front page is the site's plain address.
+  if (front?.app === HOME && !front.rest) hash = "";
   if (hash !== location.hash) history.replaceState(null, "", hash || location.pathname);
 }
 
@@ -377,4 +390,14 @@ setInterval(tick, 10000);
 // Apps open other apps through this (js/app.js does it for their links).
 window.desktop = { open };
 
-openFromAddress();
+// Arriving: the blog opens, maximized, every time. An address inside it
+// (#blog/some/post) opens it there; one for another app (#files) opens that
+// too, in front of it.
+function arrive() {
+  const m = location.hash.match(/^#([\w-]+)(?:\/(.*))?$/);
+  const asked = m ? findApp(m[1]) : null;
+  open(HOME.id, asked === HOME ? (m[2] ?? "") : "", { maximized: true });
+  if (asked && asked !== HOME) open(asked.id, m[2] ?? "");
+}
+
+arrive();
