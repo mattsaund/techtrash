@@ -1,0 +1,351 @@
+/* ============================================================
+   techtrash.org : desktop.css
+
+   The desktop page only: where the icons sit, how windows are
+   placed and resized, and the start menu. The windows, icons and
+   taskbar themselves are xp.css. Tokens only.
+
+   js/desktop.js sets each window's position, size and stacking
+   inline, and nothing else. Every look is a class here.
+   ============================================================ */
+
+html, body { height: 100%; overflow: hidden; }
+
+/* Everything above the taskbar. Windows are placed inside it, so
+   maximized means filling it. */
+.desktop {
+  position: fixed;
+  inset: 0 0 var(--taskbar-h) 0;
+  overflow: hidden;
+  /* Its own color, not the page's, so that graying the desktop out
+     behind the Log Off question grays the desktop too. */
+  background: var(--desktop);
+}
+/* While a window is being moved or resized, the pages inside the
+   windows mustn't catch the pointer as it passes over them. */
+.desktop.is-busy { user-select: none; }
+.desktop.is-busy iframe { pointer-events: none; }
+
+/* --- icons ------------------------------------------------- *
+   The whole desktop, under the windows. js/icons.js places each
+   icon in it; a press on it that isn't on an icon starts the
+   selection rectangle. */
+.desktop__icons {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-icon);
+  touch-action: none;
+  user-select: none;
+}
+.desktop__icons .icon { position: absolute; touch-action: none; }
+/* XP's selected icon: the picture half and half with the selection
+   blue, through the filter at the foot of index.html. */
+.desktop__icons .icon.is-selected .icon__img { filter: url(#select-tint); }
+.select-tint__flood { flood-color: var(--select); }
+.filters { position: absolute; width: 0; height: 0; }
+
+.marquee {
+  position: absolute;
+  border: var(--hairline) solid var(--select);
+  background: var(--marquee);
+  pointer-events: none;
+}
+
+/* --- windows ----------------------------------------------- */
+.desktop .window { position: absolute; min-width: 0; }
+.desktop .window__body { display: flex; overflow: hidden; }
+.window__frame {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--face);
+}
+.desktop .title-bar { touch-action: none; }
+
+/* Maximized: square corners, no grips, and the maximize button
+   turns into restore. */
+.window.is-maximized,
+.window.is-maximized .title-bar { border-radius: 0; }
+.window.is-maximized .window__grip { display: none; }
+.window.is-maximized .caption--max        { background: var(--glyph-restore) center no-repeat, var(--caption-blue); }
+.window.is-maximized .caption--max:hover  { background: var(--glyph-restore) center no-repeat, var(--caption-blue-hover); }
+.window.is-maximized .caption--max:active { background: var(--glyph-restore) center no-repeat, var(--caption-blue-down); }
+
+/* On a phone every window is already full screen, so there's
+   nothing for maximize to do. */
+@media (max-width: 640px) {
+  .desktop .caption--max { display: none; }
+}
+
+/* Resize grips: a strip along each edge and a square at each
+   corner, invisible, laid over the frame. */
+.window__grip { --corner: calc(var(--grip) * 2); position: absolute; touch-action: none; }
+.window__grip[data-edge="n"]  { top: 0; left: var(--corner); right: var(--corner); height: var(--grip); cursor: ns-resize; }
+.window__grip[data-edge="s"]  { bottom: 0; left: var(--corner); right: var(--corner); height: var(--grip); cursor: ns-resize; }
+.window__grip[data-edge="e"]  { right: 0; top: var(--corner); bottom: var(--corner); width: var(--grip); cursor: ew-resize; }
+.window__grip[data-edge="w"]  { left: 0; top: var(--corner); bottom: var(--corner); width: var(--grip); cursor: ew-resize; }
+.window__grip[data-edge="nw"] { top: 0; left: 0; width: var(--corner); height: var(--corner); cursor: nwse-resize; }
+.window__grip[data-edge="se"] { bottom: 0; right: 0; width: var(--corner); height: var(--corner); cursor: nwse-resize; }
+.window__grip[data-edge="ne"] { top: 0; right: 0; width: var(--corner); height: var(--corner); cursor: nesw-resize; }
+.window__grip[data-edge="sw"] { bottom: 0; left: 0; width: var(--corner); height: var(--corner); cursor: nesw-resize; }
+
+/* --- start menu -------------------------------------------- *
+   The user across the top, programs on the left (white), my pages
+   on the right (blue), and the footer. */
+.start-menu {
+  position: fixed;
+  left: 0;
+  bottom: var(--taskbar-h);
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  width: min(var(--start-menu-w), 100%);
+  max-height: calc(100% - var(--taskbar-h));
+  background: var(--start-menu-frame);
+  border-radius: var(--r-window) var(--r-window) 0 0;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  user-select: none;
+}
+
+.start-menu__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--start-menu-head);
+  color: var(--ink-inverse);
+  font: 700 var(--fs-head)/var(--lh-head) var(--font-title);
+  text-shadow: var(--title-shadow);
+}
+.start-menu__tile {
+  width: var(--icon-l);
+  height: var(--icon-l);
+  border: var(--hairline) solid var(--start-tile-edge);
+  border-radius: var(--r-control);
+  background: var(--paper);
+}
+.start-menu__hotline { height: var(--sp-2); background: var(--start-menu-hotline); }
+
+.start-menu__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 0;
+  margin: 0 var(--sp-2);
+  overflow: auto;
+}
+.start-menu__list { margin: 0; padding: var(--sp-8) var(--sp-2); list-style: none; }
+.start-menu__programs { background: var(--paper); }
+.start-menu__places {
+  background: var(--start-places);
+  border-left: var(--hairline) solid var(--start-places-edge);
+}
+
+.start-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  text-decoration: none;
+  cursor: default;
+}
+.start-menu__item img { width: var(--icon-m); height: var(--icon-m); flex: none; }
+.start-menu__places .start-menu__item { font-weight: 700; color: var(--start-places-ink); }
+.start-menu__places .start-menu__item img { width: var(--icon-s); height: var(--icon-s); }
+.start-menu__item:hover,
+.start-menu__item:focus-visible {
+  outline: 0;
+  background: var(--select);
+  color: var(--select-ink);
+}
+
+.start-menu__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
+  background: var(--start-menu-foot);
+}
+.start-menu__button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--ink-inverse);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+.start-menu__button img { width: var(--icon-s); height: var(--icon-s); }
+.start-menu__button:hover { background: var(--start-menu-press); }
+.start-menu__button:focus-visible { outline-color: var(--ink-inverse); }
+
+/* --- log off ----------------------------------------------- *
+   The question, over the desktop gone gray. */
+.is-asking .desktop,
+.is-asking .taskbar { filter: grayscale(1); }
+
+.logoff {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-16);
+}
+.logoff__box {
+  width: min(var(--logoff-w), 100%);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink-inverse);
+}
+.logoff__head {
+  padding: var(--sp-12) var(--sp-16);
+  background: var(--logon-band);
+  font: 400 var(--fs-head)/var(--lh-head) var(--font-title);
+}
+.logoff__body {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-48);
+  padding: var(--sp-24) var(--sp-16);
+  background: var(--logon-glow), var(--logon);
+}
+.logoff__choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-4);
+  border: 0;
+  background: none;
+  color: var(--ink-inverse);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+.logoff__choice img { width: var(--icon-m); height: var(--icon-m); }
+.logoff__choice:hover img { filter: var(--lift); }
+.logoff__choice:focus-visible { outline-color: var(--ink-inverse); }
+.logoff__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--logon-band);
+}
+
+/* --- the Welcome screen ------------------------------------ *
+   Dark bands top and bottom, each with its line; the site's name
+   and the prompt on the left, a divider, and the users on the
+   right. .is-busy is the "Saving your settings..." moment after
+   Log Off: just the name and the message, in the middle. */
+.logon { display: none; }
+.is-logged-off .logon {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-logon);
+  display: flex;
+  flex-direction: column;
+  background: var(--logon-glow), var(--logon);
+  color: var(--ink-inverse);
+  user-select: none;
+}
+
+.logon__band {
+  position: relative;
+  flex: none;
+  height: var(--logon-band-h);
+  background: var(--logon-band);
+}
+.logon__band::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--sp-2);
+}
+.logon__band--top::after { bottom: 0; background: var(--logon-line-top); }
+.logon__band--bottom::after { top: 0; background: var(--logon-line-bottom); }
+.logon__band--bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--sp-32);
+}
+.logon__note { max-width: var(--measure); text-align: right; }
+
+.logon__main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr var(--hairline) 1fr;
+  align-items: center;
+  gap: var(--sp-32);
+  min-height: 0;
+  padding: var(--sp-32);
+}
+.logon__intro {
+  justify-self: end;
+  text-align: right;
+  font: 400 var(--fs-head)/var(--lh-head) var(--font-ui);
+  text-shadow: var(--logon-shadow);
+}
+.logon__brand { font: italic 700 var(--fs-display)/var(--lh-display) var(--font-ui); }
+.logon__divider { align-self: stretch; background: var(--logon-divider); }
+
+.logon__users { justify-self: start; margin: 0; padding: 0; list-style: none; }
+.logon__user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-16);
+  padding: var(--sp-8) var(--sp-48) var(--sp-8) var(--sp-8);
+  border: 0;
+  border-radius: var(--r-window) 0 0 var(--r-window);
+  background: none;
+  color: var(--ink-inverse);
+  text-align: left;
+}
+.logon__user:focus-visible { outline: 0; }
+.logon__user:focus-visible,
+.logon.is-logging-on .logon__user { background: var(--logon-picked); }
+.logon__picture {
+  width: var(--icon-l);
+  height: var(--icon-l);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  box-shadow: 0 0 0 var(--sp-2) var(--logon-tile-edge);
+}
+.logon__user:hover .logon__picture,
+.logon__user:focus-visible .logon__picture { box-shadow: 0 0 0 var(--sp-2) var(--logon-tile-hover); }
+.logon__who { display: flex; flex-direction: column; gap: var(--sp-2); }
+.logon__name {
+  font: 400 var(--fs-big)/var(--lh-big) var(--font-ui);
+  text-shadow: var(--logon-shadow);
+}
+.logon__status { font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui); }
+
+.logon.is-busy .logon__main { grid-template-columns: 1fr; }
+.logon.is-busy .logon__intro { justify-self: center; text-align: center; }
+.logon.is-busy .logon__divider,
+.logon.is-busy .logon__users { display: none; }
+
+/* A phone: the name and prompt above the users, no divider. */
+@media (max-width: 640px) {
+  .logon__main { grid-template-columns: 1fr; align-content: center; }
+  .logon__intro { justify-self: center; text-align: center; }
+  .logon__divider { display: none; }
+  .logon__users { justify-self: center; }
+  .logon__band--bottom { justify-content: center; padding: 0 var(--sp-16); }
+  .logon__note { text-align: center; }
+}
+
+/* --- no JavaScript ----------------------------------------- */
+.desktop__noscript {
+  position: absolute;
+  top: var(--sp-24);
+  left: 50%;
+  width: min(var(--measure), calc(100% - var(--sp-32)));
+  translate: -50% 0;
+}
+.desktop__noscript ul { margin-top: var(--sp-8); padding-left: var(--sp-24); }

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Style Guide - techtrash</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/styleguide/guide.css">
+</head>
+<body>
+  <!--
+    Every rule on the site, drawn with the kit itself. The values in
+    the tables are read out of css/tokens.css when the page loads, so
+    this page can't drift from the file it documents.
+  -->
+  <main class="guide">
+
+    <nav class="guide__icons" aria-label="Desktop icons">
+      <a class="icon" href="#doc"><img class="icon__img" src="/img/icons/document.svg" alt=""><span class="icon__label">welcome.htm</span></a>
+      <a class="icon is-selected" href="#colors"><img class="icon__img" src="/img/icons/picture.svg" alt=""><span class="icon__label">My Pictures</span></a>
+      <a class="icon" href="#type"><img class="icon__img" src="/img/icons/music.svg" alt=""><span class="icon__label">My Music</span></a>
+      <a class="icon" href="#sizes"><img class="icon__img" src="/img/icons/folder.svg" alt=""><span class="icon__label">Projects and other long names</span></a>
+    </nav>
+
+    <!-- reading text -->
+    <section class="window guide__wide" id="doc" aria-labelledby="doc-title">
+      <header class="title-bar">
+        <img class="title-bar__icon" src="/img/icons/document.svg" alt="">
+        <h2 class="title-bar__text" id="doc-title">welcome.htm - techtrash</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body window__body--flush">
+        <article class="doc">
+          <h1>Hello, world</h1>
+          <p class="meta">Monday, September 28, 2026</p>
+          <p>This is what a post looks like. Reading text is 13px Tahoma on a 20px line, black on white paper, and a line stops at about 75 characters however wide the window gets, so it never gets tiring to read. Links look <a href="https://msaunders.dev">like this</a> and go lighter under the pointer.</p>
+          <h2>What goes here</h2>
+          <ul>
+            <li>Posts and the journal</li>
+            <li>Pictures, music and memes</li>
+            <li>Projects, tech, space and computers</li>
+          </ul>
+          <blockquote>There's no place like 127.0.0.1.</blockquote>
+          <p>Code sits in the mono face, like <code>var(--sp-16)</code>, and a block of it gets the window's face color behind it:</p>
+          <pre>python3 tools/check_style.py</pre>
+        </article>
+      </div>
+      <footer class="status-bar">
+        <span class="status-bar__field">Done</span>
+        <span class="status-bar__field">Internet</span>
+      </footer>
+    </section>
+
+    <!-- color -->
+    <section class="window guide__wide" id="colors" aria-labelledby="colors-title">
+      <header class="title-bar">
+        <img class="title-bar__icon" src="/img/icons/picture.svg" alt="">
+        <h2 class="title-bar__text" id="colors-title">Colors</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body guide__body">
+        <p>Luna blue. Every color on the site is one of these. Gradients and edges live in <code>tokens.css</code> as whole values, so a component never mixes its own.</p>
+        <fieldset>
+          <legend>Surfaces</legend>
+          <table class="guide__table">
+            <tbody>
+              <tr><td><span class="guide__swatch" style="background: var(--desktop)"></span></td><td><code>--desktop</code></td><td class="guide__value" data-token="--desktop"></td><td>The desktop, under any wallpaper</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--face)"></span></td><td><code>--face</code></td><td class="guide__value" data-token="--face"></td><td>Window bodies, dialogs, menu bars, status bars</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--face-hi)"></span></td><td><code>--face-hi</code></td><td class="guide__value" data-token="--face-hi"></td><td>Raised edges</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--face-shadow)"></span></td><td><code>--face-shadow</code></td><td class="guide__value" data-token="--face-shadow"></td><td>Sunken edges, menu borders, rules</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--face-dark)"></span></td><td><code>--face-dark</code></td><td class="guide__value" data-token="--face-dark"></td><td>The darkest edge</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--paper)"></span></td><td><code>--paper</code></td><td class="guide__value" data-token="--paper"></td><td>Documents, fields, lists, menus</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--tip)"></span></td><td><code>--tip</code></td><td class="guide__value" data-token="--tip"></td><td>Tooltips and balloons</td></tr>
+            </tbody>
+          </table>
+        </fieldset>
+        <fieldset>
+          <legend>Text</legend>
+          <table class="guide__table">
+            <tbody>
+              <tr><td><span class="guide__swatch" style="background: var(--ink)"></span></td><td><code>--ink</code></td><td class="guide__value" data-token="--ink"></td><td>All text on face and paper</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--ink-muted)"></span></td><td><code>--ink-muted</code></td><td class="guide__value" data-token="--ink-muted"></td><td>Dates, captions, secondary lines</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--ink-disabled)"></span></td><td><code>--ink-disabled</code></td><td class="guide__value" data-token="--ink-disabled"></td><td>Disabled only, never for reading</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--ink-inverse)"></span></td><td><code>--ink-inverse</code></td><td class="guide__value" data-token="--ink-inverse"></td><td>On blue chrome, the selection, the desktop</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--link)"></span></td><td><code>--link</code></td><td class="guide__value" data-token="--link"></td><td>Links</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--link-hover)"></span></td><td><code>--link-hover</code></td><td class="guide__value" data-token="--link-hover"></td><td>A link under the pointer</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--select)"></span></td><td><code>--select</code></td><td class="guide__value" data-token="--select"></td><td>Selected items, menu hover, selected text</td></tr>
+            </tbody>
+          </table>
+        </fieldset>
+        <fieldset>
+          <legend>Chrome</legend>
+          <table class="guide__table">
+            <tbody>
+              <tr><td><span class="guide__swatch" style="background: var(--title-active)"></span></td><td><code>--title-active</code></td><td class="guide__value" data-token="--title-active"></td><td>The front window's title bar</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--title-inactive)"></span></td><td><code>--title-inactive</code></td><td class="guide__value" data-token="--title-inactive"></td><td>Every other window's</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--taskbar)"></span></td><td><code>--taskbar</code></td><td class="guide__value" data-token="--taskbar"></td><td>The taskbar</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--tray)"></span></td><td><code>--tray</code></td><td class="guide__value" data-token="--tray"></td><td>The notification area</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--start)"></span></td><td><code>--start</code></td><td class="guide__value" data-token="--start"></td><td>The start button</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--task)"></span></td><td><code>--task</code></td><td class="guide__value" data-token="--task"></td><td>A window's taskbar button</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--button-edge)"></span></td><td><code>--button-edge</code></td><td class="guide__value" data-token="--button-edge"></td><td>Push button border</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--field-edge)"></span></td><td><code>--field-edge</code></td><td class="guide__value" data-token="--field-edge"></td><td>Field and document border</td></tr>
+              <tr><td><span class="guide__swatch" style="background: var(--group-ink)"></span></td><td><code>--group-ink</code></td><td class="guide__value" data-token="--group-ink"></td><td>Group box captions</td></tr>
+            </tbody>
+          </table>
+        </fieldset>
+      </div>
+    </section>
+
+    <!-- type -->
+    <section class="window" id="type" aria-labelledby="type-title">
+      <header class="title-bar">
+        <img class="title-bar__icon" src="/img/icons/music.svg" alt="">
+        <h2 class="title-bar__text" id="type-title">Type</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body guide__body">
+        <p>Four sizes and one for the Welcome screen, two weights, three faces. Nothing is smaller than 11px, and 11px is for chrome only.</p>
+        <div class="guide__sample">
+          <span class="guide__note">ui, 11/13: menus, buttons, fields, labels</span>
+          <span style="font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui)">File Edit View Favorites Tools Help</span>
+        </div>
+        <div class="guide__sample">
+          <span class="guide__note">body, 13/20: anything read, and window titles in bold</span>
+          <span style="font: 400 var(--fs-body)/var(--lh-body) var(--font-ui)">tech, space, computers, music and junk</span>
+        </div>
+        <div class="guide__sample">
+          <span class="guide__note">head, 16/22: a heading in a document</span>
+          <span style="font: 700 var(--fs-head)/var(--lh-head) var(--font-ui)">What goes here</span>
+        </div>
+        <div class="guide__sample">
+          <span class="guide__note">big, 20/26: a headline, the start button, a name on the Welcome screen</span>
+          <span style="font: 700 var(--fs-big)/var(--lh-big) var(--font-ui)">Hello, world</span>
+        </div>
+        <div class="guide__sample">
+          <span class="guide__note">display, 36/44: the site's name on the Welcome screen, nowhere else</span>
+          <span style="font: italic 700 var(--fs-display)/var(--lh-display) var(--font-ui)">techtrash</span>
+        </div>
+        <div class="guide__sample">
+          <span class="guide__note">mono, at body size: Notepad, the command prompt, code</span>
+          <span style="font: 400 var(--fs-body)/var(--lh-body) var(--font-mono)">C:\&gt; dir /w</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- spacing -->
+    <section class="window" id="spacing" aria-labelledby="spacing-title">
+      <header class="title-bar">
+        <img class="title-bar__icon" src="/img/icons/folder.svg" alt="">
+        <h2 class="title-bar__text" id="spacing-title">Spacing</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body guide__body">
+        <p>Every margin, padding and gap is one of these. A 4px grid, with 2px for the tight spots inside chrome.</p>
+        <table class="guide__table">
+          <tbody>
+            <tr><td><code>--sp-2</code></td><td class="guide__value" data-token="--sp-2"></td><td><span class="guide__bar" style="width: var(--sp-2)"></span></td></tr>
+            <tr><td><code>--sp-4</code></td><td class="guide__value" data-token="--sp-4"></td><td><span class="guide__bar" style="width: var(--sp-4)"></span></td></tr>
+            <tr><td><code>--sp-8</code></td><td class="guide__value" data-token="--sp-8"></td><td><span class="guide__bar" style="width: var(--sp-8)"></span></td></tr>
+            <tr><td><code>--sp-12</code></td><td class="guide__value" data-token="--sp-12"></td><td><span class="guide__bar" style="width: var(--sp-12)"></span></td></tr>
+            <tr><td><code>--sp-16</code></td><td class="guide__value" data-token="--sp-16"></td><td><span class="guide__bar" style="width: var(--sp-16)"></span></td></tr>
+            <tr><td><code>--sp-24</code></td><td class="guide__value" data-token="--sp-24"></td><td><span class="guide__bar" style="width: var(--sp-24)"></span></td></tr>
+            <tr><td><code>--sp-32</code></td><td class="guide__value" data-token="--sp-32"></td><td><span class="guide__bar" style="width: var(--sp-32)"></span></td></tr>
+            <tr><td><code>--sp-48</code></td><td class="guide__value" data-token="--sp-48"></td><td><span class="guide__bar" style="width: var(--sp-48)"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- sizes -->
+    <section class="window" id="sizes" aria-labelledby="sizes-title">
+      <header class="title-bar">
+        <img class="title-bar__icon" src="/img/icons/folder.svg" alt="">
+        <h2 class="title-bar__text" id="sizes-title">Sizes</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body guide__body">
+        <p>XP's own control sizes. They sit off the spacing grid on purpose: a 23px button is a Windows button.</p>
+        <table class="guide__table">
+          <tbody>
+            <tr><td><code>--title-h</code></td><td class="guide__value" data-token="--title-h"></td><td>Title bar</td></tr>
+            <tr><td><code>--caption</code></td><td class="guide__value" data-token="--caption"></td><td>Caption buttons</td></tr>
+            <tr><td><code>--button-h</code></td><td class="guide__value" data-token="--button-h"></td><td>Push button height</td></tr>
+            <tr><td><code>--button-w</code></td><td class="guide__value" data-token="--button-w"></td><td>Push button minimum width</td></tr>
+            <tr><td><code>--field-h</code></td><td class="guide__value" data-token="--field-h"></td><td>Text field, select</td></tr>
+            <tr><td><code>--check</code></td><td class="guide__value" data-token="--check"></td><td>Checkbox, radio</td></tr>
+            <tr><td><code>--taskbar-h</code></td><td class="guide__value" data-token="--taskbar-h"></td><td>Taskbar</td></tr>
+            <tr><td><code>--icon-cell</code></td><td class="guide__value" data-token="--icon-cell"></td><td>A desktop icon, label and all</td></tr>
+            <tr><td><code>--measure</code></td><td class="guide__value" data-token="--measure"></td><td>Longest line of reading text</td></tr>
+            <tr><td><code>--r-control</code></td><td class="guide__value" data-token="--r-control"></td><td>Buttons, group boxes</td></tr>
+            <tr><td><code>--r-window</code></td><td class="guide__value" data-token="--r-window"></td><td>A window's top corners</td></tr>
+          </tbody>
+        </table>
+        <div class="guide__icon-sizes">
+          <img src="/img/icons/folder.svg" alt="" style="width: var(--icon-s); height: var(--icon-s)">
+          <img src="/img/icons/folder.svg" alt="" style="width: var(--icon-m); height: var(--icon-m)">
+          <img src="/img/icons/folder.svg" alt="" style="width: var(--icon-l); height: var(--icon-l)">
+          <span class="guide__note">16, 32, 48: the only icon sizes</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- controls -->
+    <section class="window" id="controls" aria-labelledby="controls-title">
+      <header class="title-bar">
+        <h2 class="title-bar__text" id="controls-title">Controls</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body guide__body">
+        <fieldset class="guide__body">
+          <legend>Post</legend>
+          <label class="field-stack">Title<input type="text" value="Hello, world"></label>
+          <label class="field-stack">Filed under
+            <select>
+              <option>Blog</option>
+              <option>Journal</option>
+              <option>Projects</option>
+            </select>
+          </label>
+          <label class="field-stack">Text<textarea rows="3">What's on your mind?</textarea></label>
+        </fieldset>
+        <fieldset class="guide__body">
+          <legend>Options</legend>
+          <label class="check"><input type="checkbox" checked> Allow comments</label>
+          <label class="check"><input type="checkbox"> Pin to the desktop</label>
+          <label class="check"><input type="radio" name="vis" checked> Everyone</label>
+          <label class="check"><input type="radio" name="vis"> Just me</label>
+          <label class="check"><input type="checkbox" disabled> Disabled</label>
+        </fieldset>
+        <div class="button-row">
+          <button class="button button--default">OK</button>
+          <button class="button">Cancel</button>
+          <button class="button" disabled>Apply</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- notepad, inactive -->
+    <section class="window is-inactive" id="notepad" aria-labelledby="notepad-title">
+      <header class="title-bar">
+        <img class="title-bar__icon" src="/img/icons/document.svg" alt="">
+        <h2 class="title-bar__text" id="notepad-title">journal.txt - Notepad</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <nav class="menu-bar" aria-label="Menu">
+        <button class="menu-bar__item">File</button>
+        <button class="menu-bar__item" aria-expanded="true">Edit</button>
+        <button class="menu-bar__item">Format</button>
+        <button class="menu-bar__item">View</button>
+        <button class="menu-bar__item">Help</button>
+      </nav>
+      <div class="window__body window__body--flush">
+        <div class="doc doc--mono">This window isn't in front, so its title bar is faded.
+
+Notepad is the mono face at body size. It wraps at the window's edge, not at the measure.</div>
+      </div>
+    </section>
+
+    <!-- pop-ups -->
+    <section class="window" id="popups" aria-labelledby="popups-title">
+      <header class="title-bar">
+        <h2 class="title-bar__text" id="popups-title">Menus and tips</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body guide__body">
+        <p>Menus and tooltips are paper, with the only drop shadow on the site. Windows cast none.</p>
+        <div class="guide__popups">
+          <ul class="menu">
+            <li><button class="menu__item">Undo</button></li>
+            <li class="menu__rule" role="separator"></li>
+            <li><button class="menu__item">Cut</button></li>
+            <li><button class="menu__item">Copy</button></li>
+            <li><button class="menu__item" disabled>Paste</button></li>
+            <li class="menu__rule" role="separator"></li>
+            <li><button class="menu__item">Select All</button></li>
+          </ul>
+          <div class="tip" role="tooltip">Click here to begin.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="taskbar">
+    <button class="start">start</button>
+    <div class="taskbar__tasks">
+      <button class="task"><img class="task__icon" src="/img/icons/document.svg" alt=""><span class="task__label">welcome.htm - techtrash</span></button>
+      <button class="task is-active"><img class="task__icon" src="/img/icons/picture.svg" alt=""><span class="task__label">Colors</span></button>
+      <button class="task"><img class="task__icon" src="/img/icons/document.svg" alt=""><span class="task__label">journal.txt - Notepad</span></button>
+    </div>
+    <div class="tray">
+      <time id="clock"></time>
+    </div>
+  </footer>
+
+  <script>
+    // Fill each [data-token] cell with that token's value from tokens.css.
+    const root = getComputedStyle(document.documentElement);
+    for (const cell of document.querySelectorAll("[data-token]")) {
+      const value = root.getPropertyValue(cell.dataset.token).trim();
+      cell.textContent = value.includes("gradient(") ? "gradient" : value;
+    }
+
+    const clock = document.getElementById("clock");
+    const tick = () => {
+      clock.textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    };
+    tick();
+    setInterval(tick, 10000);
+  </script>
+</body>
+</html>

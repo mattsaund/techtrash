@@ -1,0 +1,342 @@
+/* ============================================================
+   techtrash.org : tokens
+
+   The rules. Every color, font, size, space, radius and layer on
+   the site is named here, and this is the only file allowed to
+   hold a raw value. Every other stylesheet, <style> block and
+   style="" attribute says var(--something) and nothing else.
+   tools/check_style.py fails on anything that doesn't.
+
+   Need a value that isn't here? Add it here first, with a line
+   saying what it's for, then use it. If it can't earn that line,
+   use one of the values that already exist.
+
+   The look is Windows XP, Luna blue, at XP's own pixel sizes.
+   Wherever XP had a number it's used as-is; the few places it's
+   been rounded say so and why.
+   ============================================================ */
+
+/* --- fonts ------------------------------------------------- *
+   Tahoma, self-hosted, so every visitor gets it. The file is
+   Wine's Tahoma (LGPL, see fonts/LICENSES.md), which was drawn to
+   Tahoma's exact widths, so a line of text wraps in the same place
+   in both. That's why local("Tahoma") goes first: anyone who has
+   the real one (every Windows and Mac) uses it and downloads
+   nothing, and everyone else gets a stand-in that lays out the same.
+
+   The mono face is DejaVu Sans Mono, for Notepad and the command
+   prompt. No local() there: XP's Lucida Console is a different
+   design, so preferring it would make the page look different on
+   Windows than everywhere else.
+
+   Latin subset only. Regular and bold, nothing else: Tahoma has
+   no italic, and the one italic on the site (the start button) is
+   the browser slanting the bold, which is what XP's looks like.
+   ============================================================ */
+@font-face {
+  font-family: "XP Tahoma";
+  src: local("Tahoma"), url("/fonts/tahoma-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "XP Tahoma";
+  src: local("Tahoma Bold"), local("Tahoma-Bold"), url("/fonts/tahoma-bold-latin.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "XP Mono";
+  src: url("/fonts/dejavu-sans-mono-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* --- font families ----------------------------------------
+     Three roles. Everything is --font-ui unless it's a window
+     title (--font-title) or monospaced text (--font-mono).
+     Luna drew window titles in Trebuchet MS, which can't be
+     self-hosted, so titles are Tahoma Bold, as XP's classic theme
+     drew them. They have their own token so that's one line to
+     change. */
+  --font-ui:    "XP Tahoma", Tahoma, Verdana, sans-serif;
+  --font-title: var(--font-ui);
+  --font-mono:  "XP Mono", monospace;
+
+  /* --- type scale -------------------------------------------
+     Four sizes, and a fifth for the Welcome screen only. Every
+     size has one line height, always used with it. Two weights:
+     400 and 700.
+
+     ui      11/13  XP's own 8pt Tahoma. Chrome only: menus, buttons,
+                    fields, labels, status bars, the taskbar, icon
+                    labels. Never used for anything longer than a
+                    line or two that someone has to read.
+     body    13/20  Anything that's read: posts, the journal,
+                    captions. Also window titles, in bold.
+     head    16/22  A heading inside a document.
+     big     20/26  A document's one headline, the start button, and
+                    the user's name on the Welcome screen.
+     display 36/44  The site's name on the Welcome screen, and
+                    nowhere else.
+
+     The line heights are chosen so each text line centers on a
+     whole pixel in the fixed heights below: a 13px ui line
+     leaves 5 and 5 in a 23px button and 3 and 3 in a 21px field,
+     and a 20px body line leaves 5 and 5 in the 30px title bar. */
+  --fs-ui:   11px;  --lh-ui:   13px;
+  --fs-body: 13px;  --lh-body: 20px;
+  --fs-head: 16px;  --lh-head: 22px;
+  --fs-big:  20px;  --lh-big:  26px;
+  --fs-display: 36px;  --lh-display: 44px;
+
+  /* --- spacing ----------------------------------------------
+     The only values any margin, padding, gap or offset may use.
+     A 4px grid, with 2px as the half step for the tight spots
+     inside chrome (a label to its icon, a status bar's inset).
+     Space between things comes from here; the size of a control
+     comes from its size token below. */
+  --sp-2:  2px;
+  --sp-4:  4px;
+  --sp-8:  8px;
+  --sp-12: 12px;   /* dialog margin: XP's was 11 */
+  --sp-16: 16px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+  --sp-48: 48px;
+
+  /* --- sizes ------------------------------------------------
+     XP's own control sizes, which are what make it look like XP.
+     They're off the spacing grid on purpose: a 23px button is a
+     Windows button and a 24px one isn't. */
+  --hairline:    1px;    /* every border on the site. Anything thicker is a
+                            frame, drawn with shadows */
+  --frame:       3px;    /* a window's blue frame, left, right and bottom */
+  --title-h:     30px;   /* title bar */
+  --caption:     22px;   /* minimize / maximize / close. XP's are 21: rounded
+                            up so they center in the 30px bar on a whole pixel */
+  --button-h:    23px;   /* push button, XP's 75 x 23 */
+  --button-w:    75px;   /* push button minimum width */
+  --field-h:     21px;   /* one-line text field, select */
+  --check:       13px;   /* checkbox and radio */
+  --taskbar-h:   30px;
+  --task-h:      24px;   /* a window's button on the taskbar */
+  --task-w:      160px;  /* ... and its widest */
+  --icon-s:      16px;   /* title bars, menus, the taskbar, the tray */
+  --icon-m:      32px;   /* the desktop, and anywhere an icon stands alone */
+  --icon-l:      48px;   /* big pictures: the start menu's user, dialogs */
+  --icon-cell:   76px;   /* a desktop icon's width, label included. XP's is 75:
+                            one more so a 32px icon centers on a whole pixel */
+  --window-w:    640px;  /* a window's size when it opens: XP's 640 x 480, */
+  --window-h:    480px;  /* less on a screen too small for it */
+  --window-min-w: 320px; /* no window is narrower: a phone's width */
+  --window-min-h: 160px; /* ... or shorter */
+  --grip:        4px;    /* how far in from a window's edge a drag resizes it.
+                            Corners are twice that */
+  --start-menu-w: 380px; /* the start menu, XP's width */
+  --logoff-w:    312px;  /* the Log Off dialog, XP's width */
+  --logon-band-h: 80px;  /* the dark bands across the top and bottom of the
+                            Welcome screen */
+  --drag:        4px;    /* how far a press moves before it's a drag and not
+                            a click: XP's own 4 */
+  --measure:     480px;  /* longest line of reading text, about 75 characters */
+
+  /* --- radii ------------------------------------------------
+     Three, and square everywhere else. Fields, menus, the taskbar
+     and the desktop's icons are all square in XP. */
+  --r-control: 3px;    /* buttons, caption buttons, taskbar buttons, group boxes */
+  --r-window:  8px;    /* a window's top two corners, never the bottom */
+  --r-start:   12px;   /* the start button's right end */
+
+  /* --- layers -----------------------------------------------
+     The only z-index values. Windows stack upward from
+     --z-window; whatever raises a window to the front counts up
+     from there and stays below the taskbar. */
+  --z-desktop: 0;
+  --z-icon:    1;
+  --z-window:  10;
+  --z-taskbar: 1000;
+  --z-menu:    1100;   /* start menu, context menus, dropdowns */
+  --z-tip:     1200;   /* tooltips and balloons */
+  --z-dialog:  1500;   /* the Log Off dialog, over the whole desktop */
+  --z-logon:   2000;   /* the Welcome screen, over everything */
+
+  /* --- time -------------------------------------------------
+     Nothing animates, but XP made you wait a moment while it
+     loaded or saved your settings. This is how long. */
+  --wait: 800ms;
+
+  /* --- breakpoint -------------------------------------------
+     The one screen width anything changes at. At and under it the
+     screen is a phone: windows open maximized and stay put.
+     A custom property can't go in a media query, so CSS writes the
+     number out, and tools/check_style.py rejects any number but
+     this one. js/desktop.js reads it from here. */
+  --breakpoint: 640px;
+
+  /* ========================================================
+     COLOR
+     Luna blue. Values come from XP itself wherever XP had one.
+     ======================================================== */
+
+  /* --- surfaces --------------------------------------------- */
+  --desktop:     #004e98;   /* XP's desktop color, under any wallpaper */
+  --face:        #ece9d8;   /* XP's "3D face": window bodies, dialogs, menu
+                               bars, status bars */
+  --face-hi:     #ffffff;   /* raised edges */
+  --face-shadow: #aca899;   /* sunken edges, menu borders, rules */
+  --face-dark:   #716f64;   /* the darkest edge */
+  --paper:       #ffffff;   /* anything read or typed into: documents,
+                               fields, lists, menus */
+  --tip:         #ffffe1;   /* tooltips and balloons */
+
+  /* --- text ------------------------------------------------- */
+  --ink:          #000000;
+  --ink-muted:    #5c5a51;  /* dates, captions, secondary lines. A step darker
+                               than XP's own gray so it's readable on the face
+                               as well as on paper */
+  --ink-disabled: #aca899;  /* XP's GrayText. Disabled only, never for reading */
+  --ink-inverse:  #ffffff;  /* on blue chrome, the selection, the desktop */
+  --link:         #215dc6;  /* XP's task pane links */
+  --link-hover:   #428eff;
+
+  /* --- selection and focus ---------------------------------- */
+  --select:     #316ac5;    /* selected items, menu hover, text selection */
+  --select-ink: #ffffff;
+  --focus:      #000000;    /* the 1px dotted focus rectangle */
+
+  /* --- window frame and title bar --------------------------- */
+  --frame-active:
+    inset -1px -1px #00138c, inset 1px 1px #0831d9,
+    inset -2px -2px #001ea0, inset 2px 2px #166aee,
+    inset -3px -3px #003bda, inset 3px 3px #0855dd;
+  --frame-inactive:
+    inset -1px -1px #5870c8, inset 1px 1px #7b93df,
+    inset -2px -2px #6a80cf, inset 2px 2px #a0b5ee,
+    inset -3px -3px #7d95dd, inset 3px 3px #8ca5e5;
+  --title-active: linear-gradient(180deg,
+    #0058ee 0%, #3593ff 4%, #288eff 6%, #127dff 8%, #036ffc 10%,
+    #0262ee 14%, #0057e5 20%, #0054e3 24%, #0055eb 56%, #005bf5 66%,
+    #026afe 76%, #0062ef 86%, #0052d6 92%, #0040ab 94%, #003092 100%);
+  --title-inactive: linear-gradient(180deg,
+    #7697e7 0%, #7e9ee3 3%, #94afe8 6%, #97b4e9 8%, #82a5e4 14%,
+    #7c9fe2 17%, #7996de 25%, #7b99e1 56%, #82a9e9 81%, #80a5e7 89%,
+    #7b96e1 94%, #7a93df 97%, #abbae3 100%);
+  --title-edge-active:   inset 1px 1px #0831d9, inset -1px 0 #001ea0;
+  --title-edge-inactive: inset 1px 1px #7b93df, inset -1px 0 #5870c8;
+  --title-ink:           #ffffff;
+  --title-ink-inactive:  #d8e4f8;
+  --title-shadow:        1px 1px #0f1089;
+
+  /* --- caption buttons (minimize, maximize, close) ----------- */
+  --caption-edge:      #ffffff;
+  --caption-blue:      radial-gradient(circle at 90% 90%, #0054e9 0%, #2263d5 55%, #4479e4 70%, #a3bbec 90%, #ffffff 100%);
+  --caption-blue-hover: radial-gradient(circle at 90% 90%, #1c6af5 0%, #3b7df0 55%, #6597f5 70%, #c3d6fb 90%, #ffffff 100%);
+  --caption-blue-down: radial-gradient(circle at 10% 10%, #1846b4 0%, #2358cc 55%, #3165cf 70%, #5c84d6 90%, #86a3e0 100%);
+  --caption-red:       radial-gradient(circle at 90% 90%, #cc4600 0%, #dc6527 55%, #cd7546 70%, #ffccb2 90%, #ffffff 100%);
+  --caption-red-hover: radial-gradient(circle at 90% 90%, #e5530a 0%, #f07a3e 55%, #e8906a 70%, #ffdcca 90%, #ffffff 100%);
+  --caption-red-down:  radial-gradient(circle at 10% 10%, #a83700 0%, #bd4b14 55%, #c46234 70%, #d58762 90%, #e4a98b 100%);
+  --glyph-min:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath fill='%23fff' d='M5 12h7v3H5z'/%3E%3C/svg%3E");
+  --glyph-max:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M5 5h10v10H5zM6 8v6h8V8z'/%3E%3C/svg%3E");
+  --glyph-restore: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath fill='%23fff' d='M8 4h8v2H8zM15 6h1v6h-1zM13 11h2v1h-2zM8 6h1v2H8z'/%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M5 8h8v8H5zM6 10v5h6v-5z'/%3E%3C/svg%3E");
+  --glyph-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cpath stroke='%23fff' stroke-width='2' d='M6 6l8 8M14 6l-8 8'/%3E%3C/svg%3E");
+
+  /* --- push buttons ----------------------------------------- */
+  --button-edge:          #003c74;
+  --button-edge-disabled: #c9c7ba;
+  --button-face:          linear-gradient(180deg, #ffffff 0%, #ecebe6 86%, #d6d0c5 100%);
+  --button-face-down:     linear-gradient(180deg, #cdcac3 0%, #e3e3db 8%, #e5e5de 94%, #f2f2f1 100%);
+  --button-face-disabled: #f5f4ea;
+  /* The orange glow under the pointer, and the blue one on the
+     focused or default button. Both are XP's, line for line. */
+  --button-glow-hover: inset -1px 1px #fff0cf, inset 1px 2px #fdd889, inset -2px 2px #fbc761, inset 2px -2px #e5a01a;
+  --button-glow-focus: inset -1px 1px #cee7ff, inset 1px 2px #98b8ea, inset -2px 2px #bcd4f6, inset 1px -1px #89ade4, inset 2px -2px #89ade4;
+
+  /* --- fields, checks, group boxes -------------------------- */
+  --field-edge:  #7f9db9;
+  --check-edge:  #1c5180;
+  --check-face:  linear-gradient(135deg, #dcdcd7 0%, #ffffff 100%);
+  --check-glow-hover: inset -1px -1px #f8b636, inset 1px 1px #fedf9c;
+  --glyph-check:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11'%3E%3Cpath fill='%2321a121' d='M2 4l2 2 5-5v3L4 9 2 7z'/%3E%3C/svg%3E");
+  --glyph-radio:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11'%3E%3Ccircle cx='5.5' cy='5.5' r='2.5' fill='%2321a121'/%3E%3Ccircle cx='4.8' cy='4.8' r='1' fill='%2385e085'/%3E%3C/svg%3E");
+  --glyph-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='19'%3E%3ClinearGradient id='g' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23dde7fd'/%3E%3Cstop offset='1' stop-color='%23b4c8f6'/%3E%3C/linearGradient%3E%3Crect x='.5' y='.5' width='16' height='18' rx='2' fill='url(%23g)' stroke='%23c3d3fd'/%3E%3Cpath d='M5 8l3.5 3.5L12 8' fill='none' stroke='%234d6185' stroke-width='2'/%3E%3C/svg%3E");
+  --group-edge: #d0d0bf;
+  --group-ink:  #0046d5;    /* XP's group box captions are blue */
+
+  /* --- menus and pop-ups ------------------------------------ */
+  --menu-edge:  var(--face-shadow);
+  --shadow-pop: 2px 2px 4px rgba(0, 0, 0, 0.35);  /* menus and tooltips only.
+                                                     XP's windows cast no shadow */
+
+  /* --- the taskbar ------------------------------------------ */
+  --taskbar: linear-gradient(180deg,
+    #1f2f86 0%, #3165c4 3%, #3682e5 6%, #4490e6 10%, #3883e5 12%,
+    #2b71e0 15%, #2663da 18%, #235bd6 20%, #2258d5 23%, #2157d6 38%,
+    #245ddb 54%, #2562df 86%, #245fdc 89%, #2158d4 92%, #1d4ec0 95%,
+    #1941a5 98%);
+  --tray: linear-gradient(180deg,
+    #0c59b9 1%, #139ee9 6%, #18b5f2 10%, #139beb 14%, #1290e8 19%,
+    #0d8dea 63%, #0d9ff1 81%, #0f9eed 88%, #119be9 91%, #1392e2 94%,
+    #137ed7 97%, #095bc9 100%);
+  --tray-edge:      inset 1px 0 #1042af, inset 2px 0 1px #18bbff;
+  --task:           #3c81f3;
+  --task-hover:     #53a3ff;
+  --task-down:      #1e52b7;
+  --task-edge:      inset -1px 0 rgba(0, 0, 0, 0.3), inset 1px 1px 1px rgba(255, 255, 255, 0.2);
+  --task-edge-down: inset 0 0 1px 1px rgba(0, 0, 0, 0.3), inset 1px 0 1px rgba(0, 0, 0, 0.7);
+  --start: linear-gradient(180deg,
+    #3e8d3e 0%, #78c878 5%, #56b456 12%, #43a643 30%, #3d9f3d 55%,
+    #36973a 80%, #2e7e2e 95%, #255f25 100%);
+  --start-hover: linear-gradient(180deg,
+    #4a9a4a 0%, #8ad58a 5%, #66c266 12%, #52b452 30%, #4aad4a 55%,
+    #43a547 80%, #3a8d3a 95%, #2f6e2f 100%);
+  --start-down: linear-gradient(180deg,
+    #245c24 0%, #2d752d 10%, #328532 40%, #36903a 70%, #3a973a 100%);
+  --start-edge:   inset -2px 0 3px rgba(0, 0, 0, 0.3), inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+  --start-ink:    #ffffff;
+  --start-shadow: 1px 1px 1px #1f4d1f;
+
+  /* --- the start menu --------------------------------------- */
+  --start-menu-head: linear-gradient(180deg,
+    #1868ce 0%, #0e60cb 12%, #0e60cb 20%, #1164cf 32%, #1667cf 33%,
+    #1b6cd3 47%, #1e70d9 54%, #2476dc 60%, #297ae0 65%, #3482e3 77%,
+    #3786e5 79%, #428ee9 90%, #4791eb 100%);
+  --start-menu-foot: linear-gradient(180deg,
+    #4282d6 0%, #3b85e0 3%, #418ae3 5%, #418ae3 17%, #3c87e2 21%,
+    #3786e4 26%, #3482e3 29%, #2e7ee1 39%, #2374df 49%, #2072db 57%,
+    #196edb 62%, #176bd8 72%, #1468d5 75%, #1165d3 83%, #0f61cb 88%);
+  --start-menu-frame:   #4282d6;   /* the blue down either side */
+  --start-menu-hotline: linear-gradient(90deg, transparent 0%, #da884a 50%, transparent 100%);
+  --start-menu-press:   rgba(60, 80, 210, 0.5);   /* a footer button under the pointer */
+  --start-places:       #d3e5fa;   /* the right column */
+  --start-places-edge:  #95bdee;
+  --start-places-ink:   #00136b;
+  --start-tile-edge:    #dedede;   /* around the user picture */
+
+  /* --- the Welcome screen and the Log Off dialog ------------- */
+  --logon:             #5a7edc;   /* the middle */
+  --logon-glow:        radial-gradient(circle at 15% 30%, rgba(145, 177, 239, 0.9) 0%, rgba(145, 177, 239, 0) 45%);
+  --logon-band:        #00309c;   /* top and bottom */
+  --logon-line-top:    linear-gradient(90deg, transparent 0%, #ffffff 30%, #7f9ee6 70%, transparent 100%);
+  --logon-line-bottom: linear-gradient(90deg, transparent 0%, #f99b3b 30%, #e0762b 70%, transparent 100%);
+  --logon-divider:     linear-gradient(180deg, transparent 0%, #c8d6f6 30%, #c8d6f6 70%, transparent 100%);
+  --logon-tile-edge:   #e8eefc;   /* around a user's picture */
+  --logon-tile-hover:  #ffc541;   /* ... under the pointer */
+  --logon-picked:      linear-gradient(90deg, #0d3aa8 0%, rgba(13, 58, 168, 0) 100%);  /* the user
+                                     being logged on */
+  --logon-shadow:      1px 1px 2px #0c2a80;
+  --lift:              brightness(1.2);   /* a picture button under the pointer */
+
+  /* --- the desktop ------------------------------------------ */
+  --icon-shadow: 1px 1px 1px #000000;   /* icon labels over the wallpaper */
+  --marquee:     rgba(49, 106, 197, 0.3);   /* the selection rectangle's fill:
+                                               --select, see-through */
+
+  /* --- scrollbars ------------------------------------------- */
+  --scroll-thumb: #c3d3fd;
+  --scroll-track: #f4f3ee;
+}

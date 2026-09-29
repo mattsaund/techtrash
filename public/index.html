@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>techtrash</title>
+  <link rel="icon" href="/img/icons/planet.svg">
+  <script>
+    // Before anything paints: a tab that hasn't logged on starts at the
+    // Welcome screen (js/session.js does the rest). Without JavaScript this
+    // never runs, so the Welcome screen never shows and the page still works.
+    try {
+      if (!sessionStorage.getItem("techtrash:logged-on")) document.documentElement.classList.add("is-logged-off");
+    } catch {
+      document.documentElement.classList.add("is-logged-off");
+    }
+  </script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/desktop.css">
+  <script type="module" src="/js/desktop.js"></script>
+</head>
+<body>
+  <!--
+    The desktop. The icons, the start menu's lists and every window are drawn
+    by js/desktop.js and js/icons.js from the list in js/apps.js.
+  -->
+  <main class="desktop" aria-label="Desktop">
+    <nav class="desktop__icons" aria-label="Desktop icons"></nav>
+
+    <noscript>
+      <section class="window desktop__noscript" aria-labelledby="noscript-title">
+        <header class="title-bar">
+          <h2 class="title-bar__text" id="noscript-title">techtrash</h2>
+        </header>
+        <div class="window__body">
+          <p>The desktop needs JavaScript, but every page works without it:</p>
+          <!-- Same list, same order, as js/apps.js. -->
+          <ul>
+            <li><a href="/pages/blog/">Blog</a></li>
+            <li><a href="/programs/files/">File Browser</a></li>
+          </ul>
+        </div>
+      </section>
+    </noscript>
+  </main>
+
+  <div class="start-menu" id="start-menu" hidden>
+    <div class="start-menu__head">
+      <img class="start-menu__tile" src="/img/icons/planet.svg" alt="">
+      <span>techtrash</span>
+    </div>
+    <div class="start-menu__hotline"></div>
+    <div class="start-menu__cols">
+      <ul class="start-menu__list start-menu__programs" aria-label="Programs"></ul>
+      <ul class="start-menu__list start-menu__places" aria-label="Pages"></ul>
+    </div>
+    <div class="start-menu__foot">
+      <button class="start-menu__button" data-ask-log-off><img src="/img/icons/logoff.svg" alt="">Log Off</button>
+    </div>
+  </div>
+
+  <footer class="taskbar">
+    <button class="start" aria-expanded="false" aria-controls="start-menu">start</button>
+    <div class="taskbar__tasks" role="group" aria-label="Open windows"></div>
+    <div class="tray">
+      <time class="tray__clock"></time>
+    </div>
+  </footer>
+
+  <!-- Start > Log Off -->
+  <div class="logoff" role="dialog" aria-modal="true" aria-labelledby="logoff-title" hidden>
+    <div class="logoff__box">
+      <h2 class="logoff__head" id="logoff-title">Log Off techtrash</h2>
+      <div class="logoff__body">
+        <button class="logoff__choice" data-switch-user><img src="/img/icons/switchuser.svg" alt=""><span>Switch User</span></button>
+        <button class="logoff__choice" data-log-off><img src="/img/icons/logoff.svg" alt=""><span>Log Off</span></button>
+      </div>
+      <div class="logoff__foot">
+        <button class="button" data-cancel>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- The Welcome screen. Shown only while <html> has .is-logged-off. -->
+  <div class="logon" role="dialog" aria-modal="true" aria-labelledby="logon-title">
+    <div class="logon__band logon__band--top"></div>
+    <div class="logon__main">
+      <div class="logon__intro">
+        <p class="logon__brand" id="logon-title">techtrash</p>
+        <p class="logon__prompt" role="status"></p>
+      </div>
+      <div class="logon__divider"></div>
+      <ul class="logon__users" aria-label="Users">
+        <li>
+          <button class="logon__user">
+            <img class="logon__picture" src="/img/icons/planet.svg" alt="">
+            <span class="logon__who">
+              <span class="logon__name">techtrash</span>
+              <span class="logon__status" role="status"></span>
+            </span>
+          </button>
+        </li>
+      </ul>
+    </div>
+    <div class="logon__band logon__band--bottom">
+      <p class="logon__note">One desktop, shared by everyone here. Move something and everyone sees it move.</p>
+    </div>
+  </div>
+
+  <!-- XP tints a selected icon with the selection blue, half and half. The
+       color comes from --select, through css/desktop.css. -->
+  <svg class="filters" aria-hidden="true">
+    <filter id="select-tint" color-interpolation-filters="sRGB">
+      <feFlood class="select-tint__flood"/>
+      <feComposite in2="SourceAlpha" operator="in" result="tint"/>
+      <feComposite in="tint" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
+    </filter>
+  </svg>
+
+  <template id="window-template">
+    <section class="window">
+      <header class="title-bar">
+        <img class="title-bar__icon" alt="">
+        <h2 class="title-bar__text"></h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--min" aria-label="Minimize"></button>
+          <button class="caption caption--max" aria-label="Maximize"></button>
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="window__body window__body--flush">
+        <iframe class="window__frame"></iframe>
+      </div>
+      <div class="window__grip" data-edge="n"></div>
+      <div class="window__grip" data-edge="s"></div>
+      <div class="window__grip" data-edge="e"></div>
+      <div class="window__grip" data-edge="w"></div>
+      <div class="window__grip" data-edge="nw"></div>
+      <div class="window__grip" data-edge="ne"></div>
+      <div class="window__grip" data-edge="sw"></div>
+      <div class="window__grip" data-edge="se"></div>
+    </section>
+  </template>
+</body>
+</html>

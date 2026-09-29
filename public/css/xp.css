@@ -1,0 +1,476 @@
+/* ============================================================
+   techtrash.org : xp.css
+
+   The base elements and the XP kit every page and every app is
+   built from: windows, buttons, fields, menus, the taskbar and
+   the desktop's icons. Load it after tokens.css.
+
+   Nothing in here is a raw value. If a rule needs a number or a
+   color that tokens.css doesn't have, it goes in tokens.css first.
+
+   Two habits from XP that hold everywhere:
+   - The hand cursor is for links. Buttons, menus, icons and title
+     bars keep the arrow, the way XP did.
+   - Nothing animates. Hover and press states change instantly.
+   ============================================================ */
+
+/* --- reset ------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+:root {
+  color-scheme: light;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--desktop);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+
+h1, h2, h3, h4, p, ul, ol, figure, blockquote, pre { margin: 0; }
+h1, h2, h3, h4 { font-weight: 700; }
+img, svg { display: block; max-width: 100%; }
+img { height: auto; }
+button, input, select, textarea { font: inherit; color: inherit; margin: 0; }
+button { cursor: default; }
+
+a { color: var(--link); text-decoration: underline; }
+a:hover { color: var(--link-hover); }
+
+::selection { background: var(--select); color: var(--select-ink); }
+
+/* XP's focus rectangle: one dotted pixel. Controls that draw their
+   own (push buttons, icons) move it inside themselves below. */
+:focus-visible { outline: var(--hairline) dotted var(--focus); outline-offset: var(--sp-2); }
+
+/* Screen reader only. */
+.sr-only {
+  position: absolute; width: var(--hairline); height: var(--hairline);
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* --- app page ---------------------------------------------- *
+   Every app (a page like the blog, a program like the File
+   Browser) is its own HTML page, shown in a window's body through
+   an iframe. <body class="app"> is that body: it fills the window,
+   and a .doc directly inside it fills the rest and scrolls.
+   ============================================================ */
+html:has(> body.app) { height: 100%; }
+body.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--face);
+}
+body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
+
+/* --- window ------------------------------------------------ *
+   <section class="window">
+     <header class="title-bar"> icon, title, caption buttons
+     <nav class="menu-bar">      optional
+     <div class="window__body">  the content
+     <footer class="status-bar"> optional
+
+   The blue frame is drawn by the window's inset shadows, and the
+   title bar is pulled out over the side frames so it runs edge to
+   edge, as XP's does. The window itself doesn't position anything:
+   where it sits is up to the page or the window manager.
+   ============================================================ */
+.window {
+  display: flex;
+  flex-direction: column;
+  min-width: var(--window-min-w);
+  padding: 0 var(--frame) var(--frame);
+  background: var(--face);
+  border-radius: var(--r-window) var(--r-window) 0 0;
+  box-shadow: var(--frame-active);
+}
+
+.title-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: var(--title-h);
+  margin: 0 calc(-1 * var(--frame));
+  padding: 0 var(--sp-4) 0 var(--sp-8);
+  background: var(--title-active);
+  border-radius: var(--r-window) var(--r-window) 0 0;
+  box-shadow: var(--title-edge-active);
+  color: var(--title-ink);
+  text-shadow: var(--title-shadow);
+  user-select: none;
+}
+.title-bar__icon { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.title-bar__text {
+  flex: 1;
+  min-width: 0;
+  font: 700 var(--fs-body)/var(--lh-body) var(--font-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title-bar__controls { display: flex; gap: var(--sp-2); flex: none; }
+
+/* Every window that isn't in front. */
+.window.is-inactive { box-shadow: var(--frame-inactive); }
+.window.is-inactive .title-bar {
+  background: var(--title-inactive);
+  box-shadow: var(--title-edge-inactive);
+  color: var(--title-ink-inactive);
+  text-shadow: none;
+}
+
+/* --- caption buttons --------------------------------------- *
+   <button class="caption caption--min|max|close" aria-label="...">
+   The glyph and the gradient are two background layers, so a
+   state only has to swap the gradient. */
+.caption {
+  width: var(--caption);
+  height: var(--caption);
+  padding: 0;
+  border: var(--hairline) solid var(--caption-edge);
+  border-radius: var(--r-control);
+  background: var(--glyph-min) center no-repeat, var(--caption-blue);
+}
+.caption--max   { background: var(--glyph-max) center no-repeat, var(--caption-blue); }
+.caption--close { background: var(--glyph-close) center no-repeat, var(--caption-red); }
+
+.caption--min:hover         { background: var(--glyph-min) center no-repeat, var(--caption-blue-hover); }
+.caption--max:hover         { background: var(--glyph-max) center no-repeat, var(--caption-blue-hover); }
+.caption--close:hover       { background: var(--glyph-close) center no-repeat, var(--caption-red-hover); }
+.caption--min:active        { background: var(--glyph-min) center no-repeat, var(--caption-blue-down); }
+.caption--max:active        { background: var(--glyph-max) center no-repeat, var(--caption-blue-down); }
+.caption--close:active      { background: var(--glyph-close) center no-repeat, var(--caption-red-down); }
+.caption:focus-visible      { outline-offset: calc(-1 * var(--sp-4)); outline-color: var(--caption-edge); }
+
+/* --- menu bar ---------------------------------------------- */
+.menu-bar {
+  display: flex;
+  background: var(--face);
+  border-bottom: var(--hairline) solid var(--face-hi);
+}
+.menu-bar__item {
+  padding: var(--sp-2) var(--sp-8);
+  border: 0;
+  background: none;
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+.menu-bar__item:hover,
+.menu-bar__item[aria-expanded="true"] { background: var(--select); color: var(--select-ink); }
+
+/* --- window body and status bar ---------------------------- */
+.window__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-12);
+}
+/* For a body that's all one document or canvas, edge to edge. */
+.window__body--flush { padding: 0; }
+
+.status-bar {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0 0;
+  background: var(--face);
+}
+.status-bar__field {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-4);
+  box-shadow: inset var(--hairline) var(--hairline) var(--face-shadow),
+              inset calc(-1 * var(--hairline)) calc(-1 * var(--hairline)) var(--face-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- document ---------------------------------------------- *
+   Reading text: posts, the journal, anything longer than a label.
+   The one place --fs-body is the default. A document is paper,
+   sunk into the window by a field's edge, like Notepad's or
+   Internet Explorer's page. */
+.doc {
+  padding: var(--sp-16) var(--sp-24) var(--sp-24);
+  background: var(--paper);
+  border: var(--hairline) solid var(--field-edge);
+  font: 400 var(--fs-body)/var(--lh-body) var(--font-ui);
+}
+.window__body--flush > .doc { border: 0; }
+.doc > * { max-width: var(--measure); }
+.doc > * + * { margin-top: var(--sp-16); }
+.doc h1 { font: 700 var(--fs-big)/var(--lh-big) var(--font-ui); }
+.doc h2 { font: 700 var(--fs-head)/var(--lh-head) var(--font-ui); }
+.doc > h2 { margin-top: var(--sp-32); }
+.doc > h1 + *, .doc > h2 + * { margin-top: var(--sp-8); }
+.doc ul, .doc ol { padding-left: var(--sp-24); }
+.doc li + li { margin-top: var(--sp-4); }
+.doc blockquote {
+  padding-left: var(--sp-12);
+  border-left: var(--hairline) solid var(--face-shadow);
+  color: var(--ink-muted);
+}
+.doc code, .doc pre { font-family: var(--font-mono); }
+.doc pre {
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--face);
+  overflow-x: auto;
+}
+.doc img { border: var(--hairline) solid var(--face-shadow); }
+.doc hr { border: 0; border-top: var(--hairline) solid var(--face-shadow); }
+.doc .meta { color: var(--ink-muted); }
+
+/* Notepad: the same paper, in the mono face, no measure. */
+.doc--mono { font-family: var(--font-mono); white-space: pre-wrap; }
+.doc--mono > * { max-width: none; }
+
+/* --- push button ------------------------------------------- *
+   <button class="button">. Also works on <a> for a link that
+   should look like a button. --default is the one Enter presses:
+   it wears the blue glow even when it doesn't have focus. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  min-width: var(--button-w);
+  height: var(--button-h);
+  padding: 0 var(--sp-12);
+  border: var(--hairline) solid var(--button-edge);
+  border-radius: var(--r-control);
+  background: var(--button-face);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: default;
+}
+a.button:hover { color: var(--ink); }
+.button:focus-visible { outline-offset: calc(-1 * var(--sp-4)); }
+.button--default,
+.button:focus-visible { box-shadow: var(--button-glow-focus); }
+.button:hover { box-shadow: var(--button-glow-hover); }
+.button:active { background: var(--button-face-down); box-shadow: none; }
+.button:disabled {
+  border-color: var(--button-edge-disabled);
+  background: var(--button-face-disabled);
+  box-shadow: none;
+  color: var(--ink-disabled);
+}
+.button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+
+/* --- fields ------------------------------------------------ *
+   Every text field on the site is an XP field, so the elements
+   themselves are styled; nothing needs a class. XP gave a field
+   no focus ring (the caret was the cue), so focus darkens the
+   border to the selection blue instead, which a keyboard user can
+   actually see. */
+input:where(:not([type]), [type="text"], [type="search"], [type="password"],
+            [type="email"], [type="url"], [type="tel"], [type="number"]),
+textarea,
+select {
+  height: var(--field-h);
+  padding: 0 var(--sp-4);
+  border: var(--hairline) solid var(--field-edge);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+textarea { height: auto; padding: var(--sp-2) var(--sp-4); resize: vertical; }
+select {
+  appearance: none;
+  padding-right: calc(var(--sp-4) + var(--field-h));
+  background: var(--glyph-select) right center no-repeat, var(--paper);
+}
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 0;
+  border-color: var(--select);
+}
+input:disabled, textarea:disabled, select:disabled {
+  background-color: var(--face);
+  color: var(--ink-disabled);
+}
+
+/* A label beside its control: <label class="field-row">. */
+.field-row { display: flex; align-items: center; gap: var(--sp-8); }
+/* A label above its control: <label class="field-stack">. */
+.field-stack { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+/* --- checkbox and radio ------------------------------------ */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  flex: none;
+  width: var(--check);
+  height: var(--check);
+  border: var(--hairline) solid var(--check-edge);
+  background: var(--check-face);
+}
+input[type="radio"] { border-radius: 50%; }
+input[type="checkbox"]:hover,
+input[type="radio"]:hover { box-shadow: var(--check-glow-hover); }
+input[type="checkbox"]:checked { background: var(--glyph-check) center no-repeat, var(--check-face); }
+input[type="radio"]:checked    { background: var(--glyph-radio) center no-repeat, var(--check-face); }
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled { border-color: var(--face-shadow); background: var(--face); box-shadow: none; }
+
+/* <label class="check"><input type="checkbox"> Label</label> */
+.check { display: inline-flex; align-items: center; gap: var(--sp-4); }
+
+/* --- group box --------------------------------------------- */
+fieldset {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12) var(--sp-12);
+  border: var(--hairline) solid var(--group-edge);
+  border-radius: var(--r-control);
+}
+legend { padding: 0 var(--sp-2); color: var(--group-ink); }
+
+/* --- menu -------------------------------------------------- *
+   A drop-down or context menu. Paper, not face, with the face
+   color's edge and the only drop shadow XP had. */
+.menu {
+  padding: var(--sp-2);
+  list-style: none;
+  background: var(--paper);
+  border: var(--hairline) solid var(--menu-edge);
+  box-shadow: var(--shadow-pop);
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-16) var(--sp-2) var(--sp-8);
+  border: 0;
+  background: none;
+  text-align: left;
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+.menu__item:hover { background: var(--select); color: var(--select-ink); }
+.menu__item:disabled { color: var(--ink-disabled); background: none; }
+.menu__rule { margin: var(--sp-2) 0; border-top: var(--hairline) solid var(--face-shadow); }
+
+/* --- tooltip ----------------------------------------------- */
+.tip {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--tip);
+  border: var(--hairline) solid var(--ink);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  z-index: var(--z-tip);
+}
+
+/* --- desktop icon ------------------------------------------ *
+   <a class="icon"><img class="icon__img"><span class="icon__label">
+   White label with XP's drop shadow over the wallpaper; when
+   selected or focused the label takes the selection blue and the
+   shadow goes. */
+.icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  width: var(--icon-cell);
+  padding: var(--sp-2);
+  color: var(--ink-inverse);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  text-align: center;
+  text-decoration: none;
+  text-shadow: var(--icon-shadow);
+  cursor: default;
+}
+.icon:hover { color: var(--ink-inverse); }
+.icon__img { width: var(--icon-m); height: var(--icon-m); }
+.icon__label { padding: 0 var(--sp-2); overflow-wrap: anywhere; }
+.icon:focus-visible { outline: 0; }
+.icon.is-selected .icon__label,
+.icon:focus-visible .icon__label {
+  background: var(--select);
+  text-shadow: none;
+}
+.icon:focus-visible .icon__label { outline: var(--hairline) dotted var(--select-ink); }
+
+/* --- taskbar ----------------------------------------------- *
+   start, the window buttons, the tray. Fixed to the foot of the
+   screen, over every window. */
+.taskbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-taskbar);
+  display: flex;
+  align-items: center;
+  height: var(--taskbar-h);
+  background: var(--taskbar);
+  color: var(--ink-inverse);
+  user-select: none;
+}
+
+.start {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 100%;
+  padding: 0 var(--sp-24) 0 var(--sp-12);
+  border: 0;
+  border-radius: 0 var(--r-start) var(--r-start) 0;
+  background: var(--start);
+  box-shadow: var(--start-edge);
+  color: var(--start-ink);
+  font: italic 700 var(--fs-big)/var(--lh-big) var(--font-ui);
+  text-shadow: var(--start-shadow);
+}
+.start:hover { background: var(--start-hover); }
+.start:active,
+.start[aria-expanded="true"] { background: var(--start-down); }
+.start:focus-visible { outline-color: var(--start-ink); outline-offset: calc(-1 * var(--sp-4)); }
+
+.taskbar__tasks {
+  display: flex;
+  flex: 1;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: 0 var(--sp-8);
+}
+.task {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 1 var(--task-w);
+  min-width: 0;
+  height: var(--task-h);
+  padding: 0 var(--sp-8);
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--task);
+  box-shadow: var(--task-edge);
+  color: var(--ink-inverse);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  text-align: left;
+}
+.task:hover { background: var(--task-hover); }
+.task.is-active { background: var(--task-down); box-shadow: var(--task-edge-down); }
+.task:focus-visible { outline-color: var(--ink-inverse); outline-offset: calc(-1 * var(--sp-2)); }
+.task__icon { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.task__label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tray {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  height: 100%;
+  padding: 0 var(--sp-12) 0 var(--sp-16);
+  background: var(--tray);
+  box-shadow: var(--tray-edge);
+  color: var(--ink-inverse);
+}
+.tray__icon { width: var(--icon-s); height: var(--icon-s); }

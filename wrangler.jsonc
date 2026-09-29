@@ -1,0 +1,20 @@
+{
+  // "name" has to match the Worker's name in the Cloudflare dashboard
+  "name": "techtrash",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    // the public site: everything in public/ and nothing outside it
+    "directory": "./public"
+  },
+  "durable_objects": {
+    "bindings": [
+      // the shared desktop (the Desktop class in worker.js)
+      { "name": "DESKTOP", "class_name": "Desktop" }
+    ]
+  },
+  "migrations": [
+    // tells Cloudflare to create each object; never edit or remove these, only add new entries at the end
+    { "tag": "v1", "new_sqlite_classes": ["Desktop"] }
+  ]
+}
