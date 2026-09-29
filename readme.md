@@ -272,13 +272,18 @@ where msaunders.dev is all blue.
 deleted on the site itself, logged on as admin. (Anyone can read, and
 comment.)
 
+- **The Blog** is the panel under the headline (the one that will switch to
+  Pictures, Travel and Misc once they're built). Its **Sort by** buttons lay
+  the topics out by **Topics** (every one, the one with the newest post first)
+  or by **Flags** (a group for each flag, and one for topics with none). The
+  choice is remembered in the visitor's browser.
 - **A topic** has a title, a description if it wants one, a picture if it
-  wants one, and flags. On the front page it's a card; click it for its posts.
+  wants one, and flags. In the Blog it's a card; click it for its posts.
 - **A flag** is a label for topics: Music, Space, Trips. A topic can wear any
-  number. The front page has a button for each flag that's worn; press one
-  and only its topics show (`?flag=<id>`). The admin makes flags right in a
-  topic's form, and renames or deletes them with **Edit flags** on the front
-  page (deleting one takes it off its topics, nothing else).
+  number, and shows up in each one's group. A flag's name, in its group or on
+  a topic's page, shows only its topics (`?flag=<id>`). The admin makes flags
+  right in a topic's form, and renames or deletes them with **Edit flags** in
+  the Blog (deleting one takes it off its topics, nothing else).
 - **A post** lives in a topic, and is written in the editor (`editor.js`):
   what you see is what the post looks like. Bold, italic, underline,
   strikethrough, code, headings, quotes, code blocks, lists, alignment, the

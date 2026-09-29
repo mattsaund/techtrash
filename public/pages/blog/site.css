@@ -115,7 +115,8 @@ a:hover { color: var(--site-fg); }
   cursor: pointer;
 }
 .button:hover,
-.button[aria-current="page"] { background: var(--hue); color: var(--site-bg); }
+.button[aria-current="page"],
+.button[aria-pressed="true"] { background: var(--hue); color: var(--site-bg); }
 .button:disabled { opacity: var(--site-stars); cursor: default; }
 .button:disabled:hover { background: var(--site-field); color: var(--hue); }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
@@ -131,6 +132,10 @@ a:hover { color: var(--site-fg); }
   background: var(--site-panel);
   border: var(--hairline) solid var(--site-line);
 }
+
+/* A panel's name, and whatever sits beside it (the Blog's sort buttons). */
+.panel__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-24); }
+.sort { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
 
 /* A section's name, in the section's hue, and after it what it's
    showing, if that needs saying ("Topics · Music"). */
@@ -192,6 +197,20 @@ a:hover { color: var(--site-fg); }
 .entry a:hover { color: var(--hue); }
 
 .topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
+
+/* The Blog, sorted by flag: a group for each, named in its hue. */
+.groups { display: flex; flex-direction: column; gap: var(--sp-32); }
+.group { display: flex; flex-direction: column; gap: var(--sp-12); }
+.group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-12);
+  font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
+}
+.group__name { color: var(--site-fg-2); text-decoration: none; }
+a.group__name { color: var(--hue); }
+a.group__name:hover { text-decoration: underline; }
 
 /* --- flags ------------------------------------------------ *
    A button each, "#Music", in the flag's hue. On a topic's card

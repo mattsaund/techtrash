@@ -1,8 +1,8 @@
 // techtrash.org : the website's pages.
 //
 // Picked by the address:
-//   (nothing)            the front page: the headline, the flags, and every
-//                        topic, the one with the newest post first
+//   (nothing)            the front page: the headline, and the Blog: every
+//                        topic, by topic or by flag
 //   ?flag=<id>           the same, with only the topics that wear that flag
 //   ?topic=<id>          one topic, and its posts
 //   ?post=<id>           one post, and its comments
@@ -41,7 +41,7 @@ function markNav(which) {
 
 const flagLink = (flag, current) => el("a", {
   class: `button flag ${hueOf(flag.id)}`,
-  href: `?flag=${flag.id}#topics`,
+  href: `?flag=${flag.id}#blog`,
   textContent: flag.name,
   "aria-current": current ? "page" : null,
 });
@@ -55,6 +55,24 @@ function swap(spot, form) {
 
 // --- the front page --------------------------------------------------------------
 
+// A topic's card: its picture, title, description, how many posts, its flags.
+const card = (topic) => el("a", { class: `card ${hueOf(topic.id)}`, href: `?topic=${topic.id}` },
+  topic.picture ? el("img", { class: "card__cover", src: pictureUrl(topic.picture), alt: "" }) : null,
+  el("span", { class: "card__body" },
+    el("span", { class: "named", textContent: topic.title }),
+    topic.description ? el("span", { class: "card__text", textContent: topic.description }) : null,
+    el("span", {
+      class: "meta",
+      textContent: plural(topic.post_count, "post") + (topic.last_post ? `, the newest ${date(topic.last_post)}` : ""),
+    }),
+    topic.flags.length ? el("span", { class: "tags" }, topic.flags.map((f) => el("span", { class: `tag ${hueOf(f.id)}`, textContent: f.name }))) : null));
+
+const SORT = "techtrash:sort";
+
+// The headline, and under it the Blog: every topic, sorted by topic (newest
+// post first) or by flag (a group for each flag, and one for the topics with
+// none). The sort is remembered in this browser. A flag's name in its group
+// shows only its topics (?flag=<id>).
 async function showFront() {
   const flagId = Number(params.get("flag")) || null;
   const [{ topics }, { flags }] = await Promise.all([
@@ -65,15 +83,47 @@ async function showFront() {
   titled(flag ? `${flag.name} - Techtrash` : "Techtrash");
   markNav("home");
 
-  const section = el("section", { class: "panel hue-4", id: "topics" }, label("Topics", flag?.name));
+  let sort = remembered.get(SORT) === "flags" ? "flags" : "topics";
+  const sortButton = (mode, text) => {
+    const button = el("button", { class: "button", type: "button", textContent: text });
+    button.addEventListener("click", () => {
+      sort = mode;
+      remembered.set(SORT, mode);
+      draw();
+    });
+    return button;
+  };
+  const byTopic = sortButton("topics", "Topics");
+  const byFlag = sortButton("flags", "Flags");
+  const list = el("div", { class: "groups" });
 
-  // A button for each flag with something in it; pressing one shows only its topics.
-  const worn = flags.filter((f) => f.topic_count > 0 || f.id === flagId);
-  if (worn.length) {
-    section.append(el("nav", { class: "button-row", "aria-label": "Flags" },
-      el("a", { class: "button hue-5", href: "./#topics", textContent: "All", "aria-current": flag ? null : "page" }),
-      worn.map((f) => flagLink(f, f.id === flagId))));
+  const group = (name, members) => el("section", { class: "group" },
+    el("h3", { class: "group__head" }, name, el("span", { class: "meta", textContent: plural(members.length, "topic") })),
+    el("div", { class: "topics" }, members.map(card)));
+
+  function draw() {
+    byTopic.setAttribute("aria-pressed", String(sort === "topics"));
+    byFlag.setAttribute("aria-pressed", String(sort === "flags"));
+    if (topics.length === 0) {
+      list.replaceChildren(el("p", { class: "meta", textContent: flag ? `No topics wear ${flag.name} yet.` : "No topics yet." }));
+    } else if (flag || sort === "topics") {
+      list.replaceChildren(el("div", { class: "topics" }, topics.map(card)));
+    } else {
+      const groups = flags
+        .map((f) => [f, topics.filter((topic) => topic.flags.some((worn) => worn.id === f.id))])
+        .filter(([, members]) => members.length);
+      const loose = topics.filter((topic) => topic.flags.length === 0);
+      list.replaceChildren(...groups.map(([f, members]) => group(el("a", { class: `group__name flag ${hueOf(f.id)}`, href: `?flag=${f.id}#blog`, textContent: f.name }), members)));
+      if (loose.length) list.append(group(el("span", { class: "group__name", textContent: groups.length ? "No flag" : "No flags yet" }), loose));
+    }
   }
+
+  const section = el("section", { class: "panel hue-4", id: "blog" },
+    el("div", { class: "panel__head" },
+      label("Blog", flag?.name),
+      flag
+        ? el("a", { class: "button", href: "./#blog", textContent: "All topics" })
+        : el("div", { class: "sort", role: "group", "aria-label": "Sort by" }, el("span", { class: "meta", textContent: "Sort by" }), byTopic, byFlag)));
 
   if (admin) {
     const spot = el("div");
@@ -88,24 +138,10 @@ async function showFront() {
     section.append(spot);
   }
 
-  if (topics.length === 0) {
-    section.append(el("p", { class: "meta", textContent: flag ? `No topics wear ${flag.name} yet.` : "No topics yet." }));
-  } else {
-    section.append(el("div", { class: "topics" }, topics.map((topic) => el("a", { class: `card ${hueOf(topic.id)}`, href: `?topic=${topic.id}` },
-      topic.picture ? el("img", { class: "card__cover", src: pictureUrl(topic.picture), alt: "" }) : null,
-      el("span", { class: "card__body" },
-        el("span", { class: "named", textContent: topic.title }),
-        topic.description ? el("span", { class: "card__text", textContent: topic.description }) : null,
-        el("span", {
-          class: "meta",
-          textContent: plural(topic.post_count, "post") + (topic.last_post ? `, the newest ${date(topic.last_post)}` : ""),
-        }),
-        topic.flags.length ? el("span", { class: "tags" }, topic.flags.map((f) => el("span", { class: `tag ${hueOf(f.id)}`, textContent: f.name }))) : null),
-    ))));
-  }
-
+  draw();
+  section.append(list);
   page.replaceChildren(document.getElementById("hero").content.cloneNode(true), section);
-  if (location.hash === "#topics") section.scrollIntoView();
+  if (location.hash === "#blog") section.scrollIntoView();
 }
 
 // --- a topic ---------------------------------------------------------------------
@@ -134,7 +170,7 @@ async function showTopic(id) {
       edit,
       twoClick("Delete topic", `Click again: ${plural(topic.posts.length, "post")} go${topic.posts.length === 1 ? "es" : ""} with it`, async () => {
         await api(`/api/blog/topic?id=${topic.id}`, { method: "DELETE" });
-        location.assign("./#topics");
+        location.assign("./#blog");
       })));
   }
 
