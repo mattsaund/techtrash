@@ -1,47 +1,25 @@
 techtrash.org credits
 =====================
 
-Everything on this desktop that someone else made, who made it, and the
-terms it's shared under.
-
-
 ICONS
 
-Internet Explorer logo (the Blog icon)
-  The Internet Explorer 4 and 5 logo, by Microsoft. SVG drawing by
-  Rezonansowy, edited by Fry1989, on Wikimedia Commons.
-  Public domain: too simple to be protected by copyright. Internet
-  Explorer and its logo are trademarks of Microsoft, which has nothing
-  to do with this site. Changed only so it scales: a viewBox added, and
-  the editor's metadata taken out.
+Internet Explorer logo (Blog)
+  Microsoft. SVG by Rezonansowy and Fry1989, Wikimedia Commons.
   commons.wikimedia.org/wiki/File:Internet_Explorer_4_and_5_logo.svg
 
-Crystal Clear, by Everaldo Coelho
-  Every other icon: the File Browser, Notepad, text files, the user
-  picture, Log Off, Switch User, and the folders.
-  GNU Lesser General Public License, version 2.1 or later: see
-  /img/icons/crystal-clear/LGPL.txt. Used as they come, shown smaller.
-  www.everaldo.com/
-  commons.wikimedia.org/wiki/Crystal_Clear
+Crystal Clear (every other icon)
+  Everaldo Coelho. LGPL 2.1: /img/icons/crystal-clear/LGPL.txt
   github.com/niko-yanev/crystal-clear
 
 
 FONTS
 
-Tahoma, from Wine
-  Copyright (c) 2004 Larry Snyder, based on Bitstream Vera Sans.
-  GNU Lesser General Public License, version 2.1 or later: see
-  /fonts/LGPL-2.1.txt. Cut down to Latin, and the bold thickened, by
-  this site's tools/make_fonts.py.
+Tahoma (from Wine)
+  Larry Snyder, based on Bitstream Vera Sans.
+  LGPL 2.1: /fonts/LGPL-2.1.txt
   gitlab.winehq.org/wine/wine
 
 DejaVu Sans Mono
-  Bitstream Vera license, with DejaVu's changes in the public domain:
-  see /fonts/DejaVu-LICENSE.txt.
-  dejavu-fonts.github.io/
-
-
-THE LOOK
-
-Windows XP and its Luna theme are Microsoft's. This site recreates that
-look in its own HTML and CSS, and isn't made or endorsed by Microsoft.
+  Bitstream and the DejaVu project.
+  Bitstream Vera license: /fonts/DejaVu-LICENSE.txt
+  dejavu-fonts.github.io
