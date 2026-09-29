@@ -8,6 +8,7 @@
 //   /api/logoff           admin account
 //   /api/blog/...,        the blog, and its topics'    server/blog.js
 //   /blog/img/<name>      pictures
+//   anything else         XP's blue screen, as a 404   public/404.html
 //
 // Anything that changes something has to come from the site's own pages, and
 // everything that posts or deletes is the admin's alone.
@@ -47,6 +48,9 @@ export default {
       const name = pathname.slice("/blog/img/".length);
       if (PICTURE_NAME.test(name)) return servePicture(name, env);
     }
-    return new Response("not found", { status: 404 });
+
+    if (pathname.startsWith("/api/")) return apiError(404, "Not found.");
+    const page = await env.ASSETS.fetch(new URL("/404", request.url));
+    return new Response(page.body, { status: 404, headers: { "content-type": "text/html; charset=utf-8" } });
   },
 };

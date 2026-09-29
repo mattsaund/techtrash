@@ -1,0 +1,26 @@
+/* ============================================================
+   techtrash.org : bsod.css
+
+   XP's blue screen: the 404 (404.html) and the under construction
+   page (under-construction/). White mono type on blue, every line
+   where XP put it, wrapping only if the screen is too narrow for
+   it. Tokens only.
+   ============================================================ */
+
+html { height: 100%; }
+body {
+  min-height: 100%;
+  margin: 0;
+  padding: var(--sp-24) var(--sp-32);
+  background: var(--bsod);
+  color: var(--bsod-ink);
+  font: 400 var(--fs-head)/var(--lh-head) var(--font-mono);
+}
+.stop { margin: 0; font: inherit; white-space: pre-wrap; }
+a { color: inherit; }
+::selection { background: var(--bsod-ink); color: var(--bsod); }
+:focus-visible { outline: var(--hairline) dotted var(--bsod-ink); }
+
+@media (max-width: 640px) {
+  body { padding: var(--sp-16); font-size: var(--fs-body); line-height: var(--lh-body); }
+}

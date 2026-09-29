@@ -344,6 +344,13 @@
   /* --- scrollbars ------------------------------------------- */
   --scroll-thumb: #c3d3fd;
   --scroll-track: #f4f3ee;
+
+  /* --- the stop screen ----------------------------------------
+     XP's blue screen, for the 404 and the under construction page
+     (css/bsod.css): white mono type on VGA's blue, at head size,
+     the one place mono is bigger than body. */
+  --bsod:     #0000aa;
+  --bsod-ink: #ffffff;
 }
 
 /* ============================================================

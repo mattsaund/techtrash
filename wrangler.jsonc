@@ -5,7 +5,9 @@
   "compatibility_date": "2026-09-01",
   "assets": {
     // the public site: everything in public/ and nothing outside it
-    "directory": "./public"
+    "directory": "./public",
+    // so worker.js can answer an unknown address with public/404.html
+    "binding": "ASSETS"
   },
   "d1_databases": [
     // the blog's topics and posts; Cloudflare creates it on the first deploy

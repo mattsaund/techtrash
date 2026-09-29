@@ -47,6 +47,11 @@ public/pages/blog/space.js   Its sky: stars, and planets drawn with cosmos.js
 public/pages/blog/cosmos/    cosmos.js's planet renderer, copied unchanged
 public/programs/<id>/        Programs: files (the File Browser), notepad
 public/files/                Text files Notepad opens: credits.txt
+public/404.html              XP's blue screen, for any address that isn't here
+public/under-construction/   The same screen, for anything not built yet: point
+                             an unfinished link at /under-construction/
+public/css/bsod.css          ...both screens' look, and public/js/bsod.js their
+                             "Press any key", which really works
 
 public/js/apps.js            Every app in one list: its id, title, icon, and
                              whether it's a page or a program
