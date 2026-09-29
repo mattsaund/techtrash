@@ -49,7 +49,7 @@ public/css/desktop.css       The desktop page only: icon layer, window placement
 public/fonts/                Tahoma and DejaVu Sans Mono, self-hosted, and their
                              licenses (see public/fonts/LICENSES.md)
 public/img/icons/            Icons, all other people's work (see "Icons"):
-                             ie.svg, and crystal-clear/ with its license
+                             ie.svg, tango/, and crystal-clear/ with its license
 public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 
 worker.js                    The server: the shared desktop (see below)
@@ -196,6 +196,10 @@ and credited in `public/files/credits.txt`.
   gold ring that sat on XP's desktop is Microsoft's icon artwork, which isn't
   free to reuse. Changed only so it scales (a `viewBox`, and the editor's
   metadata out).
+- **The File Browser: Tango's folder with a magnifying glass**
+  (`folder-saved-search`), the nearest free icon to XP's Explorer, from
+  Wikimedia Commons. Public domain, from the Tango Desktop Project. Changed
+  only so it scales (a `viewBox`).
 - **Everything else: Crystal Clear**, by Everaldo Coelho, the glossy 2003 set
   from KDE. LGPL 2.1, with the license in `public/img/icons/crystal-clear/`.
   The files are the 128px originals, unchanged, and the browser draws them at

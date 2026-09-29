@@ -27,7 +27,7 @@ const CRYSTAL = "/img/icons/crystal-clear";
 const LIST = [
   { id: "blog",    title: "Blog",         icon: "/img/icons/ie.svg",           kind: "page" },
 
-  { id: "files",   title: "File Browser", icon: `${CRYSTAL}/file-manager.png`, kind: "program", desktop: true },
+  { id: "files",   title: "File Browser", icon: "/img/icons/tango/folder-saved-search.svg", kind: "program", desktop: true },
   { id: "notepad", title: "Notepad",      icon: `${CRYSTAL}/kedit.png`,        kind: "program", listed: false },
 ];
 
