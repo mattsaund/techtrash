@@ -1,9 +1,13 @@
 // techtrash.org : the icons on the desktop.
 //
-// Anyone can move them, and everyone sees it happen (js/shared.js). Where an
-// icon sits is kept as a fraction of the room it has to move in, so the
-// arrangement holds on any screen, and turned into whole pixels here. An icon
-// nobody has moved yet sits in XP's column down the left.
+// Anyone can move them, and everyone sees it happen (js/shared.js). They sit
+// on a grid, like XP's desktop with Align to Grid on: an icon follows the
+// pointer while it's dragged, and when it's let go it snaps to the nearest
+// cell, or the nearest free one if another icon is already there.
+//
+// Cells are counted from the top left (js/grid.js), so the desktop reads the
+// same on every screen. A screen too small to have an icon's cell shows it in
+// the nearest free cell it does have, without moving it for anyone else.
 //
 // XP's ways, all of them: a click selects, Ctrl+click adds or takes away, a
 // drag across the bare desktop draws a selection rectangle, dragging any
@@ -12,22 +16,25 @@
 
 import { APPS } from "./apps.js";
 import { share } from "./shared.js";
+import { cellKey, nearestFree, startingCells } from "./grid.js";
 
 const css = getComputedStyle(document.documentElement);
 const num = (name) => parseInt(css.getPropertyValue(name), 10);
-const CELL = num("--icon-cell");   // an icon's width, and the step down XP's column
-const EDGE = num("--sp-8");        // how close an icon comes to the desktop's edge
+const CELL = num("--icon-cell");   // a grid cell, both ways
+const EDGE = num("--sp-8");        // from the desktop's edge to the first cell
 const DRAG = num("--drag");        // how far a press moves before it's a drag
 
 const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
 
 export function setUpIcons({ layer, open, onBareDesktop }) {
+  const pages = APPS.filter((app) => app.kind === "page");
+  const start = startingCells(pages.map((app) => app.id), new Map());
   const icons = [];
   const byId = new Map();
   const selected = new Set();
-  let moving = null;   // the icons being dragged here right now, which the server mustn't move
+  let moving = null;   // the icons being dragged here right now
 
-  APPS.filter((app) => app.kind === "page").forEach((app, slot) => {
+  for (const app of pages) {
     const el = document.createElement("a");
     el.className = "icon";
     el.href = `#${app.id}`;
@@ -43,67 +50,79 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
     el.append(img, label);
     layer.append(el);
 
-    const icon = { app, el, img, label, slot, at: null };
+    // home: the cell it's saved in. cell: the cell it's shown in, which is
+    // home unless this screen is too small for it. float: where it is while
+    // someone else drags it, in cells but not whole ones.
+    const icon = { app, el, img, label, home: start.get(app.id), cell: null, float: null };
     icons.push(icon);
     byId.set(app.id, icon);
     wire(icon);
-    place(icon);
-  });
+  }
 
-  // --- where things are ----------------------------------------------------
+  // --- the grid ------------------------------------------------------------
 
-  function room(icon) {
+  function size() {
     return {
-      w: Math.max(0, layer.clientWidth - 2 * EDGE - icon.el.offsetWidth),
-      h: Math.max(0, layer.clientHeight - 2 * EDGE - icon.el.offsetHeight),
+      columns: Math.max(1, Math.floor((layer.clientWidth - 2 * EDGE) / CELL)),
+      rows: Math.max(1, Math.floor((layer.clientHeight - 2 * EDGE) / CELL)),
     };
   }
 
-  function pixels(icon) {
-    if (!icon.at) {
-      const rows = Math.max(1, Math.floor((layer.clientHeight - 2 * EDGE) / CELL));
-      return { x: EDGE + Math.floor(icon.slot / rows) * CELL, y: EDGE + (icon.slot % rows) * CELL };
+  function put(icon, x, y) {
+    icon.el.style.left = `${Math.round(clamp(x, 0, layer.clientWidth - icon.el.offsetWidth))}px`;
+    icon.el.style.top = `${Math.round(clamp(y, 0, layer.clientHeight - icon.el.offsetHeight))}px`;
+  }
+
+  const toPixels = ([column, row]) => [EDGE + column * CELL, EDGE + row * CELL];
+  const toCells = (x, y) => [Math.round(((x - EDGE) / CELL) * 100) / 100, Math.round(((y - EDGE) / CELL) * 100) / 100];
+
+  // Every icon into its cell. Icons whose cell this screen has go first, so
+  // an icon squeezed in from off the edge never takes one of theirs. Icons
+  // being dragged, here or anywhere, hold no cell until they're dropped.
+  function arrange() {
+    const { columns, rows } = size();
+    const fits = (icon) => icon.home[0] < columns && icon.home[1] < rows;
+    const taken = new Set();
+    for (const icon of [...icons].sort((a, b) => fits(b) - fits(a))) {
+      if (moving?.has(icon)) continue;
+      if (icon.float) {
+        put(icon, ...toPixels(icon.float));
+        continue;
+      }
+      let cell = [Math.min(icon.home[0], columns - 1), Math.min(icon.home[1], rows - 1)];
+      if (taken.has(cellKey(cell))) cell = nearestFree(cell, taken, columns, rows) ?? cell;
+      taken.add(cellKey(cell));
+      icon.cell = cell;
+      put(icon, ...toPixels(cell));
     }
-    const { w, h } = room(icon);
-    return { x: EDGE + Math.round(icon.at[0] * w), y: EDGE + Math.round(icon.at[1] * h) };
   }
 
-  function place(icon) {
-    const { x, y } = pixels(icon);
-    icon.el.style.left = `${x}px`;
-    icon.el.style.top = `${y}px`;
-  }
-
-  function moveTo(icon, x, y) {
-    const { w, h } = room(icon);
-    const fraction = (n, of) => (of > 0 ? Math.round(clamp((n - EDGE) / of, 0, 1) * 10000) / 10000 : 0);
-    icon.at = [fraction(x, w), fraction(y, h)];
-    place(icon);
-  }
-
-  const positions = (list) => Object.fromEntries(list.map((icon) => [icon.app.id, icon.at]));
-
-  addEventListener("resize", () => icons.forEach(place));
-  document.fonts?.ready.then(() => icons.forEach(place));
+  arrange();
+  addEventListener("resize", arrange);
+  document.fonts?.ready.then(arrange);
 
   // --- the shared desktop -------------------------------------------------
 
+  // Icons being dragged here ignore what the server says until they're let
+  // go: the drop settles it.
+  function update(state, how) {
+    for (const [id, at] of Object.entries(state)) {
+      const icon = byId.get(id);
+      if (!icon || moving?.has(icon)) continue;
+      if (how === "float") {
+        icon.float = at;
+      } else {
+        icon.home = at;
+        icon.float = null;
+      }
+    }
+    arrange();
+  }
+
   const line = share({
-    onDesktop(state) {
-      for (const icon of icons) {
-        if (moving?.has(icon)) continue;
-        icon.at = state[icon.app.id] ?? null;
-        place(icon);
-      }
-    },
-    onMove(state) {
-      for (const [id, at] of Object.entries(state)) {
-        const icon = byId.get(id);
-        if (!icon || moving?.has(icon)) continue;
-        icon.at = at;
-        place(icon);
-      }
-    },
+    onDesktop: (state) => update(state, "home"),
+    onMove: (state) => update(state, "float"),
+    onPlace: (state) => update(state, "home"),
   });
 
   // --- selecting -----------------------------------------------------------
@@ -164,7 +183,31 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
     }, () => marquee?.remove());
   });
 
-  // --- one icon: select, drag, open ----------------------------------------
+  // --- one icon: select, drag, drop, open ------------------------------------
+
+  // Snaps what was dragged to the grid: the icon under the pointer first,
+  // then the rest, each to its nearest cell or the nearest free one. The
+  // cells they left count as free.
+  function drop(grabbed) {
+    const { columns, rows } = size();
+    const staying = icons.filter((icon) => !moving.has(icon) && !icon.float && icon.cell);
+    const taken = new Set(staying.map((icon) => cellKey(icon.cell)));
+    const placed = {};
+    for (const icon of [grabbed, ...[...moving].filter((one) => one !== grabbed)]) {
+      const [x, y] = [icon.el.offsetLeft, icon.el.offsetTop];
+      let cell = [
+        clamp(Math.round((x - EDGE) / CELL), 0, columns - 1),
+        clamp(Math.round((y - EDGE) / CELL), 0, rows - 1),
+      ];
+      if (taken.has(cellKey(cell))) cell = nearestFree(cell, taken, columns, rows) ?? cell;
+      taken.add(cellKey(cell));
+      icon.home = cell;
+      placed[icon.app.id] = cell;
+    }
+    moving = null;
+    line.drop(placed);
+    arrange();
+  }
 
   function wire(icon) {
     const { el } = icon;
@@ -185,16 +228,19 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
           if (Math.hypot(dx, dy) < DRAG) return;
           selected.add(icon);
           paint();
-          group = [...selected].map((one) => ({ one, from: pixels(one) }));
+          group = [...selected].map((one) => ({ one, x: one.el.offsetLeft, y: one.el.offsetTop }));
           moving = new Set(group.map(({ one }) => one));
         }
-        for (const { one, from } of group) moveTo(one, from.x + dx, from.y + dy);
-        line.move(positions([...moving]));
+        const where = {};
+        for (const { one, x, y } of group) {
+          put(one, x + dx, y + dy);
+          where[one.app.id] = toCells(one.el.offsetLeft, one.el.offsetTop);
+        }
+        line.move(where);
       }, () => {
         if (!group) return;
         dragged = true;
-        line.drop(positions([...moving]));
-        moving = null;
+        drop(icon);
       });
     });
 

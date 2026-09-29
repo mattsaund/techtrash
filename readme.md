@@ -25,12 +25,14 @@ Everything in `public/` is the site, and each file's address is its path inside
 public/index.html            The desktop: Welcome screen, icons, windows, start
                              menu, taskbar, Log Off
 public/pages/<id>/           My pages, one folder each: blog
-public/programs/<id>/        Programs: files (the File Browser)
+public/programs/<id>/        Programs: files (the File Browser), notepad
+public/files/                Text files Notepad opens: credits.txt
 
 public/js/apps.js            Every app in one list: its id, title, icon, and
                              whether it's a page or a program
 public/js/desktop.js         The window manager, the start menu, the taskbar
-public/js/icons.js           The desktop icons: placing, selecting, moving
+public/js/icons.js           The desktop icons: selecting, dragging, snapping
+public/js/grid.js            The grid's rules, used by the page and the server
 public/js/shared.js          The line to the server that shares the desktop
 public/js/session.js         The Welcome screen, logging on and off
 public/js/app.js             Loaded by every app page (see "Windows")
@@ -46,7 +48,8 @@ public/css/desktop.css       The desktop page only: icon layer, window placement
 
 public/fonts/                Tahoma and DejaVu Sans Mono, self-hosted, and their
                              licenses (see public/fonts/LICENSES.md)
-public/img/icons/            Icons, SVG, drawn for the site
+public/img/icons/            Icons, all other people's work (see "Icons"):
+                             ie.svg, and crystal-clear/ with its license
 public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 
 worker.js                    The server: the shared desktop (see below)
@@ -92,25 +95,44 @@ Durable Objects run on the free plan.
 `worker.js` runs one Durable Object, `Desktop`, and every open tab connects to it
 over a WebSocket at `/api/desktop` (`public/js/shared.js`).
 
-- **What it holds:** where each desktop icon sits. It sends that to a tab as
-  it connects, passes every move on to everyone else as it happens, while the
-  icon is still being dragged, and saves where things end up: at once when an
-  icon is let go, and two seconds after the last move otherwise.
-- **Where an icon sits** is a fraction of the room it has to move in, 0 to 1
-  across and 0 to 1 down, not a pixel. So the arrangement is the same on every
-  screen, and nothing can end up off the edge of a small one. An icon nobody
-  has moved sits in XP's column down the left.
+- **The grid.** Icons sit on a grid, like XP's desktop with Align to Grid on.
+  A cell is `--icon-cell` (76px) square, and cells are counted from the top
+  left: `[column, row]`. An icon nobody has moved sits in XP's column down the
+  left. `public/js/grid.js` holds the grid's rules, and both the page and the
+  server use it, so they always agree on which cells are free.
+- **What it holds:** which cell each desktop icon is in. It sends that to a
+  tab as it connects, passes a drag on to everyone else while it's happening
+  (so they see the icon glide), and when the icon is let go it snaps it to a
+  cell, saves it, and tells everyone where it landed.
+- **Snapping.** A dropped icon goes to the nearest cell, or the nearest free
+  one if another icon is there. A group snaps icon by icon, the one under the
+  pointer first, and the cells the group is leaving count as free. If two
+  people drop on the same cell at once, the server gives the second the
+  nearest free one. If a tab goes away halfway through a drag, everyone else
+  gets that icon back in its cell.
+- **Screen sizes.** Counting from the top left means the desktop reads the
+  same on every screen, as it did in Windows. A screen too small to have an
+  icon's cell shows it in the nearest free cell it does have, without moving
+  it for anyone else.
 - **What it takes:** only icons it knows (`kind: "page"` in `public/js/apps.js`),
-  at two numbers each, held to 0..1. Anything else is ignored, as is anything
-  past 60 messages a second from one tab.
+  at two numbers each, held to the grid. Anything else is ignored, as is
+  anything past 60 messages a second from one tab. The messages are listed at
+  the top of `worker.js`.
 - **Windows aren't shared.** Each visitor opens, moves and closes their own.
 
 ## The desktop
 
 - **Icons:** a click selects, Ctrl+click adds or takes away, dragging across
   the bare desktop draws a selection rectangle, and dragging any selected icon
-  moves all of them. A selected icon's picture takes the selection blue, as
-  XP's did. A double-click opens; a tap opens straight away, and so does Enter.
+  moves all of them, snapping to the grid when they're let go. A selected
+  icon's picture takes the selection blue, as XP's did. A label stops at two
+  lines and shows in full while it's selected. A double-click opens; a tap
+  opens straight away, and so does Enter.
+- **credits.txt** in the start menu opens in Notepad (`public/programs/notepad/`),
+  titled `credits.txt - Notepad` as XP's would be. It credits everything on
+  the site someone else made. Notepad opens any `.txt` in `public/files/`:
+  `/#notepad/?file=credits.txt`. Start menu entries like it are `SHORTCUTS`
+  in `public/js/apps.js`.
 - **Logging on:** a new tab starts at the Welcome screen, user `techtrash`.
   Clicking it shows "Loading your personal settings..." for a moment, then the
   desktop. A reload stays logged on (`sessionStorage`). A link to a window
@@ -158,9 +180,31 @@ one can be written and tested by opening its page.
    name has to be the id.
 3. Add it to the `<noscript>` list in `public/index.html`, which is what
    someone without JavaScript (and a search engine) sees.
+4. Give it a real icon (see "Icons"), and credit it in `credits.txt`.
 
 An app page loads `js/app.js` first, then `tokens.css` and `xp.css`, and its
 `<body class="app">` is the window's body. Its `<title>` is the window's title.
+
+## Icons
+
+No icon is drawn for the site: every one is someone else's, free to reuse,
+and credited in `public/files/credits.txt`.
+
+- **The Blog: the Internet Explorer logo** (IE 4 to 6), from Wikimedia
+  Commons. Public domain, since it's too simple to copyright, though it's
+  still Microsoft's trademark. It's the flat blue e: the glossy one with the
+  gold ring that sat on XP's desktop is Microsoft's icon artwork, which isn't
+  free to reuse. Changed only so it scales (a `viewBox`, and the editor's
+  metadata out).
+- **Everything else: Crystal Clear**, by Everaldo Coelho, the glossy 2003 set
+  from KDE. LGPL 2.1, with the license in `public/img/icons/crystal-clear/`.
+  The files are the 128px originals, unchanged, and the browser draws them at
+  16, 32 or 48. Taken from github.com/niko-yanev/crystal-clear, a copy of the
+  set, which Wikimedia Commons also has: that's the place to look for the next
+  one.
+
+Microsoft's own XP icons are copyrighted and not licensed for reuse, so they
+stay out, however well a credit is written.
 
 ## The rules
 
@@ -264,7 +308,7 @@ spacing scale; the size of a thing comes from here.
 | `--check` | 13 | checkbox, radio |
 | `--taskbar-h` | 30 | taskbar |
 | `--icon-s` / `-m` / `-l` | 16 / 32 / 48 | the only icon sizes |
-| `--icon-cell` | 76 | a desktop icon with its label, and the step down XP's column (XP's 75, rounded to center) |
+| `--icon-cell` | 76 | a desktop icon with its label, and the desktop grid's cell, both ways (XP's 75, rounded to center) |
 | `--window-w` / `--window-h` | 640 / 480 | a window when it opens |
 | `--window-min-w` / `-min-h` | 320 / 160 | the smallest a window resizes to |
 | `--grip` | 4 | how far in from a window's edge a drag resizes it |

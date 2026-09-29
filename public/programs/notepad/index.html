@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Untitled - Notepad</title>
+  <script src="/js/app.js"></script>
+  <script>
+    // Opens a text file from public/files/, named in the address:
+    // /programs/notepad/?file=credits.txt. The name goes in the title right
+    // away, before the page has loaded, so the window's title bar has it
+    // from the start.
+    const asked = new URLSearchParams(location.search).get("file");
+    const file = asked && /^[\w.-]+\.txt$/.test(asked) ? asked : null;
+    if (file) document.title = `${file} - Notepad`;
+  </script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+</head>
+<body class="app">
+  <main class="doc doc--mono" id="text"></main>
+  <script>
+    if (file) {
+      fetch(`/files/${file}`)
+        .then((response) => (response.ok ? response.text() : Promise.reject()))
+        .then((text) => { document.getElementById("text").textContent = text; })
+        .catch(() => { document.getElementById("text").textContent = `Cannot find the ${file} file.`; });
+    }
+  </script>
+</body>
+</html>

@@ -129,8 +129,9 @@
   --icon-s:      16px;   /* title bars, menus, the taskbar, the tray */
   --icon-m:      32px;   /* the desktop, and anywhere an icon stands alone */
   --icon-l:      48px;   /* big pictures: the start menu's user, dialogs */
-  --icon-cell:   76px;   /* a desktop icon's width, label included. XP's is 75:
-                            one more so a 32px icon centers on a whole pixel */
+  --icon-cell:   76px;   /* a desktop icon's width, label included, and the
+                            desktop grid's cell, both ways. XP's is 75: one
+                            more so a 32px icon centers on a whole pixel */
   --window-w:    640px;  /* a window's size when it opens: XP's 640 x 480, */
   --window-h:    480px;  /* less on a screen too small for it */
   --window-min-w: 320px; /* no window is narrower: a phone's width */

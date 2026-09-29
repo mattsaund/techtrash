@@ -372,7 +372,9 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
    <a class="icon"><img class="icon__img"><span class="icon__label">
    White label with XP's drop shadow over the wallpaper; when
    selected or focused the label takes the selection blue and the
-   shadow goes. */
+   shadow goes. A long label stops at two lines, so every icon fits
+   its grid cell, and shows in full while it's selected, over
+   whatever's below, as XP's did. */
 .icon {
   display: flex;
   flex-direction: column;
@@ -389,7 +391,18 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 }
 .icon:hover { color: var(--ink-inverse); }
 .icon__img { width: var(--icon-m); height: var(--icon-m); }
-.icon__label { padding: 0 var(--sp-2); overflow-wrap: anywhere; }
+.icon__label {
+  display: -webkit-box;
+  padding: 0 var(--sp-2);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.icon.is-selected,
+.icon:focus-visible { z-index: var(--z-icon); }
+.icon.is-selected .icon__label,
+.icon:focus-visible .icon__label { -webkit-line-clamp: none; }
 .icon:focus-visible { outline: 0; }
 .icon.is-selected .icon__label,
 .icon:focus-visible .icon__label {

@@ -16,7 +16,7 @@
 // anything looks is a class in css/, and every length is read out of
 // css/tokens.css rather than written here.
 
-import { APPS, findApp } from "./apps.js";
+import { APPS, SHORTCUTS, findApp } from "./apps.js";
 import { setUpIcons } from "./icons.js";
 import { setUpSession } from "./session.js";
 
@@ -66,18 +66,26 @@ function picture(src, className, parent) {
 // Clicking the bare desktop puts every window in the background, as XP does.
 setUpIcons({ layer: iconBox, open, onBareDesktop: () => activate(null) });
 
-for (const app of APPS) {
-  const list = startMenu.querySelector(app.kind === "page" ? ".start-menu__places" : ".start-menu__programs");
+// The start menu: programs, then documents, on the left; my pages on the right.
+function startItem(list, { title, icon }, id, rest = "") {
   const item = make("a", "start-menu__item", make("li", "", list));
-  item.href = `#${app.id}`;
-  picture(app.icon, "", item);
-  make("span", "", item).textContent = app.title;
+  item.href = `#${id}${rest ? `/${rest}` : ""}`;
+  picture(icon, "", item);
+  make("span", "", item).textContent = title;
   item.addEventListener("click", (e) => {
     e.preventDefault();
     showStart(false);
-    open(app.id);
+    open(id, rest);
   });
 }
+
+const programs = startMenu.querySelector(".start-menu__programs");
+const places = startMenu.querySelector(".start-menu__places");
+for (const app of APPS) {
+  if (app.listed === false) continue;
+  startItem(app.kind === "page" ? places : programs, app, app.id);
+}
+for (const shortcut of SHORTCUTS) startItem(programs, shortcut, shortcut.app, shortcut.rest);
 
 // --- start menu ------------------------------------------------------------
 

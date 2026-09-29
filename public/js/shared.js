@@ -6,12 +6,14 @@
 // it happens. Without the server (a plain file server for a quick look, or
 // offline) the desktop still works here, it just isn't shared.
 //
-// Positions travel as fractions of the room an icon has to move in (see
-// js/icons.js): { blog: [0.25, 0.1] }.
+// Positions travel in grid cells, [column, row] from the top left
+// (js/grid.js): { blog: [3, 1] }. While an icon's being dragged they're
+// wherever it is right now, so not whole: { blog: [3.42, 1.1] }. The messages
+// are listed at the top of worker.js.
 
 const SEND_EVERY_MS = 50;   // while dragging, the newest position goes up at most this often
 
-export function share({ onDesktop, onMove }) {
+export function share({ onDesktop, onMove, onPlace }) {
   let socket = null;
   let retryDelay = 1000;
   let pending = null;       // the newest move that hasn't gone up yet
@@ -33,6 +35,7 @@ export function share({ onDesktop, onMove }) {
       }
       if (message.t === "desktop") onDesktop(message.icons);
       else if (message.t === "move") onMove(message.icons);
+      else if (message.t === "place") onPlace(message.icons);
     });
     socket.addEventListener("close", () => {
       socket = null;
@@ -53,6 +56,12 @@ export function share({ onDesktop, onMove }) {
     timer = setTimeout(flush, SEND_EVERY_MS);
   }
 
+  // A page going away (closed, or navigated off) lets go of the connection
+  // at once, so if it was halfway through a drag the server can put those
+  // icons back for everyone. A page kept in the back/forward cache wouldn't
+  // otherwise close it. If the page comes back, the retry reconnects it.
+  addEventListener("pagehide", () => socket?.close());
+
   // keeps the connection from being closed for sitting idle
   setInterval(() => {
     if (socket?.readyState === WebSocket.OPEN) socket.send("ping");
@@ -67,7 +76,8 @@ export function share({ onDesktop, onMove }) {
       pending = icons;
       if (!timer) flush();
     },
-    // The end of a drag: goes up now, and the server saves it.
+    // The end of a drag, in whole cells: goes up now, and the server snaps it
+    // to a free cell, saves it, and tells everyone (this tab too) where it went.
     drop(icons) {
       clearTimeout(timer);
       timer = null;
