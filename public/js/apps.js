@@ -7,12 +7,13 @@
 //            menu's right column. Lives in pages/<id>/.
 //   program  things to use: the File Browser, Paint, games. The start menu's
 //            left column, unless it says listed: false (Notepad, which only
-//            opens files). Lives in programs/<id>/.
+//            opens files). With desktop: true it gets a desktop icon too, as
+//            the File Browser does. Lives in programs/<id>/.
 //
 // The id is the app's address (techtrash.org/#blog) and has to match its
 // folder's name, which is how a page opened on its own finds its way back to
 // the desktop (js/app.js). It's also the icon's name on the shared desktop:
-// worker.js reads this list to know which icons exist. The order here is the
+// worker.js reads ON_DESKTOP to know which icons exist. The order here is the
 // order on screen.
 //
 // Every icon is someone else's work, credited in files/credits.txt: add a
@@ -26,7 +27,7 @@ const CRYSTAL = "/img/icons/crystal-clear";
 const LIST = [
   { id: "blog",    title: "Blog",         icon: "/img/icons/ie.svg",           kind: "page" },
 
-  { id: "files",   title: "File Browser", icon: `${CRYSTAL}/file-manager.png`, kind: "program" },
+  { id: "files",   title: "File Browser", icon: `${CRYSTAL}/file-manager.png`, kind: "program", desktop: true },
   { id: "notepad", title: "Notepad",      icon: `${CRYSTAL}/kedit.png`,        kind: "program", listed: false },
 ];
 
@@ -36,6 +37,10 @@ export const APPS = LIST.map((app) => ({
 }));
 
 export const findApp = (id) => APPS.find((app) => app.id === id);
+
+// The apps with an icon on the desktop, in order: every page, and any
+// program that asks for one.
+export const ON_DESKTOP = APPS.filter((app) => app.kind === "page" || app.desktop);
 
 // Documents in the start menu's left column, under the programs: each opens
 // a program on one file, the way XP's could.

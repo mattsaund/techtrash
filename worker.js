@@ -20,12 +20,12 @@
 //                                        and sent to everyone as "place"
 
 import { DurableObject } from "cloudflare:workers";
-import { APPS } from "./public/js/apps.js";
+import { ON_DESKTOP } from "./public/js/apps.js";
 import { LAST_CELL, cellKey, nearestFree, startingCells } from "./public/js/grid.js";
 
-// The icons on the desktop: my pages (public/js/apps.js), in order. Things
+// The icons on the desktop (ON_DESKTOP in public/js/apps.js), in order. Things
 // people save will join them.
-const ICONS = APPS.filter((app) => app.kind === "page").map((app) => app.id);
+const ICONS = ON_DESKTOP.map((app) => app.id);
 const KNOWN = new Set(ICONS);
 
 const MAX_MESSAGE_BYTES = 4096;

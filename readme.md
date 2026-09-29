@@ -11,7 +11,7 @@ and my own place on the internet.
 - **The start menu holds programs:** the File Browser now, and games, Paint
   and whatever else later.
 - **The File Browser** is where everything saved on the site ends up, like
-  pictures people make in Paint.
+  pictures people make in Paint. It's on the desktop too, next to the blog.
 
 Plain HTML, CSS and JS, and a small Cloudflare Worker for the shared parts. No
 framework, no build step, no requests to anyone else's servers.
@@ -114,7 +114,7 @@ over a WebSocket at `/api/desktop` (`public/js/shared.js`).
   same on every screen, as it did in Windows. A screen too small to have an
   icon's cell shows it in the nearest free cell it does have, without moving
   it for anyone else.
-- **What it takes:** only icons it knows (`kind: "page"` in `public/js/apps.js`),
+- **What it takes:** only icons it knows (`ON_DESKTOP` in `public/js/apps.js`),
   at two numbers each, held to the grid. Anything else is ignored, as is
   anything past 60 messages a second from one tab. The messages are listed at
   the top of `worker.js`.
@@ -174,7 +174,7 @@ one can be written and tested by opening its page.
 
 1. Add a line to `public/js/apps.js`. `kind: "page"` puts it on the desktop
    (and the server starts sharing its icon), `kind: "program"` in the start
-   menu.
+   menu, and a program with `desktop: true` on the desktop as well.
 2. Make its folder: `public/pages/<id>/index.html` or
    `public/programs/<id>/index.html`, copied from another app. The folder's
    name has to be the id.

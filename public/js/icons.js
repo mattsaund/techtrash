@@ -14,7 +14,7 @@
 // selected icon moves every selected one, and a double-click opens. A tap
 // opens straight away, and so does Enter.
 
-import { APPS } from "./apps.js";
+import { ON_DESKTOP } from "./apps.js";
 import { share } from "./shared.js";
 import { cellKey, nearestFree, startingCells } from "./grid.js";
 
@@ -27,14 +27,13 @@ const DRAG = num("--drag");        // how far a press moves before it's a drag
 const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
 
 export function setUpIcons({ layer, open, onBareDesktop }) {
-  const pages = APPS.filter((app) => app.kind === "page");
-  const start = startingCells(pages.map((app) => app.id), new Map());
+  const start = startingCells(ON_DESKTOP.map((app) => app.id), new Map());
   const icons = [];
   const byId = new Map();
   const selected = new Set();
   let moving = null;   // the icons being dragged here right now
 
-  for (const app of pages) {
+  for (const app of ON_DESKTOP) {
     const el = document.createElement("a");
     el.className = "icon";
     el.href = `#${app.id}`;
