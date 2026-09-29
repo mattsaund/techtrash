@@ -442,6 +442,7 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   font: italic 700 var(--fs-big)/var(--lh-big) var(--font-ui);
   text-shadow: var(--start-shadow);
 }
+.start__flag { width: auto; height: var(--start-flag); filter: drop-shadow(var(--start-shadow)); }
 .start:hover { background: var(--start-hover); }
 .start:active,
 .start[aria-expanded="true"] { background: var(--start-down); }

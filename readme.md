@@ -48,14 +48,14 @@ public/css/desktop.css       The desktop page only: icon layer, window placement
 
 public/fonts/                Tahoma and DejaVu Sans Mono, self-hosted, and their
                              licenses (see public/fonts/LICENSES.md)
-public/img/icons/            Icons, all other people's work (see "Icons"):
-                             ie.svg, tango/, and crystal-clear/ with its license
+public/img/icons/xp/         Windows XP's own icons (see "Icons")
 public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 
 worker.js                    The server: the shared desktop (see below)
 wrangler.jsonc               The Worker's Cloudflare settings
 tools/check_style.py         Enforces the rules. Run it before you push.
 tools/make_fonts.py          Rebuilds public/fonts/ from Wine's Tahoma and DejaVu
+tools/make_icons.py          Rebuilds public/img/icons/xp/ from XP's own icons
 ```
 
 ## Running it locally
@@ -180,35 +180,28 @@ one can be written and tested by opening its page.
    name has to be the id.
 3. Add it to the `<noscript>` list in `public/index.html`, which is what
    someone without JavaScript (and a search engine) sees.
-4. Give it a real icon (see "Icons"), and credit it in `credits.txt`.
+4. Give it XP's own icon for the job (see "Icons").
 
 An app page loads `js/app.js` first, then `tokens.css` and `xp.css`, and its
 `<body class="app">` is the window's body. Its `<title>` is the window's title.
 
 ## Icons
 
-No icon is drawn for the site: every one is someone else's, free to reuse,
-and credited in `public/files/credits.txt`.
+Every icon is Windows XP's own, and nothing else: no icon is drawn for the
+site, and none comes from another set. They're Microsoft's, used knowing
+they're not licensed for reuse, and credited in `public/files/credits.txt`.
 
-- **The Blog: the Internet Explorer logo** (IE 4 to 6), from Wikimedia
-  Commons. Public domain, since it's too simple to copyright, though it's
-  still Microsoft's trademark. It's the flat blue e: the glossy one with the
-  gold ring that sat on XP's desktop is Microsoft's icon artwork, which isn't
-  free to reuse. Changed only so it scales (a `viewBox`, and the editor's
-  metadata out).
-- **The File Browser: Tango's folder with a magnifying glass**
-  (`folder-saved-search`), the nearest free icon to XP's Explorer, from
-  Wikimedia Commons. Public domain, from the Tango Desktop Project. Changed
-  only so it scales (a `viewBox`).
-- **Everything else: Crystal Clear**, by Everaldo Coelho, the glossy 2003 set
-  from KDE. LGPL 2.1, with the license in `public/img/icons/crystal-clear/`.
-  The files are the 128px originals, unchanged, and the browser draws them at
-  16, 32 or 48. Taken from github.com/niko-yanev/crystal-clear, a copy of the
-  set, which Wikimedia Commons also has: that's the place to look for the next
-  one.
+`tools/make_icons.py` builds `public/img/icons/xp/` from two collections on
+GitHub:
 
-Microsoft's own XP icons are copyrighted and not licensed for reuse, so they
-stay out, however well a credit is written.
+- **softwarehistorysociety/XPIcons**, XP's icons at 1024px, scaled down to
+  96px: twice the biggest the site shows, so they're sharp on a high density
+  screen, and about 10KB each.
+- **ShizukuIchi/winXP**, for the two that aren't icons: the chess user
+  picture, and the flag on the start button (cut to the flag itself).
+
+To add one, find it in XPIcons, add a line to `ICONS` in the script, and run
+it. The script's header has the one-time setup (it needs Pillow).
 
 ## The rules
 
@@ -312,6 +305,7 @@ spacing scale; the size of a thing comes from here.
 | `--check` | 13 | checkbox, radio |
 | `--taskbar-h` | 30 | taskbar |
 | `--icon-s` / `-m` / `-l` | 16 / 32 / 48 | the only icon sizes |
+| `--start-flag` | 20 | the flag on the start button, XP's own height |
 | `--icon-cell` | 76 | a desktop icon with its label, and the desktop grid's cell, both ways (XP's 75, rounded to center) |
 | `--window-w` / `--window-h` | 640 / 480 | a window when it opens |
 | `--window-min-w` / `-min-h` | 320 / 160 | the smallest a window resizes to |

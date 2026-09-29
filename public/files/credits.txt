@@ -3,17 +3,10 @@ techtrash.org credits
 
 ICONS
 
-Internet Explorer logo (Blog)
-  Microsoft. SVG by Rezonansowy and Fry1989, Wikimedia Commons.
-  commons.wikimedia.org/wiki/File:Internet_Explorer_4_and_5_logo.svg
-
-Tango (File Browser)
-  The Tango Desktop Project.
-  commons.wikimedia.org/wiki/File:Folder-saved-search.svg
-
-Crystal Clear (every other icon)
-  Everaldo Coelho. LGPL 2.1: /img/icons/crystal-clear/LGPL.txt
-  github.com/niko-yanev/crystal-clear
+Windows XP icons
+  Microsoft.
+  github.com/softwarehistorysociety/XPIcons
+  github.com/ShizukuIchi/winXP
 
 
 FONTS

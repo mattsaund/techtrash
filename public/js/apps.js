@@ -16,19 +16,19 @@
 // worker.js reads ON_DESKTOP to know which icons exist. The order here is the
 // order on screen.
 //
-// Every icon is someone else's work, credited in files/credits.txt: add a
-// line there for any new one.
+// Every icon is Windows XP's own, built into img/icons/xp/ by
+// tools/make_icons.py and credited in files/credits.txt.
 //
 // Adding an app: a line here, a folder with an index.html in it (copy another
 // app's), and a line in index.html's <noscript> list.
 
-const CRYSTAL = "/img/icons/crystal-clear";
+const XP = "/img/icons/xp";
 
 const LIST = [
-  { id: "blog",    title: "Blog",         icon: "/img/icons/ie.svg",           kind: "page" },
+  { id: "blog",    title: "Blog",         icon: `${XP}/internet-explorer.png`, kind: "page" },
 
-  { id: "files",   title: "File Browser", icon: "/img/icons/tango/folder-saved-search.svg", kind: "program", desktop: true },
-  { id: "notepad", title: "Notepad",      icon: `${CRYSTAL}/kedit.png`,        kind: "program", listed: false },
+  { id: "files",   title: "File Browser", icon: `${XP}/explorer.png`,          kind: "program", desktop: true },
+  { id: "notepad", title: "Notepad",      icon: `${XP}/notepad.png`,           kind: "program", listed: false },
 ];
 
 export const APPS = LIST.map((app) => ({
@@ -45,5 +45,5 @@ export const ON_DESKTOP = APPS.filter((app) => app.kind === "page" || app.deskto
 // Documents in the start menu's left column, under the programs: each opens
 // a program on one file, the way XP's could.
 export const SHORTCUTS = [
-  { title: "credits.txt", icon: `${CRYSTAL}/txt.png`, app: "notepad", rest: "?file=credits.txt" },
+  { title: "credits.txt", icon: `${XP}/text-document.png`, app: "notepad", rest: "?file=credits.txt" },
 ];

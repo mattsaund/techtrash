@@ -129,6 +129,8 @@
   --icon-s:      16px;   /* title bars, menus, the taskbar, the tray */
   --icon-m:      32px;   /* the desktop, and anywhere an icon stands alone */
   --icon-l:      48px;   /* big pictures: the start menu's user, dialogs */
+  --start-flag:  20px;   /* the flag on the start button, tall: XP's own, and
+                            the one picture that isn't an icon size */
   --icon-cell:   76px;   /* a desktop icon's width, label included, and the
                             desktop grid's cell, both ways. XP's is 75: one
                             more so a 32px icon centers on a whole pixel */
