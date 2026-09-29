@@ -66,12 +66,14 @@ export async function readyPicture(file) {
   return picture;
 }
 
-// A section's name, the msaunders.dev way: "~/topics", the path in the hue.
-export const label = (path, name) => el("h2", { class: "label" }, el("span", { class: "label__path", textContent: path }), name);
+// A section's name ("Topics"), and what it's showing, if that needs saying ("Music").
+export const label = (name, detail) => el("h2", { class: "label" },
+  name, detail ? el("span", { class: "label__detail", textContent: ` · ${detail}` }) : null);
 
+// Where a page is: Topics › Music › Discovery
 export const crumb = (...parts) => el("p", { class: "crumb" },
-  el("a", { href: "./#topics", textContent: "~/topics" }),
-  ...parts.filter(Boolean).flatMap((part) => [" / ", part]));
+  el("a", { href: "./#topics", textContent: "Topics" }),
+  ...parts.filter(Boolean).flatMap((part) => [" › ", part]));
 
 // A button that takes two clicks: the first one asks, the second one does it.
 // work() throws to say it didn't work.

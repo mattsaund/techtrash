@@ -238,14 +238,17 @@ post). It isn't XP: it has its own look, after msaunders.dev, but multicolor
 where msaunders.dev is all blue.
 
 - **The look.** Black, JetBrains Mono, and see-through panels with hairline
-  edges over a sky of planets and stars. A real top bar (`~/techtrash`, then
-  Home, Topics, About me) and real buttons: an edge, a fill and a hue, filled
+  edges over a sky of planets and stars. A real top bar (Home and About me,
+  on the right) and real buttons: an edge, a fill and a hue, filled
   in under the pointer or for the page you're on. The headline is
-  "Techtrash", a letter in each hue, with msaunders.dev's caret after it.
+  "Techtrash", a letter in each hue, with msaunders.dev's caret after it,
+  and under it a button for each part of the site: **Blog** (the topics),
+  and **Pictures**, **Travel** and **Misc**, which go to the "under
+  construction" screen until they're built.
 - **The multicolor** is six hues (`--site-hue-1` to `-6`: red, orange,
   yellow, green, blue, violet), and nothing picks a color of its own: an
   element takes one through a `.hue-1` to `.hue-6` class, and everything
-  inside it (links, buttons, a label's `~/`, a card's edge) follows. A topic
+  inside it (links, buttons, a section's name, a card's edge) follows. A topic
   gets its hue from its number and keeps it on its card, its page and its
   posts.
 - **The sky** is `space.js`: 140 stars in the six hues, the same on every
@@ -295,7 +298,7 @@ comment.)
   topic and comments setting.
 - **Comments** are anyone's, with a name, on a post or in reply to another
   comment, so each one can start a thread (replies step in 4 deep, then line
-  up). The admin's own are marked `[author]`. **Turn comments off** on a post
+  up). The admin's own are marked "author". **Turn comments off** on a post
   and what's there stays; nobody can add more until they're back on. The
   admin can delete any comment: its words go, and replies under it stay. 5
   comments a minute per person (`COMMENT_LIMITER`), and a field only bots fill

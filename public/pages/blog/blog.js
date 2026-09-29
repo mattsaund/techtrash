@@ -30,7 +30,8 @@ const titled = (name) => { document.title = `${name} - Microsoft Internet Explor
 
 const admin = await api("/api/me").then((me) => me.admin === true, () => false);
 
-// The top bar's button for the page you're on is filled in.
+// The top bar's button for the page you're on is filled in (Home, on the
+// front page; nothing, anywhere else).
 function markNav(which) {
   for (const link of document.querySelectorAll("[data-nav]")) {
     if (link.dataset.nav === which) link.setAttribute("aria-current", "page");
@@ -64,7 +65,7 @@ async function showFront() {
   titled(flag ? `${flag.name} - Techtrash` : "Techtrash");
   markNav("home");
 
-  const section = el("section", { class: "panel hue-4", id: "topics" }, label("~/", flag ? `topics/${flag.name}` : "topics"));
+  const section = el("section", { class: "panel hue-4", id: "topics" }, label("Topics", flag?.name));
 
   // A button for each flag with something in it; pressing one shows only its topics.
   const worn = flags.filter((f) => f.topic_count > 0 || f.id === flagId);
@@ -112,7 +113,7 @@ async function showFront() {
 async function showTopic(id) {
   const topic = await api(`/api/blog/topic?id=${id}`);
   titled(`${topic.title} - Techtrash`);
-  markNav("topics");
+  markNav(null);
   const hue = hueOf(topic.id);
 
   const head = el("section", { class: `panel ${hue}` },
@@ -137,7 +138,7 @@ async function showTopic(id) {
       })));
   }
 
-  const posts = el("section", { class: `panel ${hue}` }, label("~/", "posts"));
+  const posts = el("section", { class: `panel ${hue}` }, label("Posts"));
   if (topic.posts.length === 0) posts.append(el("p", { class: "meta", textContent: "No posts yet." }));
   else {
     posts.append(el("ul", { class: "entries" }, topic.posts.map((post) => el("li", { class: "entry" },
@@ -153,7 +154,7 @@ async function showTopic(id) {
 async function showPost(id) {
   const post = await api(`/api/blog/post?id=${id}`);
   titled(`${post.title} - Techtrash`);
-  markNav("topics");
+  markNav(null);
   const hue = hueOf(post.topic_id);
 
   const article = el("article", { class: `panel ${hue}` },
@@ -209,7 +210,7 @@ async function showEditor({ postId, topicId }) {
   const draft = remembered.get(key);
   const back = post ? `?post=${post.id}` : `?topic=${topic.id}`;
   titled(post ? `Editing ${post.title} - Techtrash` : "New post - Techtrash");
-  markNav("topics");
+  markNav(null);
 
   let leaving = false;
   let keeping;

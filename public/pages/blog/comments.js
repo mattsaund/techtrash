@@ -140,7 +140,7 @@ export function commentsPanel(post, { admin, hue }) {
     return list;
   }
 
-  panel.append(label("~/", "comments"));
+  panel.append(label("Comments"));
   const top = threads(post.comments).filter(shows);
   if (top.length) panel.append(thread(top, 1));
   if (open) {

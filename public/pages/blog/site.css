@@ -7,7 +7,7 @@
    multicolor, with a real top bar and real buttons.
 
    Colors come in through .hue-1 to .hue-6, which set --hue for
-   everything inside: a link, a button, a label's "~/", a card's
+   everything inside: a link, a button, a section's name, a card's
    edge. Nothing picks a color of its own. Tokens only, like every
    other stylesheet (see "THE WEBSITE" in css/tokens.css).
    ============================================================ */
@@ -92,17 +92,11 @@ a:hover { color: var(--site-fg); }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--sp-8) var(--sp-24);
   padding-top: var(--sp-8);
   padding-bottom: var(--sp-8);
 }
-.brand {
-  color: var(--site-fg);
-  font: 500 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
-  text-decoration: none;
-}
-.brand__path { color: var(--hue); }
 .nav { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 
 /* --- buttons ----------------------------------------------- *
@@ -138,10 +132,10 @@ a:hover { color: var(--site-fg); }
   border: var(--hairline) solid var(--site-line);
 }
 
-/* A section's name, the msaunders.dev way: "~/topics", the path in
-   the section's hue. */
-.label { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
-.label__path { color: var(--hue); }
+/* A section's name, in the section's hue, and after it what it's
+   showing, if that needs saying ("Topics · Music"). */
+.label { color: var(--hue); font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
+.label__detail { color: var(--site-fg-2); }
 
 .lede { color: var(--site-fg-2); }
 .meta { color: var(--site-fg-3); }
@@ -188,11 +182,8 @@ a:hover { color: var(--site-fg); }
 .card__body { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-16); }
 .card__text { color: var(--site-fg-2); }
 
-/* A title in a list: "/Title>", the marks in the hue, as
-   msaunders.dev writes its entries. */
+/* A title in a list: a topic's on its card, a post's in its topic. */
 .named { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
-.named::before { content: "/"; color: var(--hue); }
-.named::after { content: ">"; color: var(--hue); }
 
 /* --- a topic's posts ---------------------------------------- */
 .entries { display: flex; flex-direction: column; gap: var(--sp-12); padding: 0; list-style: none; }
@@ -210,8 +201,7 @@ a:hover { color: var(--site-fg); }
 .tag::before { color: var(--hue); }
 
 /* --- a post ------------------------------------------------ *
-   What the editor makes, the same in the editor as on the page.
-   Headings are marked the Markdown way, in the hue. */
+   What the editor makes, the same in the editor as on the page. */
 .prose {
   display: flow-root;   /* holds a picture the words go around */
   max-width: var(--site-measure);
@@ -223,9 +213,6 @@ a:hover { color: var(--site-fg); }
 .prose h2 { margin-top: var(--sp-32); font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
 .prose h3 { margin-top: var(--sp-24); font: 500 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
 .prose h4 { font: 500 var(--fs-site-body)/var(--lh-site-body) var(--font-site); }
-.prose h2::before { content: "# "; color: var(--hue); }
-.prose h3::before { content: "## "; color: var(--hue); }
-.prose h4::before { content: "### "; color: var(--hue); }
 .prose > :first-child { margin-top: 0; }
 .prose strong, .prose b { font-weight: 700; }
 .prose ul, .prose ol { padding-left: var(--sp-24); }
@@ -394,8 +381,6 @@ a:hover { color: var(--site-fg); }
 .comment__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-12); }
 .comment__name { color: var(--site-fg); font-weight: 500; }
 .comment__badge { color: var(--hue); }
-.comment__badge::before { content: "["; }
-.comment__badge::after { content: "]"; }
 .comment__date { color: var(--site-fg-3); text-decoration: none; }
 .comment__date:hover { color: var(--hue); }
 .comment__body { max-width: var(--site-measure); color: var(--site-fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
