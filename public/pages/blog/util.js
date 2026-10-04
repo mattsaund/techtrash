@@ -69,9 +69,9 @@ export async function readyPicture(file) {
 // A section's name, in its hue: "Topics".
 export const label = (name) => el("h2", { class: "label", textContent: name });
 
-// "‹ Back", at the top of a panel: up one, from a post to its topic, and from
+// "Back", at the top of a panel: up one, from a post to its topic, and from
 // a topic to the Blog's list of topics.
-export const backTo = (href) => el("p", { class: "crumb" }, el("a", { href, textContent: "‹ Back" }));
+export const backTo = (href) => el("p", { class: "crumb" }, el("a", { href, textContent: "Back" }));
 
 // A button that takes two clicks: the first one asks, the second one does it.
 // work() throws to say it didn't work.

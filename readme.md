@@ -248,7 +248,7 @@ where msaunders.dev is all blue.
   then four buttons, **Home**, **Blog**, **Pictures** and **About me**, that
   pick the panel under it (see "The blog"). The headline stays at the top of
   every page, a topic's, a post's and the editor's too (with **Blog** filled
-  in), and those start with **‹ Back**, up one: from a post to its topic, from
+  in), and those start with **Back**, up one: from a post to its topic, from
   a topic to the Blog's list of topics.
 - **The multicolor** is six hues (`--site-hue-1` to `-6`: red, orange,
   yellow, green, blue, violet), and nothing picks a color of its own: an
