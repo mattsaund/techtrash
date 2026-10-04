@@ -10,7 +10,8 @@
 //            opens files). With desktop: true it gets a desktop icon too, as
 //            the File Browser does. Lives in programs/<id>/.
 //
-// The id is the app's address (techtrash.org/#blog) and has to match its
+// The id is the app's address (techtrash.org/#files; the site's own pages
+// have their own, #blog/rockets/liftoff: see desktop.js) and has to match its
 // folder's name, which is how a page opened on its own finds its way back to
 // the desktop (js/app.js). It's also the icon's name on the shared desktop:
 // worker.js reads ON_DESKTOP to know which icons exist. The order here is the

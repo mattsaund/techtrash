@@ -22,22 +22,26 @@ export { Desktop } from "./server/desktop.js";
 
 // "<method> <what>" for /api/blog/<what>. Reading is anyone's; the rest is the admin's.
 const BLOG = {
-  "GET flags": blog.listFlags,
-  "POST flags": blog.createFlag,
-  "PUT flag": blog.renameFlag,
-  "DELETE flag": blog.deleteFlag,
   "GET topics": blog.listTopics,
   "POST topics": blog.createTopic,
   "GET topic": blog.getTopic,
   "PUT topic": blog.updateTopic,
   "DELETE topic": blog.deleteTopic,
+  "GET posts": blog.newestPosts,
   "POST posts": blog.createPost,
   "GET post": blog.getPost,
   "PUT post": blog.updatePost,
   "DELETE post": blog.deletePost,
+  "GET pictures": blog.listPictures,
   "POST pictures": blog.uploadPicture,
   "POST comments": blog.createComment,   // anyone's, see server/blog.js
   "DELETE comment": blog.deleteComment,
+  "GET bulletins": blog.listBulletins,
+  "POST bulletins": blog.createBulletin,
+  "PUT bulletin": blog.updateBulletin,
+  "DELETE bulletin": blog.deleteBulletin,
+  "GET page": blog.getPage,
+  "PUT page": blog.savePage,
 };
 
 export default {

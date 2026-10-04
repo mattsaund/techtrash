@@ -48,9 +48,9 @@ public/pages/blog/editor.js  The admin's post editor
 public/pages/blog/content.js What a post is made of: cleaning it, its players,
                              Markdown
 public/pages/blog/comments.js  A post's comments and their threads
-public/pages/blog/forms.js   The admin's topic and flag forms
+public/pages/blog/forms.js   The admin's topic form
 public/pages/blog/util.js    Small things the rest share
-public/pages/blog/vendor/    marked and DOMPurify, copied unchanged
+public/pages/blog/vendor/    marked, DOMPurify and turndown, copied unchanged
 public/pages/blog/space.js   Its sky: stars, and planets drawn with cosmos.js
 public/pages/blog/cosmos/    cosmos.js's planet renderer, copied unchanged
 public/programs/<id>/        Programs: files (the File Browser), notepad
@@ -88,7 +88,7 @@ public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 worker.js                    The server: which address goes where
 server/desktop.js            The shared desktop (see "The shared desktop")
 server/admin.js              The admin account (see "The admin")
-server/blog.js               The blog: flags, topics, posts, comments, pictures
+server/blog.js               The blog: topics, posts, comments, bulletins, pictures
 server/http.js               Small helpers the rest share
 wrangler.jsonc               The Worker's Cloudflare settings
 tools/check_style.py         Enforces the rules. Run it before you push.
@@ -179,15 +179,17 @@ over a WebSocket at `/api/desktop` (`public/js/shared.js`).
   icon's picture takes the selection blue, as XP's did. A label stops at two
   lines and shows in full while it's selected. A double-click opens; a tap
   opens straight away, and so does Enter.
-- **credits.txt** in the start menu opens in Notepad (`public/programs/notepad/`),
-  titled `credits.txt - Notepad` as XP's would be. It credits everything on
-  the site someone else made. Notepad opens any `.txt` in `public/files/`:
+- **credits.txt** in the start menu (and **credits** at the foot of the
+  website) opens in Notepad (`public/programs/notepad/`), titled
+  `credits.txt - Notepad` as XP's would be. It credits everything on the site
+  someone else made, and its addresses are links: the web's open in a new
+  tab, and so do the site's own files (`/fonts/LGPL-2.1.txt`). Notepad opens any `.txt` in `public/files/`:
   `/#notepad/?file=credits.txt`. Start menu entries like it are `SHORTCUTS`
   in `public/js/apps.js`.
 - **Arriving:** straight into the blog, maximized, every time. No Welcome
   screen: nothing stands between a visitor and the blog. A link into the
-  blog (`/#blog/some/post`) opens it there; a link to another app (`/#files`)
-  opens that too, in front of the blog.
+  site (`/#blog/rockets/liftoff`) opens it there; a link to another app (`/#files`) opens
+  that too, in front of the blog.
 - **Logging on:** the Welcome screen is only for after Log Off or Switch User.
   It has two users. **techtrash** is everyone: one click. **admin** is me: it
   opens a user name and password box under the name, as XP's password box
@@ -238,70 +240,107 @@ post). It isn't XP: it has its own look, after msaunders.dev, but multicolor
 where msaunders.dev is all blue.
 
 - **The look.** Black, JetBrains Mono, and see-through panels with hairline
-  edges over a sky of planets and stars. A real top bar (Home and About me,
-  on the right) and real buttons: an edge in a hue, black inside, and filled
-  with the hue only when selected (the page you're on, the sort that's
-  picked). The headline is
-  "Techtrash", a letter in each hue, with msaunders.dev's caret after it,
-  and under it a button for each part of the site: **Blog** (the topics),
-  and **Pictures**, **Travel** and **Misc**, which go to the "under
-  construction" screen until they're built.
+  edges over a sky of planets and stars, and real buttons: an edge in a hue,
+  black inside, and filled with the hue only when selected (the panel you're
+  on, the sort that's picked). No top bar: the headline is the top, "Techtrash",
+  a letter in each hue, then the tagline
+  (the admin writes it on the site; until then it's the one in `index.html`),
+  then four buttons, **Home**, **Blog**, **Pictures** and **About me**, that
+  pick the panel under it (see "The blog"). A topic's or a post's page starts
+  with where it is, Home › Blog › the topic.
 - **The multicolor** is six hues (`--site-hue-1` to `-6`: red, orange,
   yellow, green, blue, violet), and nothing picks a color of its own: an
   element takes one through a `.hue-1` to `.hue-6` class, and everything
   inside it (links, buttons, a section's name, a card's edge) follows. A topic
   gets its hue from its number and keeps it on its card, its page and its
   posts.
-- **The sky** is `space.js`: 140 stars in the six hues, the same on every
-  visit, and four planets drawn with **cosmos.js**
+- **The sky** is `space.js`: four planets and two asteroids (lumpy,
+  potato-shaped rocks, tumbling) drawn with **cosmos.js**
   (github.com/mattsaund/cosmos.js), its renderer copied unchanged into
-  `cosmos/`. Each planet is the cosmos.js editor's own settings (texture, rows,
-  tilt, rings, speed, seed) in `PLANETS`, so a planet tuned in the editor
-  drops straight in. Its color is a hue class, and where it sits is its
-  `.planet--N` rule in `site.css`, as a share of the page. They turn slowly,
-  and stand still for anyone who's asked their computer for less motion.
+  `cosmos/`, and 150 stars in the six hues, the same on every visit. It stays
+  put while the page scrolls over it, so everything in it is on screen from the
+  start: a planet tucked into each corner of the window (its `.planet--N` rule
+  in `site.css`). The asteroids keep to the strips of window beside the page,
+  never over it: the red one up by the title box, the yellow one halfway down
+  on the right (`side`, `across` and `at` in `PLANETS`), each as big as fits
+  there, and left out where there's no room (a phone, a narrow window). Each planet is the cosmos.js editor's own settings (texture,
+  rows, tilt, rings, speed, seed) in `PLANETS`, at twice the editor's rows and
+  drawn at half size (`--site-art-scale`): the same planet, twice the detail.
+  Its color is a hue class. The stars twinkle, each at its own pace, and never
+  land on a planet: each planet is turned a full circle first to find every
+  place it covers, rings and bumps included, and a star that would fall there
+  goes somewhere else (again whenever the window changes size). The planets
+  turn slowly; for anyone who's asked their computer for less motion, nothing
+  moves.
 - **The rules** are the same as everywhere: every value is a token, in their
   own section of `tokens.css` ("THE WEBSITE"). Six sizes (small 12/18, body
   14/23, label 16/23, sub 20/28, head 28/36, title 50/60, 40/48 on a phone),
-  two weights (400 and 500, and 700 for bold words in a post), the spacing
-  scale, and the six hues. Only motion is different: the caret blinks and the
+  two weights (400 and 500, and 700 for bold words in a post and a planet's
+  glyphs), the spacing scale, and the six hues. One font, JetBrains Mono, for
+  everything: form fields and code included, which a browser would otherwise
+  give fonts of their own. Only motion is different: the stars twinkle and the
   planets turn, where XP holds still.
+- **The foot** is "🄯 Matthew Saunders" and **credits**. The copyleft sign is
+  JetBrains Mono's own © turned around, since the font has no copyleft;
+  **credits** opens the credits in Notepad, on the desktop.
 
 ## The blog
 
-**Flags**, **topics**, **posts** and **comments**, all made, changed and
-deleted on the site itself, logged on as admin. (Anyone can read, and
-comment.)
+**Bulletins**, **topics**, **posts**, **comments**, and the site's own words
+(the tagline, Home's words, About me), all made, changed and deleted on the
+site itself, logged on as admin. (Anyone can read, and comment.) Topics cover
+any subject, so the blog is the whole site: Home, the Blog and Pictures are
+ways of looking at it.
 
-- **The Blog** is the panel under the headline (the one that will switch to
-  Pictures, Travel and Misc once they're built). Its **Sort by** buttons lay
-  the topics out by **Topics** (every one, the one with the newest post first)
-  or by **Flags** (a group for each flag, and one for topics with none). The
-  choice is remembered in the visitor's browser.
-- **A topic** has a title, a description if it wants one, a picture if it
-  wants one, and flags. In the Blog it's a card; click it for its posts.
-- **A flag** is a label for topics: Music, Space, Trips. A topic can wear any
-  number, and shows up in each one's group. A flag's name, in its group or on
-  a topic's page, shows only its topics (`?flag=<id>`). The admin makes flags
-  right in a topic's form, and renames or deletes them with **Edit flags** in
-  the Blog (deleting one takes it off its topics, nothing else).
-- **A post** lives in a topic, and is written in the editor (`editor.js`):
-  what you see is what the post looks like. Bold, italic, underline,
-  strikethrough, code, headings, quotes, code blocks, lists, alignment, the
-  six hues, links and dividers, with undo. **Pictures** go anywhere, from the
-  picture button, a paste or a drop, and are uploaded as they go in; click one
-  to describe it or sit it small on the left, middle or right with the words
-  around it. **A video's or a song's link** on its own line becomes its
-  player: YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok,
-  Spotify, SoundCloud, Apple Music, or a link to a video or sound file.
+Everything with words in it (posts, topic descriptions, bulletins, the
+tagline, Home's words, About me) is written in the same editor, `editor.js`,
+described under **A post** below.
+
+- **Home** is what the front page opens to, under the headline: **Home's
+  words** (**Write Home's words**, then **Edit**), then the **bulletins**
+  (news, info to keep up, anything else to say), and down the right side the
+  eight **newest posts** from every topic: a title, and its topic under it,
+  smaller (under Home, on a phone). A bulletin is an optional title and a
+  body; **Pin to the top** keeps it above the others, the rest go newest
+  first. The admin gets **New bulletin**, and **Edit**, **Pin** and
+  **Delete** on each.
+- **The Blog** (`?blog`) is the same panel switched to every topic, the one
+  with the newest post first. The admin gets **New topic**.
+- **Pictures** (`?pictures`) is the same panel switched to every picture
+  posted to the site (topics' pictures, and the ones in posts, bulletins and
+  About me), newest first, square, in a grid with no borders and no gaps. Each
+  one opens the page it's on. Nothing to manage: a picture shows up when it's
+  posted and goes when it's taken out.
+- **About me** (`?about`) is the same panel switched to techtrash.org's own
+  About page, separate from msaunders.dev: **Write it**, then **Edit**. Until
+  it's written, it says "Nothing here yet."
+- **A topic** has a title, a description if it wants one (written in the
+  editor, so with pictures and players anywhere in it), and a cover picture
+  if it wants one. In the Blog it's a card with the start of its description;
+  click it for its posts.
+- **A post** lives in a topic, and is written in the editor (`editor.js`).
+  It writes three ways, switched at its top: **Rich text** (what you see is
+  what the post looks like), **Markdown**, or **HTML**, and what's written
+  carries over from one to the next (whatever Markdown has no way to say, a
+  hue or where a picture sits, stays as HTML in it). In Rich text: bold,
+  italic, underline, strikethrough, code, headings, quotes, code blocks,
+  lists, alignment, the six hues, links and dividers, with undo. **Pictures**
+  go anywhere, mid-text, from the picture button, a paste or a drop, in any
+  of the three ways, and are uploaded as they go in; click one to describe it,
+  sit it small on the left, middle or right with the words around it, or move
+  it **Up** or **Down** a line. **A video's or a song's link** on its own line
+  becomes its player (with its own **Up**, **Down** and **Remove**): YouTube,
+  Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud,
+  Apple Music, or a link to a video or sound file.
   **A Markdown file** comes in from the `.md` button or dropped on the box,
   and its `# Title` becomes the post's title. Anything pasted from another page
   keeps its formatting but not its looks. A post being written is kept in the
   browser as it's typed until it's posted, so closing the window loses
   nothing. Ctrl+S posts, Ctrl+K makes a link.
 - **Changing** anything is the same form or editor again, with everything in
-  it: a topic's title, description, picture and flags; a post's title, words,
-  topic and comments setting.
+  it: a topic's title, description and picture; a post's title, words,
+  topic and comments setting; a bulletin's title, words and pin; the tagline,
+  Home's words and About me.
 - **Comments** are anyone's, with a name, on a post or in reply to another
   comment, so each one can start a thread (replies step in 4 deep, then line
   up). The admin's own are marked "author". **Turn comments off** on a post
@@ -314,36 +353,48 @@ comment.)
   every time it's shown, so nothing in it can run, whatever is in the
   database. Players are drawn from the link as the post is shown; the post
   only ever stores the link. Comments are plain text, shown as text.
-- **The pages** are the front page, `?flag=<id>`, `?topic=<id>`, `?post=<id>`,
-  and the admin's `?topic=<id>&write` and `?post=<id>&edit`, so the address bar
-  follows along (`techtrash.org/#blog/?post=3`).
+- **The pages** have addresses that read like paths: the front page (Home),
+  `?blog`, `?pictures`, `?about`, a topic `?blog/<topic>`, a post
+  `?blog/<topic>/<post>`, and the admin's `?write/<topic>` and
+  `?edit/<topic>/<post>`, where a topic's and a post's are their **slugs**,
+  their titles made fit for an address ("Daft Punk's best" is
+  `daft-punks-best`, and a second one in the same place gets `-2`). A slug
+  follows its title when the title changes. The address bar shows them as
+  they are: `techtrash.org/#blog/rockets/liftoff` (see "Windows"). The old
+  numbered addresses (`?post=3`) are looked up and sent on to the new ones.
 - **The server** is `server/blog.js`, the same way tcc.place's blog works:
   everything in the D1 database `DB` (the tables are made the first time
   they're needed), and pictures in the KV store `PICTURES`, served at
   `/blog/img/<name>`. A picture is shrunk in the browser before it's sent (at
   most 1920px, which also strips phone metadata like GPS), and the server
   checks it really is a picture from its first bytes.
-- **Borrowed:** `vendor/marked.js` (Markdown, MIT) and `vendor/purify.js`
-  (DOMPurify, Apache 2.0 or MPL 2.0), copied unchanged, licenses beside them.
+- **Borrowed:** `vendor/marked.js` (Markdown to HTML, MIT),
+  `vendor/turndown.js` and `vendor/turndown-plugin-gfm.js` (HTML to Markdown,
+  MIT), and `vendor/purify.js` (DOMPurify, Apache 2.0 or MPL 2.0), copied
+  unchanged, licenses beside them.
 
 | | | |
 |---|---|---|
-| `GET /api/blog/flags` | anyone | every flag, and how many topics wear it |
-| `POST /api/blog/flags` | admin | a new flag: `{ name }` |
-| `PUT /api/blog/flag?id=` | admin | a new name: `{ name }` |
-| `DELETE /api/blog/flag?id=` | admin | a flag (it comes off every topic) |
-| `GET /api/blog/topics[?flag=]` | anyone | topics (wearing a flag), the one with the newest post first |
-| `GET /api/blog/topic?id=` | anyone | a topic, its flags and its posts |
-| `POST /api/blog/topics` | admin | a new topic: a form with `title`, `description`, `flags` (ids, `3,7`), `picture` |
+| `GET /api/blog/topics` | anyone | every topic, the one with the newest post first, each with its slug and the start of its description |
+| `GET /api/blog/topic?id=` or `?slug=` | anyone | a topic and its posts |
+| `POST /api/blog/topics` | admin | a new topic: a form with `title`, `description`, `picture`; says its slug |
 | `PUT /api/blog/topic?id=` | admin | the same form, plus `removePicture=1` |
 | `DELETE /api/blog/topic?id=` | admin | a topic, its posts, their comments, its picture |
-| `GET /api/blog/post?id=` | anyone | a post, its topic and its comments |
+| `GET /api/blog/posts[?limit=]` | anyone | the newest posts, each with its topic and the start of its words (5, up to 20) |
+| `GET /api/blog/post?id=` or `?topic=&slug=` | anyone | a post, its topic and its comments (by its topic's slug and its own) |
 | `POST /api/blog/posts` | admin | a new post: `{ topic, title, body, comments }` |
 | `PUT /api/blog/post?id=` | admin | any of `{ topic, title, body, comments }` |
 | `DELETE /api/blog/post?id=` | admin | a post and its comments |
+| `GET /api/blog/pictures` | anyone | every picture posted to the site, newest first, each with where it's from |
 | `POST /api/blog/pictures` | admin | a picture for a post: a form with `picture`; says its address |
 | `POST /api/blog/comments` | anyone | `{ post, parent, name, body }`, while the post's comments are on |
 | `DELETE /api/blog/comment?id=` | admin | a comment's words (its replies stay) |
+| `GET /api/blog/bulletins` | anyone | every bulletin, pinned ones first, then the newest |
+| `POST /api/blog/bulletins` | admin | `{ title, body, pinned }` |
+| `PUT /api/blog/bulletin?id=` | admin | any of `{ title, body, pinned }` |
+| `DELETE /api/blog/bulletin?id=` | admin | a bulletin (and pictures nothing else shows) |
+| `GET /api/blog/page?name=` | anyone | one of the site's own pages, `home`, `about` or `tagline` (empty until it's written) |
+| `PUT /api/blog/page?name=` | admin | `{ body }` |
 
 ## Windows
 
@@ -354,9 +405,12 @@ one can be written and tested by opening its page.
 
 - **Addresses.** The address bar follows the window in front:
   `techtrash.org/#files`, and as an app moves around inside itself,
-  `#files/some/page/?x=1`. The blog's front page is the plain
-  `techtrash.org`, and anywhere else in it is `#blog/...`. Anything in front
-  can be copied and shared, and opening that address opens that window. An app page opened on its own (a
+  `#files/some/page/?x=1`. The site itself is plainer, since it is the site:
+  its front page is the plain `techtrash.org`, and its pages' addresses read
+  like paths (`?blog/rockets/liftoff`), so the address bar shows them as they
+  are: `#blog`, `#pictures`, `#blog/rockets/liftoff`. The old way,
+  `#blog/?post=3`, still works and tidies itself up. Anything in front can be copied and shared, and opening that address
+  opens that window. An app page opened on its own (a
   search result, an old link) sends the visitor to the desktop with itself
   open, at the same place. That's `public/js/app.js`.
 - **Links inside an app.** A link to another app opens that app's window. A
@@ -539,7 +593,7 @@ never reach the taskbar.
 - **No animation** on the desktop. Hover and press states change instantly, as
   XP's did. The one pause is `--wait` (800ms), the moment XP spent loading or
   saving your settings. (The website inside the Internet Explorer window is
-  the web, not XP: its caret blinks and its planets turn.)
+  the web, not XP: its stars twinkle and its planets turn.)
 - **The hand cursor is for links** on the desktop. Buttons, menus, icons and
   title bars keep the arrow. (The website's buttons get the hand, as buttons
   on the web do.)

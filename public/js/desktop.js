@@ -342,18 +342,47 @@ function close(win) {
 }
 
 // --- the address -----------------------------------------------------------
+//
+// The front window's place, in the site's address. Another app's is
+// #<app>/<where in it> (#notepad/?file=credits.txt). The site's own (the
+// home app's) is just where it is, because it is the site: its pages'
+// addresses read like paths (?blog/rockets/liftoff, ?pictures), and the
+// address bar shows them as they are, #blog/rockets/liftoff, #pictures. Its
+// front page is the plain address.
+
+// "?blog/rockets/liftoff" as "blog/rockets/liftoff", or null if it isn't a
+// path (an old ?post=3, which the site sends on to its new address)
+function siteHash(rest) {
+  if (!rest) return "";
+  return rest.startsWith("?") && !/[=&]/.test(rest) ? rest.slice(1) : null;
+}
+
+const siteRest = (path) => (path ? `?${path}` : "");
 
 function address() {
   let hash = front ? `#${front.app.id}${front.rest ? `/${front.rest}` : ""}` : "";
-  // The blog's front page is the site's plain address.
-  if (front?.app === HOME && !front.rest) hash = "";
+  const short = front?.app === HOME ? siteHash(front.rest) : null;
+  if (short !== null) hash = short ? `#${short}` : "";
   if (hash !== location.hash) history.replaceState(null, "", hash || location.pathname);
 }
 
-function openFromAddress() {
+// What the address asks for, as { app, rest }: #files and #notepad/... are
+// those apps; anything else is a place on the site (#blog/rockets/liftoff),
+// and so is the old way of saying one (#blog/?post=3).
+function fromAddress() {
   const m = location.hash.match(/^#([\w-]+)(?:\/(.*))?$/);
-  if (m && findApp(m[1])) open(m[1], m[2] ?? "");
-  else address();
+  if (!m) return { app: HOME, rest: "" };
+  const app = findApp(m[1]);
+  if (app && app !== HOME) return { app, rest: m[2] ?? "" };
+  // the old way: #blog/?post=3, and #blog/ for the front page (#blog is the Blog)
+  if (app === HOME && (m[2] === "" || m[2]?.startsWith("?"))) return { app: HOME, rest: m[2] };
+  return { app: HOME, rest: siteRest(location.hash.slice(1)) };
+}
+
+// (The address catches up once the window's page has loaded: see create.)
+function openFromAddress() {
+  const { app, rest } = fromAddress();
+  open(app.id, rest);
 }
 
 addEventListener("hashchange", openFromAddress);
@@ -394,14 +423,13 @@ setInterval(tick, 10000);
 // Apps open other apps through this (js/app.js does it for their links).
 window.desktop = { open };
 
-// Arriving: the blog opens, maximized, every time. An address inside it
-// (#blog/some/post) opens it there; one for another app (#files) opens that
-// too, in front of it.
+// Arriving: the site opens, maximized, every time. An address on it
+// (#blog/rockets/liftoff) opens it there; one for another app (#files) opens that too, in
+// front of it.
 function arrive() {
-  const m = location.hash.match(/^#([\w-]+)(?:\/(.*))?$/);
-  const asked = m ? findApp(m[1]) : null;
-  open(HOME.id, asked === HOME ? (m[2] ?? "") : "", { maximized: true });
-  if (asked && asked !== HOME) open(asked.id, m[2] ?? "");
+  const { app, rest } = fromAddress();
+  open(HOME.id, app === HOME ? rest : "", { maximized: true });
+  if (app !== HOME) open(app.id, rest);
 }
 
 arrive();

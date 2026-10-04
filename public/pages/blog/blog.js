@@ -1,16 +1,21 @@
 // techtrash.org : the website's pages.
 //
-// Picked by the address:
-//   (nothing)            the front page: the headline, and the Blog: every
-//                        topic, by topic or by flag
-//   ?flag=<id>           the same, with only the topics that wear that flag
-//   ?topic=<id>          one topic, and its posts
-//   ?post=<id>           one post, and its comments
-//   ?topic=<id>&write    the admin: a new post in a topic
-//   ?post=<id>&edit      the admin: changing a post
+// Picked by the address, which reads like a path after the "?" (the desktop
+// shows it as the site's own address, #blog/rockets/liftoff):
+//   (nothing)                the front page: the headline, and under it Home:
+//                            its words and the bulletins, the newest posts beside
+//   ?blog                    the headline, and under it the Blog: every topic
+//   ?pictures                the headline, and under it every picture on the site
+//   ?about                   the headline, and under it About me
+//   ?blog/<topic>            one topic, and its posts
+//   ?blog/<topic>/<post>     one post, and its comments
+//   ?write/<topic>           the admin: a new post in a topic
+//   ?edit/<topic>/<post>     the admin: changing a post
+// where <topic> and <post> are their slugs (server/blog.js). The old numbered
+// addresses (?post=3, ?topic=2) find their way to the new ones.
 //
 // Each topic has one of the six hues (from its number) and keeps it: its
-// card, its page and its posts all wear it. So does each flag.
+// card, its page and its posts all wear it.
 //
 // Anyone can read and comment. The admin (server/admin.js) also gets the
 // buttons and forms to make, change and delete everything. The server checks
@@ -19,32 +24,28 @@
 
 import { commentsPanel } from "./comments.js";
 import { renderBody } from "./content.js";
-import { flagManager, topicForm } from "./forms.js";
+import { topicForm } from "./forms.js";
 import { api, crumb, date, el, hueOf, label, pictureUrl, plural, remembered, status, twoClick } from "./util.js";
 
 const page = document.getElementById("page");
-const params = new URLSearchParams(location.search);
 
 // XP's Internet Explorer named its window after the page.
 const titled = (name) => { document.title = `${name} - Microsoft Internet Explorer`; };
 
 const admin = await api("/api/me").then((me) => me.admin === true, () => false);
 
-// The top bar's button for the page you're on is filled in (Home, on the
-// front page; nothing, anywhere else).
-function markNav(which) {
-  for (const link of document.querySelectorAll("[data-nav]")) {
-    if (link.dataset.nav === which) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  }
-}
-
-const flagLink = (flag, current) => el("a", {
-  class: `button flag ${hueOf(flag.id)}`,
-  href: `?flag=${flag.id}#blog`,
-  textContent: flag.name,
-  "aria-current": current ? "page" : null,
-});
+// Every address on the site, made here and nowhere else.
+const to = {
+  home: "./",
+  blog: "?blog",
+  pictures: "?pictures",
+  about: "?about",
+  topic: (topic) => `?blog/${topic}`,
+  post: (topic, post) => `?blog/${topic}/${post}`,
+  write: (topic) => `?write/${topic}`,
+  edit: (topic, post) => `?edit/${topic}/${post}`,
+};
+const slug = (value) => encodeURIComponent(value);
 
 // Shows one of two things in a spot: the admin's form, or what was there.
 function swap(spot, form) {
@@ -55,122 +56,266 @@ function swap(spot, form) {
 
 // --- the front page --------------------------------------------------------------
 
-// A topic's card: its picture, title, description, how many posts, its flags.
-const card = (topic) => el("a", { class: `card ${hueOf(topic.id)}`, href: `?topic=${topic.id}` },
+// The headline and its tagline, and under them one panel, picked by the
+// buttons under the headline: Home (what the front page opens to), the Blog,
+// Pictures, or About me.
+// (Drawn again after the admin changes something on it: the same panel.)
+let frontView = "home";
+async function showFront(view = frontView) {
+  frontView = view;
+  const [tagline, panel] = await Promise.all([
+    api("/api/blog/page?name=tagline"),
+    { home: homePanel, blog: blogPanel, pictures: picturesPanel, about: aboutPanel }[view](),
+  ]);
+  const hero = document.getElementById("hero").content.cloneNode(true);
+  for (const link of hero.querySelectorAll("[data-view]")) {
+    if (link.dataset.view === view) link.setAttribute("aria-current", "page");
+  }
+  // until it's written, the tagline is the one in index.html
+  const lede = hero.querySelector(".lede");
+  lede.replaceWith(pageText(tagline, { fallback: lede.cloneNode(true), short: true, look: "lede", write: "Edit the tagline", edit: "Edit the tagline" }));
+  page.replaceChildren(hero, panel);
+}
+
+// One of the site's own pages (the tagline, Home's words, About me): its
+// words, or `fallback` until it's written, and for the admin a button that
+// opens them in the editor. Saving draws the page again.
+function pageText(text, { fallback = null, short = false, look = "", write = "Write it", edit = "Edit" }) {
+  const spot = el("div", { class: `page-text ${look}` });
+  const written = Boolean(text.body.trim());
+  spot.append(...[written ? el("div", { class: "prose" }, renderBody(text.body)) : fallback].filter(Boolean));
+  if (admin) {
+    const button = el("button", { class: "link-button", type: "button", textContent: written ? edit : write });
+    button.addEventListener("click", async () => {
+      const back = swap(spot, await writingForm({
+        body: text.body,
+        short,
+        saveText: "Save",
+        cancel: () => back(),
+        save: async (data) => {
+          await api(`/api/blog/page?name=${text.name}`, { method: "PUT", json: data });
+          await showFront();
+        },
+      }));
+    });
+    spot.append(el("div", { class: "page-text__actions" }, button));
+  }
+  return spot;
+}
+
+// --- Home ------------------------------------------------------------------------
+
+// Home's words and the bulletins (news, things to know; pinned ones on top),
+// and down the right side the newest posts: a title, and its topic under it.
+async function homePanel() {
+  const [home, { bulletins }, { posts }] = await Promise.all([
+    api("/api/blog/page?name=home"), api("/api/blog/bulletins"), api("/api/blog/posts?limit=8"),
+  ]);
+  titled("Techtrash");
+  const main = el("div", { class: "home__main" }, pageText(home, { write: "Write Home's words", edit: "Edit Home's words" }));
+  if (admin) {
+    const spot = el("div");
+    const add = el("button", { class: "button hue-5", type: "button", textContent: "New bulletin" });
+    add.addEventListener("click", async () => {
+      const back = swap(spot, await bulletinForm({ cancel: () => back() }));
+    });
+    spot.append(el("div", { class: "button-row" }, add));
+    main.append(spot);
+  }
+  if (bulletins.length) main.append(el("div", { class: "bulletins" }, bulletins.map(bulletinBox)));
+  else if (!home.body.trim() && !admin) main.append(el("p", { class: "meta", textContent: "Nothing here yet." }));
+
+  const side = el("aside", { class: "home__side", "aria-label": "Newest posts" },
+    el("h3", { class: "group__head", textContent: "Newest posts" }),
+    posts.length
+      ? el("ul", { class: "side-posts" }, posts.map((post) => el("li", { class: hueOf(post.topic_id) },
+        el("a", { class: "side-posts__title", href: to.post(post.topic_slug, post.slug), textContent: post.title }),
+        el("a", { class: "side-posts__topic", href: to.topic(post.topic_slug), textContent: post.topic_title }))))
+      : el("p", { class: "meta", textContent: "Nothing posted yet." }));
+
+  return el("section", { class: "panel hue-5", id: "home" },
+    el("div", { class: "panel__head" }, label("Home")),
+    el("div", { class: "home" }, main, side));
+}
+
+function bulletinBox(bulletin) {
+  const box = el("article", { class: `bulletin ${hueOf(bulletin.id)}` },
+    bulletin.title ? el("h3", { class: "bulletin__title", textContent: bulletin.title }) : null,
+    el("div", { class: "prose" }, renderBody(bulletin.body)),
+    el("p", {
+      class: "meta",
+      textContent: (bulletin.pinned ? "Pinned, " : "") + date(bulletin.created) + (bulletin.updated ? `, changed ${date(bulletin.updated)}` : ""),
+    }));
+  if (admin) {
+    const edit = el("button", { class: "link-button", type: "button", textContent: "Edit" });
+    edit.addEventListener("click", async () => {
+      const back = swap(box, await bulletinForm({ bulletin, cancel: () => back() }));
+    });
+    const pin = el("button", { class: "link-button", type: "button", textContent: bulletin.pinned ? "Unpin" : "Pin to the top" });
+    pin.addEventListener("click", async () => {
+      await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "PUT", json: { pinned: !bulletin.pinned } });
+      await showFront();
+    });
+    box.append(el("div", { class: "bulletin__actions" }, edit, pin, twoClick("Delete", "Click again to delete", async () => {
+      await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "DELETE" });
+      await showFront();
+    }, "link-button hue-1")));
+  }
+  return box;
+}
+
+// A new bulletin (no bulletin), or a change to one.
+function bulletinForm({ bulletin = null, cancel }) {
+  return writingForm({
+    title: bulletin?.title ?? "",
+    body: bulletin?.body ?? "",
+    pinned: bulletin?.pinned ?? 0,
+    saveText: bulletin ? "Save bulletin" : "Post bulletin",
+    cancel,
+    save: async (data) => {
+      if (bulletin) await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "PUT", json: data });
+      else await api("/api/blog/bulletins", { method: "POST", json: data });
+      await showFront();
+    },
+  });
+}
+
+// The editor posts have, with Save and Cancel, for a bulletin or a page.
+// A title field if there's a title (one's optional), and a pin checkbox if
+// there's a pinned; short for a line or two. save(data) sends
+// { body, title?, pinned? } and goes on.
+async function writingForm({ title, body = "", pinned, short = false, saveText, save, cancel }) {
+  const { createEditor } = await import("./editor.js");
+  const titleField = title === undefined ? null
+    : el("input", { class: "editor__title", maxlength: "120", placeholder: "Title (if you like)", "aria-label": "Title", value: title });
+  const editor = createEditor(body, { short });
+  const pin = pinned === undefined ? null : el("input", { type: "checkbox", checked: Boolean(pinned) });
+  const message = status();
+  const saveButton = el("button", { class: "button hue-4", type: "button", textContent: saveText });
+  const back = el("button", { class: "button hue-1", type: "button", textContent: "Cancel" });
+  back.addEventListener("click", cancel);
+  saveButton.addEventListener("click", async () => {
+    if (editor.empty()) {
+      message.textContent = "Write something first.";
+      return editor.focus();
+    }
+    saveButton.disabled = true;
+    message.textContent = "Saving...";
+    const data = { body: editor.html() };
+    if (titleField) data.title = titleField.value;
+    if (pin) data.pinned = pin.checked;
+    try {
+      await save(data);
+    } catch (error) {
+      message.textContent = error.message;
+      saveButton.disabled = false;
+    }
+  });
+  return el("div", { class: "writing-form" },
+    titleField,
+    editor.element,
+    pin ? el("div", { class: "form settings" }, el("label", { class: "check" }, pin, "Pin it to the top")) : null,
+    el("div", { class: "button-row" }, saveButton, back),
+    message);
+}
+
+// --- Pictures --------------------------------------------------------------------
+
+// Every picture posted to the site (topics', and the ones in everything
+// written in the editor), newest first, edge to edge. Each one opens where
+// it's from.
+async function picturesPanel() {
+  const { pictures } = await api("/api/blog/pictures");
+  titled("Pictures - Techtrash");
+  const where = (from) => ({
+    topic: () => to.topic(from.slug),
+    post: () => to.post(from.topic_slug, from.slug),
+    bulletin: () => to.home,
+    page: () => (from.id === "about" ? to.about : to.home),
+  })[from.kind]();
+  return el("section", { class: "panel hue-6", id: "pictures" },
+    el("div", { class: "panel__head" },
+      label("Pictures"),
+      el("span", { class: "meta", textContent: plural(pictures.length, "picture") })),
+    pictures.length
+      ? el("div", { class: "gallery" }, pictures.map((picture) => el("a", {
+        class: "gallery__item",
+        href: where(picture.from),
+        title: picture.from.title || "Home",
+      }, el("img", { src: picture.url, alt: picture.alt, loading: "lazy" }))))
+      : el("p", { class: "meta", textContent: "No pictures yet." }));
+}
+
+// --- the Blog --------------------------------------------------------------------
+
+// A topic's card: its picture, title, the start of its description, how many posts.
+const card = (topic) => el("a", { class: `card ${hueOf(topic.id)}`, href: to.topic(topic.slug) },
   topic.picture ? el("img", { class: "card__cover", src: pictureUrl(topic.picture), alt: "" }) : null,
   el("span", { class: "card__body" },
     el("span", { class: "named", textContent: topic.title }),
-    topic.description ? el("span", { class: "card__text", textContent: topic.description }) : null,
+    topic.summary ? el("span", { class: "card__text", textContent: topic.summary }) : null,
     el("span", {
       class: "meta",
       textContent: plural(topic.post_count, "post") + (topic.last_post ? `, the newest ${date(topic.last_post)}` : ""),
-    }),
-    topic.flags.length ? el("span", { class: "tags" }, topic.flags.map((f) => el("span", { class: `tag ${hueOf(f.id)}`, textContent: f.name }))) : null));
+    })));
 
-const SORT = "techtrash:sort";
-
-// The headline, and under it the Blog: every topic, sorted by topic (newest
-// post first) or by flag (a group for each flag, and one for the topics with
-// none). The sort is remembered in this browser. A flag's name in its group
-// shows only its topics (?flag=<id>).
-async function showFront() {
-  const flagId = Number(params.get("flag")) || null;
-  const [{ topics }, { flags }] = await Promise.all([
-    api(`/api/blog/topics${flagId ? `?flag=${flagId}` : ""}`),
-    api("/api/blog/flags"),
-  ]);
-  const flag = flags.find((f) => f.id === flagId);
-  titled(flag ? `${flag.name} - Techtrash` : "Techtrash");
-  markNav("home");
-
-  let sort = remembered.get(SORT) === "flags" ? "flags" : "topics";
-  const sortButton = (mode, text) => {
-    const button = el("button", { class: "button button--small", type: "button", textContent: text });
-    button.addEventListener("click", () => {
-      sort = mode;
-      remembered.set(SORT, mode);
-      draw();
-    });
-    return button;
-  };
-  const byTopic = sortButton("topics", "Topics");
-  const byFlag = sortButton("flags", "Flags");
-  const list = el("div", { class: "groups" });
-
-  const group = (name, members) => el("section", { class: "group" },
-    el("h3", { class: "group__head" }, name, el("span", { class: "meta", textContent: plural(members.length, "topic") })),
-    el("div", { class: "topics" }, members.map(card)));
-
-  function draw() {
-    byTopic.setAttribute("aria-pressed", String(sort === "topics"));
-    byFlag.setAttribute("aria-pressed", String(sort === "flags"));
-    if (topics.length === 0) {
-      list.replaceChildren(el("p", { class: "meta", textContent: flag ? `No topics wear ${flag.name} yet.` : "No topics yet." }));
-    } else if (flag || sort === "topics") {
-      list.replaceChildren(el("div", { class: "topics" }, topics.map(card)));
-    } else {
-      const groups = flags
-        .map((f) => [f, topics.filter((topic) => topic.flags.some((worn) => worn.id === f.id))])
-        .filter(([, members]) => members.length);
-      const loose = topics.filter((topic) => topic.flags.length === 0);
-      list.replaceChildren(...groups.map(([f, members]) => group(el("a", { class: `group__name flag ${hueOf(f.id)}`, href: `?flag=${f.id}#blog`, textContent: f.name }), members)));
-      if (loose.length) list.append(group(el("span", { class: "group__name", textContent: groups.length ? "No flag" : "No flags yet" }), loose));
-    }
-  }
-
-  const section = el("section", { class: "panel hue-4", id: "blog" },
-    el("div", { class: "panel__head" },
-      label("Blog", flag?.name),
-      flag
-        ? el("a", { class: "button button--small", href: "./#blog", textContent: "All topics" })
-        : el("div", { class: "sort", role: "group", "aria-label": "Sort by" }, el("span", { class: "meta", textContent: "Sort by" }), byTopic, byFlag)));
-
+// Every topic, the one with the newest post first.
+async function blogPanel() {
+  const { topics } = await api("/api/blog/topics");
+  titled("Blog - Techtrash");
+  const section = el("section", { class: "panel hue-4", id: "blog" }, el("div", { class: "panel__head" }, label("Blog")));
   if (admin) {
     const spot = el("div");
     const newTopic = el("button", { class: "button hue-4", type: "button", textContent: "New topic" });
-    const editFlags = el("button", { class: "button hue-6", type: "button", textContent: "Edit flags" });
-    newTopic.addEventListener("click", () => {
-      const back = swap(spot, topicForm({ flags, done: (topic) => location.assign(`?topic=${topic.id}`), cancel: () => back() }));
+    newTopic.addEventListener("click", async () => {
+      const back = swap(spot, await topicForm({ done: (topic) => location.assign(to.topic(topic.slug)), cancel: () => back() }));
       spot.querySelector("input").focus();
     });
-    editFlags.addEventListener("click", () => swap(spot, flagManager(flags, showFront)));
-    spot.append(el("div", { class: "button-row" }, newTopic, editFlags));
+    spot.append(el("div", { class: "button-row" }, newTopic));
     section.append(spot);
   }
+  section.append(topics.length ? el("div", { class: "topics" }, topics.map(card)) : el("p", { class: "meta", textContent: "No topics yet." }));
+  return section;
+}
 
-  draw();
-  section.append(list);
-  page.replaceChildren(document.getElementById("hero").content.cloneNode(true), section);
-  if (location.hash === "#blog") section.scrollIntoView();
+// --- About me --------------------------------------------------------------------
+
+// The site's own About me page, which the admin writes on the site.
+async function aboutPanel() {
+  const about = await api("/api/blog/page?name=about");
+  titled(`${about.title} - Techtrash`);
+  return el("section", { class: "panel hue-2", id: "about" },
+    el("div", { class: "panel__head" }, label(about.title)),
+    pageText(about, { fallback: el("p", { class: "meta", textContent: "Nothing here yet." }) }));
 }
 
 // --- a topic ---------------------------------------------------------------------
 
-async function showTopic(id) {
-  const topic = await api(`/api/blog/topic?id=${id}`);
+async function showTopic(topicSlug) {
+  const topic = await api(`/api/blog/topic?slug=${slug(topicSlug)}`);
   titled(`${topic.title} - Techtrash`);
-  markNav(null);
   const hue = hueOf(topic.id);
 
   const head = el("section", { class: `panel ${hue}` },
     crumb(el("span", { textContent: topic.title })),
     topic.picture ? el("img", { class: "topic-cover", src: pictureUrl(topic.picture), alt: "" }) : null,
     el("h1", { class: "head", textContent: topic.title }),
-    topic.description ? el("p", { class: "lede", textContent: topic.description }) : null,
-    topic.flags.length ? el("nav", { class: "button-row", "aria-label": "Flags" }, topic.flags.map((f) => flagLink(f))) : null);
+    !topic.description.trim() ? null
+      : /^\s*</.test(topic.description) ? el("div", { class: "prose" }, renderBody(topic.description))
+      : el("p", { class: "lede", textContent: topic.description }));
 
   if (admin) {
     const edit = el("button", { class: "button hue-5", type: "button", textContent: "Edit topic" });
     edit.addEventListener("click", async () => {
-      const { flags } = await api("/api/blog/flags");
-      const back = swap(head, topicForm({ topic, flags, done: () => showTopic(topic.id), cancel: () => back() }));
+      // a new title is a new slug, so a new address
+      const back = swap(head, await topicForm({ topic, done: (saved) => location.assign(to.topic(saved.slug)), cancel: () => back() }));
     });
     head.append(el("div", { class: "button-row" },
-      el("a", { class: "button hue-4", href: `?topic=${topic.id}&write`, textContent: "Write a post" }),
+      el("a", { class: "button hue-4", href: to.write(topic.slug), textContent: "Write a post" }),
       edit,
       twoClick("Delete topic", `Click again: ${plural(topic.posts.length, "post")} go${topic.posts.length === 1 ? "es" : ""} with it`, async () => {
         await api(`/api/blog/topic?id=${topic.id}`, { method: "DELETE" });
-        location.assign("./#blog");
+        location.assign(to.blog);
       })));
   }
 
@@ -178,7 +323,7 @@ async function showTopic(id) {
   if (topic.posts.length === 0) posts.append(el("p", { class: "meta", textContent: "No posts yet." }));
   else {
     posts.append(el("ul", { class: "entries" }, topic.posts.map((post) => el("li", { class: "entry" },
-      el("span", { class: "named" }, el("a", { href: `?post=${post.id}`, textContent: post.title })),
+      el("span", { class: "named" }, el("a", { href: to.post(topic.slug, post.slug), textContent: post.title })),
       el("span", { class: "meta", textContent: `${date(post.created)}, ${plural(post.comment_count, "comment")}` }),
     ))));
   }
@@ -187,14 +332,13 @@ async function showTopic(id) {
 
 // --- a post ----------------------------------------------------------------------
 
-async function showPost(id) {
-  const post = await api(`/api/blog/post?id=${id}`);
+async function showPost(topicSlug, postSlug) {
+  const post = await api(`/api/blog/post?topic=${slug(topicSlug)}&slug=${slug(postSlug)}`);
   titled(`${post.title} - Techtrash`);
-  markNav(null);
   const hue = hueOf(post.topic_id);
 
   const article = el("article", { class: `panel ${hue}` },
-    crumb(el("a", { href: `?topic=${post.topic_id}`, textContent: post.topic_title })),
+    crumb(el("a", { href: to.topic(post.topic_slug), textContent: post.topic_title })),
     el("h1", { class: "head", textContent: post.title }),
     el("p", { class: "meta", textContent: date(post.created) + (post.updated ? `, changed ${date(post.updated)}` : "") }));
   const comments = commentsPanel(post, { admin, hue });
@@ -217,11 +361,11 @@ async function showPost(id) {
       toggle.disabled = false;
     });
     article.append(el("div", { class: "button-row" },
-      el("a", { class: "button hue-4", href: `?post=${post.id}&edit`, textContent: "Edit post" }),
+      el("a", { class: "button hue-4", href: to.edit(post.topic_slug, post.slug), textContent: "Edit post" }),
       toggle,
       twoClick("Delete post", "Click again to delete it", async () => {
         await api(`/api/blog/post?id=${post.id}`, { method: "DELETE" });
-        location.assign(`?topic=${post.topic_id}`);
+        location.assign(to.topic(post.topic_slug));
       })));
   }
 
@@ -234,19 +378,18 @@ async function showPost(id) {
 
 // A post being written is kept in this browser as it's typed, until it's
 // posted or thrown away: closing the window loses nothing.
-async function showEditor({ postId, topicId }) {
+async function showEditor(topicSlug, postSlug = null) {
   const { createEditor } = await import("./editor.js");
   const [{ topics }, post] = await Promise.all([
     api("/api/blog/topics"),
-    postId ? api(`/api/blog/post?id=${postId}`) : null,
+    postSlug ? api(`/api/blog/post?topic=${slug(topicSlug)}&slug=${slug(postSlug)}`) : null,
   ]);
-  const topic = topics.find((t) => t.id === Number(post?.topic_id ?? topicId));
+  const topic = topics.find((t) => (post ? t.id === post.topic_id : t.slug === topicSlug));
   if (!topic) throw new Error("That topic isn't here anymore.");
   const key = `techtrash:draft:${post ? `post-${post.id}` : `topic-${topic.id}`}`;
   const draft = remembered.get(key);
-  const back = post ? `?post=${post.id}` : `?topic=${topic.id}`;
+  const back = post ? to.post(post.topic_slug, post.slug) : to.topic(topic.slug);
   titled(post ? `Editing ${post.title} - Techtrash` : "New post - Techtrash");
-  markNav(null);
 
   let leaving = false;
   let keeping;
@@ -294,7 +437,7 @@ async function showEditor({ postId, topicId }) {
         : await api("/api/blog/posts", { method: "POST", json: data });
       leaving = true;
       remembered.forget(key);
-      location.assign(`?post=${saved.id}`);
+      location.assign(to.post(saved.topic_slug, saved.slug));
     } catch (error) {
       message.textContent = error.message;
       save.disabled = false;
@@ -334,7 +477,7 @@ async function showEditor({ postId, topicId }) {
   }
 
   page.replaceChildren(el("section", { class: `panel ${hueOf(topic.id)}` },
-    crumb(el("a", { href: `?topic=${topic.id}`, textContent: topic.title }), post ? el("a", { href: back, textContent: post.title }) : null, el("span", { textContent: post ? "edit" : "new post" })),
+    crumb(el("a", { href: to.topic(topic.slug), textContent: topic.title }), post ? el("a", { href: back, textContent: post.title }) : null, el("span", { textContent: post ? "edit" : "new post" })),
     kept,
     title,
     editor.element,
@@ -348,12 +491,26 @@ async function showEditor({ postId, topicId }) {
 
 // --- start ---------------------------------------------------------------------
 
+// The old numbered addresses, as the new ones.
+async function newAddress(old) {
+  if (old.has("post")) {
+    const post = await api(`/api/blog/post?id=${Number(old.get("post"))}`);
+    return old.has("edit") ? to.edit(post.topic_slug, post.slug) : to.post(post.topic_slug, post.slug);
+  }
+  const topic = await api(`/api/blog/topic?id=${Number(old.get("topic"))}`);
+  return old.has("write") ? to.write(topic.slug) : to.topic(topic.slug);
+}
+
 try {
-  if (admin && params.has("post") && params.has("edit")) await showEditor({ postId: params.get("post") });
-  else if (params.has("post")) await showPost(params.get("post"));
-  else if (admin && params.has("topic") && params.has("write")) await showEditor({ topicId: params.get("topic") });
-  else if (params.has("topic")) await showTopic(params.get("topic"));
-  else await showFront();
+  const old = new URLSearchParams(location.search);
+  const [first, topicSlug, postSlug] = decodeURIComponent(location.search.slice(1)).split("/").filter(Boolean);
+  if (old.has("post") || old.has("topic")) location.replace(await newAddress(old));
+  else if (admin && first === "edit" && postSlug) await showEditor(topicSlug, postSlug);
+  else if (admin && first === "write" && topicSlug) await showEditor(topicSlug);
+  // (a visitor with the admin's address gets the page itself)
+  else if (["blog", "edit"].includes(first) && postSlug) await showPost(topicSlug, postSlug);
+  else if (["blog", "write"].includes(first) && topicSlug) await showTopic(topicSlug);
+  else await showFront(["blog", "pictures", "about"].includes(first) ? first : old.has("flag") ? "blog" : "home");
 } catch (error) {
   page.replaceChildren(el("section", { class: "panel hue-1" }, crumb(), el("p", { textContent: error.message })));
 }

@@ -17,37 +17,34 @@
   <!-- The planets and stars, drawn by space.js with cosmos.js. -->
   <div class="sky" aria-hidden="true"></div>
 
-  <header class="bar">
-    <div class="wrap bar__inner">
-      <nav class="nav" aria-label="Site">
-        <a class="button hue-5" href="./" data-nav="home">Home</a>
-        <a class="button hue-6" href="https://msaunders.dev">About me</a>
-      </nav>
-    </div>
-  </header>
-
-  <!-- Drawn by blog.js: the front page, a topic, a post, or the admin's editor. -->
+  <!-- Drawn by blog.js: the headline and a panel (Home, the Blog, Pictures,
+       About me), a topic, a post, or the admin's editor. -->
   <main class="page wrap" id="page">
     <p class="meta">Loading...</p>
   </main>
 
-  <footer class="foot wrap">techtrash.org</footer>
+  <!-- The credits are a text file the desktop's Notepad opens (js/app.js
+       opens the window). -->
+  <footer class="foot wrap">
+    <span><span class="copyleft" role="img" aria-label="Copyleft">©</span> Matthew Saunders</span>
+    <a href="/programs/notepad/?file=credits.txt">credits</a>
+  </footer>
 
   <!-- The front page's top panel. -->
   <template id="hero">
     <section class="panel">
       <h1 class="title" aria-label="Techtrash">
-        <span aria-hidden="true"><span class="title__letter hue-1">T</span><span class="title__letter hue-2">e</span><span class="title__letter hue-3">c</span><span class="title__letter hue-4">h</span><span class="title__letter hue-5">t</span><span class="title__letter hue-6">r</span><span class="title__letter hue-1">a</span><span class="title__letter hue-2">s</span><span class="title__letter hue-3">h</span><span class="caret">_</span></span>
+        <span aria-hidden="true"><span class="title__letter hue-1">T</span><span class="title__letter hue-2">e</span><span class="title__letter hue-3">c</span><span class="title__letter hue-4">h</span><span class="title__letter hue-5">t</span><span class="title__letter hue-6">r</span><span class="title__letter hue-1">a</span><span class="title__letter hue-2">s</span><span class="title__letter hue-3">h</span></span>
       </h1>
       <!-- Placeholder: what the site is, in a sentence. -->
       <p class="lede">My own little corner of the internet.</p>
+      <!-- Which panel shows under the headline. blog.js fills in the one
+           that's showing. -->
       <div class="button-row">
-        <!-- Only the blog is built so far; the rest go to the "under
-             construction" blue screen until they are. -->
-        <a class="button hue-4" href="#blog">Blog</a>
-        <a class="button hue-5" href="/under-construction/">Pictures</a>
-        <a class="button hue-2" href="/under-construction/">Travel</a>
-        <a class="button hue-6" href="/under-construction/">Misc</a>
+        <a class="button hue-5" href="./" data-view="home">Home</a>
+        <a class="button hue-4" href="?blog" data-view="blog">Blog</a>
+        <a class="button hue-6" href="?pictures" data-view="pictures">Pictures</a>
+        <a class="button hue-2" href="?about" data-view="about">About me</a>
       </div>
     </section>
   </template>

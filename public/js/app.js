@@ -3,10 +3,14 @@
 // An app lives in a window on the desktop, so:
 // - Opened on its own (a search result, a shared link), it sends the visitor
 //   to the desktop with itself open at the same place:
-//   /pages/blog/post/?id=1 becomes /#blog/post/?id=1.
+//   /pages/notepad/?file=credits.txt becomes /#notepad/?file=credits.txt,
+//   and /pages/blog/?blog/rockets/liftoff becomes
+//   /#blog/?blog/rockets/liftoff, which the desktop tidies into the site's
+//   own /#blog/rockets/liftoff.
 // - Inside its window, a link to another app opens that app's window rather
 //   than loading it here, a link to anywhere else on the site replaces the
-//   whole desktop, and a link off the site opens a new tab.
+//   whole desktop (unless it has a target of its own, like a file Notepad
+//   links to), and a link off the site opens a new tab.
 (() => {
   const where = (path) => {
     const m = path.match(/^\/(?:pages|programs)\/([\w-]+)\/(.*)$/);
@@ -31,7 +35,8 @@
     }
     const to = where(link.pathname);
     if (!to) {
-      link.target = "_top";
+      // (unless it says where it opens itself, as a file in Notepad does)
+      if (!link.target) link.target = "_top";
       return;
     }
     if (here && to.id === here.id) return;

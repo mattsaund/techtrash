@@ -46,3 +46,8 @@ DOMPurify (cleans every post)
   Cure53 and contributors.
   Apache 2.0 or MPL 2.0: /pages/blog/vendor/dompurify-LICENSE.txt
   github.com/cure53/DOMPurify
+
+turndown and turndown-plugin-gfm (the editor's Markdown view)
+  Dom Christie.
+  MIT: /pages/blog/vendor/turndown-LICENSE.txt
+  github.com/mixmark-io/turndown

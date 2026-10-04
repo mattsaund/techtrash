@@ -15,13 +15,21 @@
 //     it on the box.
 //   - Anything pasted from another page keeps its bold, lists, links and so
 //     on, but not its looks: it's cleaned the way a post is.
+//   - A picture or a player moves up or down a line with its Up and Down
+//     buttons (click a picture for them; a player has them under it).
+//   - It writes three ways: Rich text (all of the above), Markdown, or HTML,
+//     switched at the top. What's written carries over from one to the next:
+//     whatever Markdown can't say (a hue, where a picture sits) stays as HTML
+//     in it. Pictures and players go in from any of the three.
 //
-// createEditor(html, { onChange, onTitle }) gives back
+// createEditor(html, { onChange, onTitle, short }) gives back
 //   { element, html(), empty(), focus() }
-// where html() is the post as it'll be saved, and onTitle(title) is told a
-// Markdown file's title.
+// where html() is what's written, as it'll be saved, onTitle(title) is told a
+// Markdown file's title, and short makes the box short, for a line or two.
 
-import { clean, embedPlayers, fromMarkdown, PICTURE_PLACES, playerElement, playerFor, playerIn } from "./content.js";
+import {
+  clean, embedPlayers, fromMarkdown, htmlToMarkdown, loadMarkdown, markdownToHtml, PICTURE_PLACES, playerElement, playerFor, playerIn,
+} from "./content.js";
 import { api, el, plural, readyPicture } from "./util.js";
 
 // The six hues, by the names tokens.css gives them.
@@ -112,12 +120,12 @@ const tidyHtml = (html) => {
 
 // --- the editor ------------------------------------------------------------------
 
-export function createEditor(start, { onChange = () => {}, onTitle = () => {} } = {}) {
+export function createEditor(start, { onChange = () => {}, onTitle = () => {}, short = false } = {}) {
   document.execCommand("defaultParagraphSeparator", false, "p");
   document.execCommand("styleWithCSS", false, false);
 
   const area = el("div", {
-    class: "editor__area prose",
+    class: `editor__area prose${short ? " editor__area--short" : ""}`,
     contenteditable: "true",
     role: "textbox",
     "aria-multiline": "true",
@@ -125,7 +133,13 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
     "data-placeholder": "Write something...",
     spellcheck: true,
   });
+  const modes = el("div", { class: "editor__modes", role: "group", "aria-label": "Write in" });
   const tools = el("div", { class: "editor__tools", role: "toolbar", "aria-label": "Formatting" });
+  const sourceTools = el("div", { class: "editor__tools", role: "toolbar", "aria-label": "Put in", hidden: true });
+  // Markdown or HTML, as text
+  const source = el("textarea", {
+    class: `editor__source${short ? " editor__area--short" : ""}`, hidden: true, spellcheck: true, "aria-label": "The post, as text",
+  });
   const ask = el("div", { class: "editor__row", hidden: true });
   const pictureRow = el("div", { class: "editor__row", hidden: true });
   const note = el("span", { class: "editor__note", role: "status" });
@@ -133,12 +147,14 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
   const picturePicker = el("input", { type: "file", accept: "image/*", multiple: true, hidden: true });
   const markdownPicker = el("input", { type: "file", accept: ".md,.markdown,.mdown,.mkd,text/markdown", hidden: true });
   const element = el("div", { class: "editor" },
-    el("div", { class: "editor__head" }, tools, ask, pictureRow),
+    el("div", { class: "editor__head" }, modes, tools, sourceTools, ask, pictureRow),
     area,
+    source,
     el("div", { class: "editor__foot meta" }, note, count),
     picturePicker, markdownPicker);
 
   const tell = (text) => { note.textContent = text; };
+  let mode = "rich";   // or "markdown", or "html": see setMode
 
   // --- where the cursor is --------------------------------------------------------
 
@@ -202,6 +218,10 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
   });
   const words = (text) => text.split(/\s+/).filter(Boolean).length;
   const countWords = () => {
+    if (mode !== "rich") {
+      count.textContent = plural(words(source.value.replace(/<[^>]*>|[#*_`>|-]/g, " ")), "word");
+      return;
+    }
     const players = [...area.querySelectorAll(".embed__bar")].reduce((n, bar) => n + words(bar.innerText), 0);
     count.textContent = plural(words(area.innerText) - players, "word");
   };
@@ -262,14 +282,21 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
       box.remove();
       changed();
     });
-    box.append(el("figcaption", { class: "embed__bar" }, el("span", { class: "embed__address", textContent: address }), remove));
+    const up = el("button", { class: "tool", type: "button", textContent: "Up", title: "Up a line" });
+    const down = el("button", { class: "tool", type: "button", textContent: "Down", title: "Down a line" });
+    up.addEventListener("click", () => move(box, true));
+    down.addEventListener("click", () => move(box, false));
+    box.append(el("figcaption", { class: "embed__bar" }, el("span", { class: "embed__address", textContent: address }), up, down, remove));
     return box;
   }
 
   function addPlayer(address) {
     const player = playerFor(address);
     if (!player) return `That isn't a link I can play. Try ${PLAYERS}.`;
-    insertBlock(playerBlock(player, address));
+    // on a line of its own, it plays
+    if (mode === "markdown") typeIn(`\n\n${address}\n\n`);
+    else if (mode === "html") typeIn(`\n<p>${escape(address)}</p>\n`);
+    else insertBlock(playerBlock(player, address));
     return null;
   }
 
@@ -284,6 +311,26 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
     }
   });
 
+  // Moves a picture or a player up or down a line. A picture with words beside
+  // it first gets a line of its own.
+  function move(item, up) {
+    const line = lineOf(item);
+    const alone = line === item || (line.matches("p") && !line.textContent.trim() && line.querySelectorAll("img").length === 1);
+    if (!alone) {
+      const own = el("p");
+      own.append(item);
+      if (up) line.before(own);
+      else line.after(own);
+    } else {
+      const next = up ? line.previousElementSibling : line.nextElementSibling;
+      if (!next) return;
+      if (up) next.before(line);
+      else next.after(line);
+    }
+    item.scrollIntoView({ block: "nearest" });
+    changed();
+  }
+
   // --- pictures -------------------------------------------------------------------
 
   async function addPictures(files, at) {
@@ -293,6 +340,10 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
         const form = new FormData();
         form.append("picture", await readyPicture(file), file.name || "picture");
         const { url } = await api("/api/blog/pictures", { method: "POST", form });
+        if (mode !== "rich") {
+          typeIn(mode === "markdown" ? `\n\n![](${url})\n\n` : `\n<p><img src="${url}" alt=""></p>\n`);
+          continue;
+        }
         select(at);
         document.execCommand("insertImage", false, url);
         for (const img of area.querySelectorAll(`img[src="${CSS.escape(url)}"]:not([alt])`)) img.alt = "";
@@ -302,7 +353,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
         return tell(error.message);
       }
     }
-    tell("Click a picture to say what's in it, or where it sits.");
+    tell(mode === "rich" ? "Click a picture to say what's in it, or where it sits." : "");
   }
 
   picturePicker.addEventListener("change", () => {
@@ -316,6 +367,10 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
   alt.addEventListener("input", () => {
     if (picked) picked.alt = alt.value;
     onChange();
+  });
+  // (inside a form, like a topic's, Enter here would send the whole form)
+  alt.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") e.preventDefault();
   });
   const places = [["Across", ""], ["Left", "pic--left"], ["Middle", "pic--center"], ["Right", "pic--right"]].map(([name, place]) => {
     const button = el("button", { class: "tool", type: "button", textContent: name, title: place ? `Small, ${name.toLowerCase()}, with the words around it` : "Across the column" });
@@ -333,7 +388,15 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
     pick(null);
     changed();
   });
-  pictureRow.append(el("span", { class: "editor__label", textContent: "Picture" }), alt, el("div", { class: "tools__group" }, places.map(([button]) => button)), removePicture);
+  const pictureUp = el("button", { class: "tool", type: "button", textContent: "Up", title: "Up a line" });
+  const pictureDown = el("button", { class: "tool", type: "button", textContent: "Down", title: "Down a line" });
+  pictureUp.addEventListener("click", () => move(picked, true));
+  pictureDown.addEventListener("click", () => move(picked, false));
+  pictureRow.append(
+    el("span", { class: "editor__label", textContent: "Picture" }), alt,
+    el("div", { class: "tools__group" }, places.map(([button]) => button)),
+    el("div", { class: "tools__group" }, pictureUp, pictureDown),
+    removePicture);
 
   function pick(img) {
     picked?.classList.remove("is-picked");
@@ -388,7 +451,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
     const close = () => {
       ask.hidden = true;
       ask.replaceChildren();
-      restore();
+      if (mode === "rich") restore();
+      else source.focus();
     };
     const go = () => {
       const problem = done(field.value.trim());
@@ -554,12 +618,16 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
   }
 
   function empty() {
+    if (mode !== "rich") return !source.value.trim();
     return !area.textContent.trim() && !area.querySelector("img, hr, .embed");
   }
 
-  // The post as it'll be saved: players back to their links, the browser's
-  // marks made a post's, and cleaned.
+  // What's written, as it'll be saved: from Markdown or HTML, made HTML; from
+  // the box, players back to their links and the browser's marks made a
+  // post's. Cleaned, either way.
   function html() {
+    if (mode === "markdown") return clean(tidyHtml(markdownToHtml(source.value)));
+    if (mode === "html") return clean(tidyHtml(source.value));
     const copy = inert().importNode(area, true);
     for (const box of copy.querySelectorAll("[data-address]")) {
       box.replaceWith(el("p", {}, el("a", { href: box.dataset.address, textContent: box.dataset.address })));
@@ -568,14 +636,75 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {} } 
     return clean(tidy(copy).innerHTML);
   }
 
-  // The toolbar sits under the site's top bar as the page scrolls, however tall that is.
-  const bar = document.querySelector(".bar");
-  if (bar) {
-    new ResizeObserver(() => document.documentElement.style.setProperty("--site-bar-h", `${bar.offsetHeight}px`)).observe(bar);
+
+  // --- Rich text, Markdown, HTML ----------------------------------------------------
+
+  // Puts text in the Markdown or HTML box where its cursor is.
+  function typeIn(text) {
+    source.focus();
+    source.setRangeText(text, source.selectionStart, source.selectionEnd, "end");
+    source.dispatchEvent(new Event("input"));
   }
+
+  // HTML with a line for each block, to read and write by hand.
+  const readable = (value) => value.replace(/(<\/(?:p|h[2-4]|ul|ol|li|blockquote|pre|table|thead|tbody|tr)>|<hr>)(?!\n)/g, "$1\n");
+
+  async function setMode(next) {
+    if (next === mode) return;
+    if (next === "markdown" || mode === "markdown") {
+      tell("Getting Markdown ready...");
+      await loadMarkdown();
+      tell("");
+    }
+    const written = html();
+    mode = next;
+    if (mode === "rich") setHtml(written);
+    else source.value = mode === "markdown" ? htmlToMarkdown(written) : readable(written);
+    area.hidden = mode !== "rich";
+    tools.hidden = mode !== "rich";
+    source.hidden = mode === "rich";
+    sourceTools.hidden = mode === "rich";
+    ask.hidden = true;
+    pick(null);
+    for (const button of modes.querySelectorAll("button")) button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
+    area.classList.toggle("is-empty", empty());
+    countWords();
+  }
+
+  modes.append(el("span", { class: "editor__label", textContent: "Write in" }), ...[["rich", "Rich text"], ["markdown", "Markdown"], ["html", "HTML"]].map(([name, label]) => {
+    const button = el("button", { class: "tool", type: "button", textContent: label, "data-mode": name, "aria-pressed": String(name === "rich") });
+    button.addEventListener("click", () => setMode(name));
+    return button;
+  }));
+  sourceTools.append(group("Put in",
+    tool("picture", "Picture (or paste or drop one)", () => picturePicker.click()),
+    tool("video", "Video or song", () => askFor("Video or song link", "", addPlayer))));
+
+  source.addEventListener("input", () => {
+    onChange();
+    clearTimeout(counting);
+    counting = setTimeout(countWords, 300);
+  });
+  source.addEventListener("paste", (e) => {
+    const pictures = [...e.clipboardData.files].filter((file) => file.type.startsWith("image/"));
+    if (!pictures.length) return;
+    e.preventDefault();
+    addPictures(pictures);
+  });
+  source.addEventListener("dragover", (e) => {
+    if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+  });
+  source.addEventListener("drop", (e) => {
+    const files = [...e.dataTransfer.files];
+    if (files.length === 0) return;
+    e.preventDefault();
+    const markdown = files.find(isMarkdown);
+    if (markdown && mode === "markdown") markdown.text().then((text) => typeIn(text));
+    else addPictures(files);
+  });
 
   setHtml(start);
   area.classList.toggle("is-empty", empty());
   countWords();
-  return { element, html, empty, focus: () => select(null) };
+  return { element, html, empty, focus: () => (mode === "rich" ? select(null) : source.focus()) };
 }

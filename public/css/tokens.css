@@ -407,6 +407,8 @@
   --fs-site-title:   50px;  --lh-site-title:   60px;
   --fs-site-title-s: 40px;  --lh-site-title-s: 48px;
   --fs-site-art:      5px;  --lh-site-art:      1;
+  --site-art-scale:   0.5;    /* the planets' glyphs, drawn at half that: finer */
+  --site-art-scale-s: 0.32;   /* ...and smaller still on a phone, so all four fit */
 
   /* --- sizes ------------------------------------------------ */
   --site-wrap:     1204px;  /* the column everything sits in, msaunders.dev's */
@@ -414,10 +416,11 @@
   --site-card-min: 272px;   /* a topic's card, at its narrowest */
   --site-cover:    16 / 9;  /* a topic's picture, on its card */
   --site-thumb:    144px;   /* a topic's picture, in the form that changes it */
+  --site-tile:     160px;   /* a picture in Pictures, at its narrowest */
+  --site-side:     272px;   /* Home's side, with the newest posts */
   --site-float:    50%;     /* a picture in a post with the words around it, at most */
   --site-editor:   360px;   /* the editor's box, at its shortest */
-  --site-bar-h:    50px;    /* the top bar's height, which the editor's buttons
-                               sit under. The editor measures the real one. */
+  --site-editor-short: 96px; /* ...when it's for a line or two (the tagline) */
 
   /* A player in a post: a video's shape, a phone video's (and how
      wide it gets), and how tall a song's and an album's are. */
@@ -430,9 +433,8 @@
   /* --- layers, inside the page -------------------------------- */
   --z-site-sky:  0;   /* the planets and stars, behind everything */
   --z-site-page: 1;   /* the panels */
-  --z-site-bar:  2;   /* the top bar, over what scrolls under it */
   --z-site-tools: 1;  /* the editor's buttons, over the post scrolling under
-                         them (inside the page, under the top bar) */
+                         them (inside the page) */
 
   /* --- color ------------------------------------------------ */
   --site-bg:     #000000;
@@ -456,7 +458,8 @@
   --site-hue-6: #da77f2;   /* violet */
 
   --site-stars:   0.6;     /* how strong the stars are */
+  --site-stars-dim: 0.12;  /* ...at the dark of a twinkle */
+  --site-twinkle: 3.4s;    /* one twinkle; each star takes 0.6 to 1.5 of it */
   --site-planets: 0.9;     /* ...and the planets: stronger, since the panels
                               dim them wherever they pass behind one */
-  --site-blink: 1.05s;     /* the caret after "Techtrash" */
 }

@@ -1,45 +1,64 @@
 // techtrash.org : the blog.
 //
-//   flag     a label that organizes topics (Music, Space, ...). A topic can wear
-//            any number of them, and the front page has a button for each.
-//   topic    a title, an optional description and picture, and its flags.
+//   topic    a title, an optional description (HTML from the editor, like a
+//            post's body; plain text from before that), and an optional
+//            picture.
 //   post     a title and a body under one topic. The body is HTML from the
 //            editor, cleaned by the page before it's sent and again before it's
 //            shown (public/pages/blog/content.js). Its comments can be switched
 //            off, which keeps the ones already there and stops new ones.
 //   comment  anyone's, on a post, or a reply to another comment, so a post's
 //            comments are threads. A name and plain text, nothing else.
+//   bulletin news or info for the Home page, the admin's: an optional title
+//            and a body like a post's. Pinned ones stay at the top.
+//   page     a page of the site's own, written by the admin: Home's words,
+//            About me, and the tagline under the headline. Just a body like a
+//            post's.
+//
+// A topic and a post each have a slug, their title made fit for an address
+// ("Daft Punk's best" is daft-punks-best), so the site's addresses read
+// #blog/<topic>/<post>. A topic's is its own; a post's is its own within its
+// topic. They follow the title when it changes.
 //
 // Reading is anyone's. Everything else is the admin's (worker.js checks with
 // server/admin.js), except posting a comment, which is anyone's while the
 // post's comments are on, 5 a minute per person (COMMENT_LIMITER).
 //
 // Everything is in the D1 database DB; the tables are made the first time
-// they're needed. Pictures (a topic's, and any in a post) are in the KV store
-// PICTURES, under "blog/<name>", served at /blog/img/<name>.
+// they're needed. Pictures (a topic's, and any in words written in the editor)
+// are in the KV store PICTURES, under "blog/<name>", served at /blog/img/<name>.
 //
-//   GET    /api/blog/flags               every flag, and how many topics wear it
-//   POST   /api/blog/flags               admin: { name }
-//   PUT    /api/blog/flag?id=            admin: { name }
-//   DELETE /api/blog/flag?id=            admin: the flag comes off every topic
-//   GET    /api/blog/topics[?flag=]      topics (wearing that flag), newest post first
-//   GET    /api/blog/topic?id=           a topic, its flags and its posts
-//   POST   /api/blog/topics              admin: a form: title, description, flags, picture
+//   GET    /api/blog/topics              every topic, newest post first, each with
+//                                        a summary of its description
+//   GET    /api/blog/topic?id= | ?slug=  a topic and its posts
+//   POST   /api/blog/topics              admin: a form: title, description, picture
 //   PUT    /api/blog/topic?id=           admin: the same form, plus removePicture
 //   DELETE /api/blog/topic?id=           admin: the topic, its posts and their comments
-//   GET    /api/blog/post?id=            a post, its topic and its comments
+//   GET    /api/blog/posts[?limit=]      the newest posts, from every topic, each
+//                                        with the start of its words (5, up to 20)
+//   GET    /api/blog/post?id=            a post, its topic and its comments; or by
+//          /api/blog/post?topic=&slug=   its topic's slug and its own
 //   POST   /api/blog/posts               admin: { topic, title, body, comments }
 //   PUT    /api/blog/post?id=            admin: any of { topic, title, body, comments }
 //   DELETE /api/blog/post?id=            admin: the post and its comments
 //                                        (and pictures nothing else shows)
+//   GET    /api/blog/pictures            every picture posted to the site, newest first,
+//                                        each with where it's from
 //   POST   /api/blog/pictures            admin: a form with a picture; says its address
 //   POST   /api/blog/comments            anyone: { post, parent, name, body }
 //   DELETE /api/blog/comment?id=         admin: the comment's words go, its replies stay
+//   GET    /api/blog/bulletins           every bulletin, pinned ones first, then newest
+//   POST   /api/blog/bulletins           admin: { title, body, pinned }
+//   PUT    /api/blog/bulletin?id=        admin: any of { title, body, pinned }
+//   DELETE /api/blog/bulletin?id=        admin
+//   GET    /api/blog/page?name=          a page's body ("" until it's written): about,
+//                                        home or tagline
+//   PUT    /api/blog/page?name=          admin: { body }
 
 import { isAdmin } from "./admin.js";
 import { apiError, clientKey, done, fresh } from "./http.js";
 
-const MAX_LENGTH = { flag: 40, title: 120, description: 1000, body: 500_000, name: 40, comment: 2000 };
+const MAX_LENGTH = { title: 120, description: 500_000, body: 500_000, name: 40, comment: 2000 };
 const MAX_PICTURE_BYTES = 10 * 1024 * 1024;
 const PICTURES = "blog/";
 const FIRST_PICTURES = "topics/";   // where the first blog kept a topic's picture
@@ -55,25 +74,17 @@ function ensureSchema(env) {
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS topics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
+        slug TEXT,
         description TEXT NOT NULL DEFAULT '',
         picture TEXT,
         created INTEGER NOT NULL,
         updated INTEGER
       )`),
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS flags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-        created INTEGER NOT NULL
-      )`),
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS topic_flags (
-        topic_id INTEGER NOT NULL,
-        flag_id INTEGER NOT NULL,
-        PRIMARY KEY (topic_id, flag_id)
-      )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         topic_id INTEGER NOT NULL,
         title TEXT NOT NULL,
+        slug TEXT,
         body TEXT NOT NULL,
         comments_open INTEGER NOT NULL DEFAULT 1,
         created INTEGER NOT NULL,
@@ -89,11 +100,27 @@ function ensureSchema(env) {
         deleted INTEGER NOT NULL DEFAULT 0,
         created INTEGER NOT NULL
       )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS bulletins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL,
+        pinned INTEGER NOT NULL DEFAULT 0,
+        created INTEGER NOT NULL,
+        updated INTEGER
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS pages (
+        name TEXT PRIMARY KEY,
+        body TEXT NOT NULL,
+        updated INTEGER
+      )`),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS posts_by_topic ON posts (topic_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS comments_by_post ON comments (post_id)"),
-      env.DB.prepare("CREATE INDEX IF NOT EXISTS topics_by_flag ON topic_flags (flag_id)"),
     ]);
     await upgrade(env);
+    await env.DB.batch([
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS topics_by_slug ON topics (slug)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS posts_by_slug ON posts (topic_id, slug)"),
+    ]);
   })().catch((error) => {
     schemaReady = undefined;
     throw error;
@@ -101,9 +128,10 @@ function ensureSchema(env) {
   return schemaReady;
 }
 
-// The first blog (September 2026) made topics and posts without the columns
-// added since, and kept a post as plain text. CREATE TABLE IF NOT EXISTS
-// leaves a table that's already there as it is, so this brings one up to date.
+// The first blogs (September and October 2026) made topics and posts without
+// the columns added since, and the very first kept a post as plain text.
+// CREATE TABLE IF NOT EXISTS leaves a table that's already there as it is, so
+// this brings one up to date, slugs and all.
 // Two Worker instances can try at once: adding a column that's there fails,
 // and the one that fails leaves it to the other.
 async function upgrade(env) {
@@ -114,10 +142,13 @@ async function upgrade(env) {
   const alreadyThere = (error) => {
     if (!/duplicate column/i.test(error.message)) throw error;
   };
-  if (!(await columns("topics")).has("updated")) {
+  const topics = await columns("topics");
+  if (!topics.has("updated")) {
     await env.DB.prepare("ALTER TABLE topics ADD COLUMN updated INTEGER").run().catch(alreadyThere);
   }
+  if (!topics.has("slug")) await env.DB.prepare("ALTER TABLE topics ADD COLUMN slug TEXT").run().catch(alreadyThere);
   const posts = await columns("posts");
+  if (!posts.has("slug")) await env.DB.prepare("ALTER TABLE posts ADD COLUMN slug TEXT").run().catch(alreadyThere);
   if (!posts.has("updated")) {
     await env.DB.prepare("ALTER TABLE posts ADD COLUMN updated INTEGER").run().catch(alreadyThere);
   }
@@ -130,7 +161,48 @@ async function upgrade(env) {
       ...results.map((post) => env.DB.prepare("UPDATE posts SET body = ? WHERE id = ?").bind(textToHtml(post.body), post.id)),
     ]).catch(alreadyThere);
   }
+  // A topic or a post from before slugs gets one.
+  const { results: bareTopics } = await env.DB.prepare("SELECT id, title FROM topics WHERE slug IS NULL ORDER BY id").all();
+  for (const topic of bareTopics) {
+    await env.DB.prepare("UPDATE topics SET slug = ? WHERE id = ?").bind(await topicSlug(env, topic.title, topic.id), topic.id).run();
+  }
+  const { results: barePosts } = await env.DB.prepare("SELECT id, topic_id, title FROM posts WHERE slug IS NULL ORDER BY id").all();
+  for (const post of barePosts) {
+    await env.DB.prepare("UPDATE posts SET slug = ? WHERE id = ?").bind(await postSlug(env, post.topic_id, post.title, post.id), post.id).run();
+  }
 }
+
+// --- slugs -----------------------------------------------------------------------
+
+// "Daft Punk's best (2001)!" as daft-punks-best-2001
+function slugify(title, fallback) {
+  const slug = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['\u2019]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/, "");
+  return slug || fallback;
+}
+
+// The title's slug, or with -2, -3... on the end if something else has it.
+async function freeSlug(base, taken) {
+  for (let n = 1; ; n++) {
+    const slug = n === 1 ? base : `${base}-${n}`;
+    if (!(await taken(slug))) return slug;
+  }
+}
+
+// A topic's slug: its own among all topics (but itself, if it's id).
+const topicSlug = (env, title, id = null) => freeSlug(slugify(title, "topic"),
+  (slug) => env.DB.prepare("SELECT 1 FROM topics WHERE slug = ? AND id IS NOT ?").bind(slug, id).first());
+
+// A post's slug: its own among its topic's posts.
+const postSlug = (env, topicId, title, id = null) => freeSlug(slugify(title, "post"),
+  (slug) => env.DB.prepare("SELECT 1 FROM posts WHERE topic_id = ? AND slug = ? AND id IS NOT ?").bind(topicId, slug, id).first());
 
 // A first-blog post, as the HTML that shows it the way it showed then: a
 // paragraph for each blank line, a line break for each line, links clickable.
@@ -159,14 +231,8 @@ async function readJson(request, maxBytes) {
 }
 
 async function readForm(request) {
-  if (Number(request.headers.get("content-length")) > MAX_PICTURE_BYTES + 100_000) return null;
+  if (Number(request.headers.get("content-length")) > MAX_PICTURE_BYTES + MAX_LENGTH.description * 2 + 100_000) return null;
   return request.formData().catch(() => null);
-}
-
-// A form's flags, "3,7,12", as numbers.
-function flagIds(value) {
-  if (typeof value !== "string") return [];
-  return [...new Set(value.split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0))];
 }
 
 // Identify the image from its first bytes rather than trusting the file name or the browser
@@ -229,118 +295,52 @@ async function deletePicture(env, name) {
   await Promise.all([env.PICTURES.delete(PICTURES + name), env.PICTURES.delete(FIRST_PICTURES + name)]);
 }
 
-// The pictures a post's body shows, by name.
+// The pictures a post's (or a bulletin's) body shows, by name.
 const picturesIn = (body) => [...(body ?? "").matchAll(/\/blog\/img\/([\w-]+\.(?:png|jpg|gif|webp|avif))/g)].map((m) => m[1]);
 
-// Deletes the pictures nothing shows anymore: no topic's, and in no post.
+// Deletes the pictures nothing shows anymore: no topic's, and in no post,
+// bulletin or page.
 async function dropUnused(env, names) {
   for (const name of new Set(names)) {
     const used = await env.DB.prepare(
-      "SELECT 1 FROM topics WHERE picture = ? UNION ALL SELECT 1 FROM posts WHERE instr(body, ?) > 0 LIMIT 1",
+      `SELECT 1 FROM topics WHERE picture = ?1 UNION ALL SELECT 1 FROM topics WHERE instr(description, ?2) > 0
+       UNION ALL SELECT 1 FROM posts WHERE instr(body, ?2) > 0
+       UNION ALL SELECT 1 FROM bulletins WHERE instr(body, ?2) > 0
+       UNION ALL SELECT 1 FROM pages WHERE instr(body, ?2) > 0 LIMIT 1`,
     ).bind(name, `/blog/img/${name}`).first();
     if (!used) await deletePicture(env, name);
   }
-}
-
-// --- flags -----------------------------------------------------------------------
-
-export async function listFlags(request, env) {
-  await ensureSchema(env);
-  const { results: flags } = await env.DB.prepare(
-    `SELECT id, name, (SELECT COUNT(*) FROM topic_flags WHERE flag_id = flags.id) AS topic_count
-     FROM flags ORDER BY name COLLATE NOCASE`,
-  ).all();
-  return fresh({ flags });
-}
-
-async function saveFlagName(env, id, input) {
-  const name = cleanText(input?.name, MAX_LENGTH.flag);
-  if (!name) return apiError(400, "A flag needs a name.");
-  try {
-    const flag = id
-      ? await env.DB.prepare("UPDATE flags SET name = ? WHERE id = ? RETURNING id, name").bind(name, id).first()
-      : await env.DB.prepare("INSERT INTO flags (name, created) VALUES (?, ?) RETURNING id, name").bind(name, Date.now()).first();
-    if (!flag) return apiError(404, "That flag isn't here anymore.");
-    return fresh(flag, id ? 200 : 201);
-  } catch (error) {
-    if (/UNIQUE/i.test(error.message)) return apiError(409, "There's already a flag called that.");
-    throw error;
-  }
-}
-
-export async function createFlag(request, env) {
-  await ensureSchema(env);
-  return saveFlagName(env, null, await readJson(request, 10_000));
-}
-
-export async function renameFlag(request, env) {
-  await ensureSchema(env);
-  return saveFlagName(env, idParam(request), await readJson(request, 10_000));
-}
-
-export async function deleteFlag(request, env) {
-  await ensureSchema(env);
-  const id = idParam(request);
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM topic_flags WHERE flag_id = ?").bind(id),
-    env.DB.prepare("DELETE FROM flags WHERE id = ?").bind(id),
-  ]);
-  return done();
-}
-
-// { topicId: [{ id, name }, ...] } for the topics asked about. It reads every
-// topic's flags (a short list) rather than name each topic: D1 takes at most
-// 100 values in one query.
-async function flagsOf(env, topicIds) {
-  const byTopic = Object.fromEntries(topicIds.map((id) => [id, []]));
-  if (topicIds.length === 0) return byTopic;
-  const { results } = await env.DB.prepare(
-    `SELECT topic_flags.topic_id, flags.id, flags.name FROM topic_flags JOIN flags ON flags.id = topic_flags.flag_id
-     ORDER BY flags.name COLLATE NOCASE`,
-  ).all();
-  for (const row of results) byTopic[row.topic_id]?.push({ id: row.id, name: row.name });
-  return byTopic;
-}
-
-// Puts exactly these flags on a topic. Ids that aren't flags are skipped.
-function setFlagsStatements(env, topicId, ids) {
-  return [
-    env.DB.prepare("DELETE FROM topic_flags WHERE topic_id = ?").bind(topicId),
-    ...ids.map((flagId) => env.DB.prepare(
-      "INSERT OR IGNORE INTO topic_flags (topic_id, flag_id) SELECT ?, id FROM flags WHERE id = ?",
-    ).bind(topicId, flagId)),
-  ];
 }
 
 // --- topics ----------------------------------------------------------------------
 
 export async function listTopics(request, env) {
   await ensureSchema(env);
-  const flag = Number(new URL(request.url).searchParams.get("flag")) || null;
-  const statement = env.DB.prepare(
-    `SELECT id, title, description, picture, created, updated,
+  const { results: topics } = await env.DB.prepare(
+    `SELECT id, title, slug, description, picture, created, updated,
        (SELECT COUNT(*) FROM posts WHERE topic_id = topics.id) AS post_count,
        (SELECT MAX(created) FROM posts WHERE topic_id = topics.id) AS last_post
-     FROM topics ${flag ? "WHERE id IN (SELECT topic_id FROM topic_flags WHERE flag_id = ?)" : ""}
-     ORDER BY COALESCE(last_post, created) DESC`,
-  );
-  const { results: topics } = await (flag ? statement.bind(flag) : statement).all();
-  const flags = await flagsOf(env, topics.map((topic) => topic.id));
-  return fresh({ topics: topics.map((topic) => ({ ...topic, flags: flags[topic.id] })) });
+     FROM topics ORDER BY COALESCE(last_post, created) DESC`,
+  ).all();
+  return fresh({ topics: topics.map(({ description, ...topic }) => ({ ...topic, summary: summaryOf(description) })) });
 }
+
+// A topic's description, short and as plain text, for its card.
+const summaryOf = (description) => (/^\s*</.test(description) ? excerpt(description, 160) : description.slice(0, 160));
 
 export async function getTopic(request, env) {
   await ensureSchema(env);
-  const id = idParam(request);
-  const topic = await env.DB.prepare("SELECT id, title, description, picture, created, updated FROM topics WHERE id = ?").bind(id).first();
+  const params = new URL(request.url).searchParams;
+  const topic = await env.DB.prepare(
+    `SELECT id, title, slug, description, picture, created, updated FROM topics WHERE ${params.has("slug") ? "slug = ?" : "id = ?"}`,
+  ).bind(params.has("slug") ? params.get("slug") : Number(params.get("id"))).first();
   if (!topic) return apiError(404, "That topic isn't here anymore.");
   const { results: posts } = await env.DB.prepare(
-    `SELECT id, title, created, updated, comments_open,
+    `SELECT id, title, slug, created, updated, comments_open,
        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id AND deleted = 0) AS comment_count
      FROM posts WHERE topic_id = ? ORDER BY id DESC`,
-  ).bind(id).all();
-  const flags = await flagsOf(env, [id]);
-  return fresh({ ...topic, flags: flags[id], posts });
+  ).bind(topic.id).all();
+  return fresh({ ...topic, posts });
 }
 
 // The form for a new topic, or a change to one.
@@ -358,7 +358,6 @@ async function topicForm(request, env) {
   return {
     title,
     description: cleanText(form.get("description"), MAX_LENGTH.description),
-    flags: flagIds(form.get("flags")),
     picture,
     removePicture: form.get("removePicture") === "1",
   };
@@ -370,9 +369,8 @@ export async function createTopic(request, env) {
   if (input.error) return input.error;
   try {
     const topic = await env.DB.prepare(
-      "INSERT INTO topics (title, description, picture, created) VALUES (?, ?, ?, ?) RETURNING id",
-    ).bind(input.title, input.description, input.picture, Date.now()).first();
-    await env.DB.batch(setFlagsStatements(env, topic.id, input.flags));
+      "INSERT INTO topics (title, slug, description, picture, created) VALUES (?, ?, ?, ?, ?) RETURNING id, slug",
+    ).bind(input.title, await topicSlug(env, input.title), input.description, input.picture, Date.now()).first();
     return fresh(topic, 201);
   } catch (error) {
     await deletePicture(env, input.picture).catch(() => {});
@@ -383,49 +381,76 @@ export async function createTopic(request, env) {
 export async function updateTopic(request, env) {
   await ensureSchema(env);
   const id = idParam(request);
-  const before = await env.DB.prepare("SELECT picture FROM topics WHERE id = ?").bind(id).first();
+  const before = await env.DB.prepare("SELECT title, slug, picture, description FROM topics WHERE id = ?").bind(id).first();
   if (!before) return apiError(404, "That topic isn't here anymore.");
   const input = await topicForm(request, env);
   if (input.error) return input.error;
   const picture = input.picture ?? (input.removePicture ? null : before.picture);
-  await env.DB.batch([
-    env.DB.prepare("UPDATE topics SET title = ?, description = ?, picture = ?, updated = ? WHERE id = ?")
-      .bind(input.title, input.description, picture, Date.now(), id),
-    ...setFlagsStatements(env, id, input.flags),
-  ]);
+  const slug = input.title === before.title ? before.slug : await topicSlug(env, input.title, id);
+  await env.DB.prepare("UPDATE topics SET title = ?, slug = ?, description = ?, picture = ?, updated = ? WHERE id = ?")
+    .bind(input.title, slug, input.description, picture, Date.now(), id).run();
   if (before.picture && before.picture !== picture) await deletePicture(env, before.picture);
-  return fresh({ id });
+  const kept = new Set(picturesIn(input.description));
+  await dropUnused(env, picturesIn(before.description).filter((name) => !kept.has(name)));
+  return fresh({ id, slug });
 }
 
 export async function deleteTopic(request, env) {
   await ensureSchema(env);
   const id = idParam(request);
-  const topic = await env.DB.prepare("SELECT picture FROM topics WHERE id = ?").bind(id).first();
+  const topic = await env.DB.prepare("SELECT picture, description FROM topics WHERE id = ?").bind(id).first();
   const { results: bodies } = await env.DB.prepare("SELECT body FROM posts WHERE topic_id = ?").bind(id).all();
   await env.DB.batch([
     env.DB.prepare("DELETE FROM comments WHERE post_id IN (SELECT id FROM posts WHERE topic_id = ?)").bind(id),
     env.DB.prepare("DELETE FROM posts WHERE topic_id = ?").bind(id),
-    env.DB.prepare("DELETE FROM topic_flags WHERE topic_id = ?").bind(id),
     env.DB.prepare("DELETE FROM topics WHERE id = ?").bind(id),
   ]);
-  await dropUnused(env, [topic?.picture, ...bodies.flatMap((post) => picturesIn(post.body))].filter(Boolean));
+  await dropUnused(env, [topic?.picture, ...picturesIn(topic?.description), ...bodies.flatMap((post) => picturesIn(post.body))].filter(Boolean));
   return done();
 }
 
 // --- posts -----------------------------------------------------------------------
 
+const decodeEntities = (text) =>
+  text.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " " })[name]);
+
+// The start of a post's words, as plain text, for a list of posts.
+function excerpt(html, length = 220) {
+  const text = decodeEntities(html
+    .replace(/<\/?(?:p|h\d|li|ul|ol|blockquote|pre|br|hr|table|tr|td|th|img)\b[^>]*>/gi, " ")   // between lines
+    .replace(/<[^>]*>/g, ""))   // inside a line
+    .replace(/https?:\/\/\S+/g, "")   // a player's link says nothing on its own
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > length ? `${text.slice(0, length).replace(/\s+\S*$/, "")}...` : text;
+}
+
+export async function newestPosts(request, env) {
+  await ensureSchema(env);
+  const limit = Math.min(Math.max(Number(new URL(request.url).searchParams.get("limit")) || 5, 1), 20);
+  const { results } = await env.DB.prepare(
+    `SELECT posts.id, posts.title, posts.slug, posts.created, posts.updated, substr(posts.body, 1, 4000) AS start,
+       topics.id AS topic_id, topics.title AS topic_title, topics.slug AS topic_slug,
+       (SELECT COUNT(*) FROM comments WHERE post_id = posts.id AND deleted = 0) AS comment_count
+     FROM posts JOIN topics ON topics.id = posts.topic_id ORDER BY posts.id DESC LIMIT ?`,
+  ).bind(limit).all();
+  return fresh({ posts: results.map(({ start, ...post }) => ({ ...post, excerpt: excerpt(start) })) });
+}
+
 export async function getPost(request, env) {
   await ensureSchema(env);
-  const id = idParam(request);
+  const params = new URL(request.url).searchParams;
+  const bySlug = params.has("slug");
   const post = await env.DB.prepare(
-    `SELECT posts.id, posts.title, posts.body, posts.comments_open, posts.created, posts.updated,
-       topics.id AS topic_id, topics.title AS topic_title
-     FROM posts JOIN topics ON topics.id = posts.topic_id WHERE posts.id = ?`,
-  ).bind(id).first();
+    `SELECT posts.id, posts.title, posts.slug, posts.body, posts.comments_open, posts.created, posts.updated,
+       topics.id AS topic_id, topics.title AS topic_title, topics.slug AS topic_slug
+     FROM posts JOIN topics ON topics.id = posts.topic_id
+     WHERE ${bySlug ? "topics.slug = ? AND posts.slug = ?" : "posts.id = ?"}`,
+  ).bind(...(bySlug ? [params.get("topic"), params.get("slug")] : [Number(params.get("id"))])).first();
   if (!post) return apiError(404, "That post isn't here anymore.");
   const { results: comments } = await env.DB.prepare(
     "SELECT id, parent_id, name, body, is_admin, deleted, created FROM comments WHERE post_id = ? ORDER BY id",
-  ).bind(id).all();
+  ).bind(post.id).all();
   return fresh({
     ...post,
     comments: comments.map((c) => (c.deleted ? { ...c, name: "", body: "", is_admin: 0 } : c)),
@@ -444,24 +469,25 @@ async function postInput(request) {
   return out;
 }
 
-const topicExists = (env, id) => env.DB.prepare("SELECT id FROM topics WHERE id = ?").bind(id).first();
+const topicOf = (env, id) => env.DB.prepare("SELECT id, slug FROM topics WHERE id = ?").bind(id).first();
 
 export async function createPost(request, env) {
   await ensureSchema(env);
   const input = await postInput(request);
   if (!input) return apiError(400, "That didn't come through. Try again.");
   if (!input.title || !input.body?.trim()) return apiError(400, "A post needs a title and something in it.");
-  if (!(await topicExists(env, input.topic))) return apiError(404, "That topic isn't here anymore.");
+  const topic = await topicOf(env, input.topic);
+  if (!topic) return apiError(404, "That topic isn't here anymore.");
   const post = await env.DB.prepare(
-    "INSERT INTO posts (topic_id, title, body, comments_open, created) VALUES (?, ?, ?, ?, ?) RETURNING id, topic_id",
-  ).bind(input.topic, input.title, input.body, input.comments ?? 1, Date.now()).first();
-  return fresh(post, 201);
+    "INSERT INTO posts (topic_id, title, slug, body, comments_open, created) VALUES (?, ?, ?, ?, ?, ?) RETURNING id, topic_id, slug",
+  ).bind(topic.id, input.title, await postSlug(env, topic.id, input.title), input.body, input.comments ?? 1, Date.now()).first();
+  return fresh({ ...post, topic_slug: topic.slug }, 201);
 }
 
 export async function updatePost(request, env) {
   await ensureSchema(env);
   const id = idParam(request);
-  const before = await env.DB.prepare("SELECT topic_id, title, body, comments_open FROM posts WHERE id = ?").bind(id).first();
+  const before = await env.DB.prepare("SELECT topic_id, title, slug, body, comments_open FROM posts WHERE id = ?").bind(id).first();
   if (!before) return apiError(404, "That post isn't here anymore.");
   const input = await postInput(request);
   if (!input) return apiError(400, "That didn't come through. Try again.");
@@ -472,17 +498,18 @@ export async function updatePost(request, env) {
     comments: input.comments ?? before.comments_open,
   };
   if (!next.title || !next.body.trim()) return apiError(400, "A post needs a title and something in it.");
-  if (next.topic !== before.topic_id && !(await topicExists(env, next.topic))) {
-    return apiError(404, "That topic isn't here anymore.");
-  }
+  const topic = await topicOf(env, next.topic);
+  if (!topic) return apiError(404, "That topic isn't here anymore.");
+  // Its slug follows its title, and has to be its own in a topic it moves to.
+  const slug = next.title === before.title && next.topic === before.topic_id ? before.slug : await postSlug(env, next.topic, next.title, id);
   // Switching comments on or off isn't an edit to the post, so it doesn't say "edited".
   const edited = next.title !== before.title || next.body !== before.body || next.topic !== before.topic_id;
   await env.DB.prepare(
-    `UPDATE posts SET topic_id = ?, title = ?, body = ?, comments_open = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
-  ).bind(next.topic, next.title, next.body, next.comments, ...(edited ? [Date.now()] : []), id).run();
+    `UPDATE posts SET topic_id = ?, title = ?, slug = ?, body = ?, comments_open = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
+  ).bind(next.topic, next.title, slug, next.body, next.comments, ...(edited ? [Date.now()] : []), id).run();
   const kept = new Set(picturesIn(next.body));
   await dropUnused(env, picturesIn(before.body).filter((name) => !kept.has(name)));
-  return fresh({ id, topic_id: next.topic });
+  return fresh({ id, topic_id: next.topic, slug, topic_slug: topic.slug });
 }
 
 export async function deletePost(request, env) {
@@ -495,6 +522,46 @@ export async function deletePost(request, env) {
   ]);
   await dropUnused(env, picturesIn(post?.body));
   return done();
+}
+
+// The pictures uploaded to the site that a post's (or a bulletin's) body
+// shows, in order: { url, alt }. Pictures from elsewhere on the web aren't
+// the site's, so they're left out.
+function uploadedPicturesIn(html) {
+  return [...html.matchAll(/<img\b[^>]*>/gi)]
+    .map(([tag]) => ({ url: tag.match(/\ssrc="([^"]*)"/i)?.[1] ?? "", alt: decodeEntities(tag.match(/\salt="([^"]*)"/i)?.[1] ?? "") }))
+    .filter(({ url }) => url.startsWith("/blog/img/") && PICTURE_NAME.test(url.slice("/blog/img/".length)));
+}
+
+// Every picture posted to the site, newest first: topics' pictures, and the
+// ones in topics' descriptions, posts, bulletins and pages, each once, with
+// where it's from.
+export async function listPictures(request, env) {
+  await ensureSchema(env);
+  const [topics, described, posts, bulletins, pages] = await Promise.all([
+    env.DB.prepare("SELECT id, title, slug, picture, created FROM topics WHERE picture IS NOT NULL").all(),
+    env.DB.prepare("SELECT id, title, slug, description AS body, created FROM topics WHERE instr(description, '/blog/img/') > 0").all(),
+    env.DB.prepare(
+      `SELECT posts.id, posts.title, posts.slug, posts.body, posts.created, topics.slug AS topic_slug
+       FROM posts JOIN topics ON topics.id = posts.topic_id WHERE instr(posts.body, '/blog/img/') > 0`,
+    ).all(),
+    env.DB.prepare("SELECT id, title, body, created FROM bulletins WHERE instr(body, '/blog/img/') > 0").all(),
+    env.DB.prepare("SELECT name AS id, body, updated AS created FROM pages WHERE instr(body, '/blog/img/') > 0").all(),
+  ]);
+  // where a picture is: { kind, id, title }, and a topic's or a post's slugs
+  const from = (kind, row) => ({
+    kind, id: row.id, title: row.title ?? PAGES[row.id],
+    ...(row.slug ? { slug: row.slug } : {}), ...(row.topic_slug ? { topic_slug: row.topic_slug } : {}),
+  });
+  const found = topics.results.map((topic) => ({ url: `/blog/img/${topic.picture}`, alt: "", created: topic.created, from: from("topic", topic) }));
+  for (const [kind, rows] of [["topic", described.results], ["post", posts.results], ["bulletin", bulletins.results], ["page", pages.results]]) {
+    for (const row of rows) {
+      for (const picture of uploadedPicturesIn(row.body)) found.push({ ...picture, created: row.created, from: from(kind, row) });
+    }
+  }
+  found.sort((a, b) => b.created - a.created);   // stable: a post's pictures stay in its order
+  const seen = new Set();
+  return fresh({ pictures: found.filter(({ url }) => !seen.has(url) && seen.add(url)) });
 }
 
 // A picture for anywhere in a post.
@@ -540,4 +607,97 @@ export async function deleteComment(request, env) {
   await ensureSchema(env);
   await env.DB.prepare("UPDATE comments SET deleted = 1, name = '', body = '' WHERE id = ?").bind(idParam(request)).run();
   return done();
+}
+
+// --- bulletins -------------------------------------------------------------------
+
+export async function listBulletins(request, env) {
+  await ensureSchema(env);
+  const { results: bulletins } = await env.DB.prepare(
+    "SELECT id, title, body, pinned, created, updated FROM bulletins ORDER BY pinned DESC, id DESC",
+  ).all();
+  return fresh({ bulletins });
+}
+
+// Whatever of { title, body, pinned } a request sends, cleaned.
+async function bulletinInput(request) {
+  const input = await readJson(request, MAX_LENGTH.body * 2 + 10_000);
+  if (!input) return null;
+  const out = {};
+  if ("title" in input) out.title = cleanText(input.title, MAX_LENGTH.title);
+  if ("body" in input) out.body = typeof input.body === "string" ? input.body.slice(0, MAX_LENGTH.body) : "";
+  if ("pinned" in input) out.pinned = input.pinned ? 1 : 0;
+  return out;
+}
+
+export async function createBulletin(request, env) {
+  await ensureSchema(env);
+  const input = await bulletinInput(request);
+  if (!input) return apiError(400, "That didn't come through. Try again.");
+  if (!input.body?.trim()) return apiError(400, "A bulletin needs something in it.");
+  const bulletin = await env.DB.prepare(
+    "INSERT INTO bulletins (title, body, pinned, created) VALUES (?, ?, ?, ?) RETURNING id",
+  ).bind(input.title ?? "", input.body, input.pinned ?? 0, Date.now()).first();
+  return fresh(bulletin, 201);
+}
+
+export async function updateBulletin(request, env) {
+  await ensureSchema(env);
+  const id = idParam(request);
+  const before = await env.DB.prepare("SELECT title, body, pinned FROM bulletins WHERE id = ?").bind(id).first();
+  if (!before) return apiError(404, "That bulletin isn't here anymore.");
+  const input = await bulletinInput(request);
+  if (!input) return apiError(400, "That didn't come through. Try again.");
+  const next = { ...before, ...input };
+  if (!next.body.trim()) return apiError(400, "A bulletin needs something in it.");
+  // Pinning or unpinning one isn't an edit to it, so it doesn't say "changed".
+  const edited = next.title !== before.title || next.body !== before.body;
+  await env.DB.prepare(
+    `UPDATE bulletins SET title = ?, body = ?, pinned = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
+  ).bind(next.title, next.body, next.pinned, ...(edited ? [Date.now()] : []), id).run();
+  const kept = new Set(picturesIn(next.body));
+  await dropUnused(env, picturesIn(before.body).filter((name) => !kept.has(name)));
+  return fresh({ id });
+}
+
+export async function deleteBulletin(request, env) {
+  await ensureSchema(env);
+  const id = idParam(request);
+  const bulletin = await env.DB.prepare("SELECT body FROM bulletins WHERE id = ?").bind(id).first();
+  await env.DB.prepare("DELETE FROM bulletins WHERE id = ?").bind(id).run();
+  await dropUnused(env, picturesIn(bulletin?.body));
+  return done();
+}
+
+// --- pages -----------------------------------------------------------------------
+
+// The site's own pages the admin writes, by name, and what they're called.
+const PAGES = { home: "Home", about: "About me", tagline: "Tagline" };
+const pageName = (request) => {
+  const name = new URL(request.url).searchParams.get("name");
+  return Object.hasOwn(PAGES, name) ? name : null;
+};
+
+export async function getPage(request, env) {
+  await ensureSchema(env);
+  const name = pageName(request);
+  if (!name) return apiError(404, "There's no page like that.");
+  const page = await env.DB.prepare("SELECT body, updated FROM pages WHERE name = ?").bind(name).first();
+  return fresh({ name, title: PAGES[name], body: page?.body ?? "", updated: page?.updated ?? null });
+}
+
+export async function savePage(request, env) {
+  await ensureSchema(env);
+  const name = pageName(request);
+  if (!name) return apiError(404, "There's no page like that.");
+  const input = await readJson(request, MAX_LENGTH.body * 2 + 10_000);
+  if (typeof input?.body !== "string") return apiError(400, "That didn't come through. Try again.");
+  const body = input.body.slice(0, MAX_LENGTH.body);
+  const before = await env.DB.prepare("SELECT body FROM pages WHERE name = ?").bind(name).first();
+  await env.DB.prepare(
+    "INSERT INTO pages (name, body, updated) VALUES (?, ?, ?) ON CONFLICT (name) DO UPDATE SET body = excluded.body, updated = excluded.updated",
+  ).bind(name, body, Date.now()).run();
+  const kept = new Set(picturesIn(body));
+  await dropUnused(env, picturesIn(before?.body).filter((picture) => !kept.has(picture)));
+  return fresh({ name });
 }

@@ -37,6 +37,9 @@ body {
 }
 
 h1, h2, h3, p, ul, ol, figure, fieldset { margin: 0; }
+/* One font for everything: the browser gives these its own otherwise. */
+button, input, select, textarea { font: inherit; }
+pre, code, kbd, samp { font-family: inherit; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: var(--hue); text-underline-offset: var(--sp-4); }
 a:hover { color: var(--site-fg); }
@@ -51,53 +54,57 @@ a:hover { color: var(--site-fg); }
 
 /* --- the sky ----------------------------------------------- *
    cosmos.js planets and a scatter of stars, drawn by space.js,
-   over the whole page and behind everything on it. The panels
-   dim what's behind them, so a star under a paragraph reads as
-   sky rather than noise. */
+   behind everything, and staying put while the page scrolls over
+   them: every planet is on screen, from the start. The panels dim
+   what's behind them, so a star under a paragraph reads as sky
+   rather than noise. */
 .sky {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: var(--z-site-sky);
   overflow: hidden;
   pointer-events: none;
   user-select: none;
 }
-.star { position: absolute; color: var(--hue); opacity: var(--site-stars); }
+/* Each star twinkles at its own pace (--pace, from space.js) and
+   from its own point in the twinkle (--start). */
+.star {
+  --pace: 1;
+  --start: 0;
+  position: absolute;
+  color: var(--hue);
+  opacity: var(--site-stars);
+  animation: twinkle calc(var(--site-twinkle) * var(--pace)) ease-in-out calc(var(--site-twinkle) * var(--start) * -1) infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: var(--site-stars); }
+  50%      { opacity: var(--site-stars-dim); }
+}
+/* A planet's glyphs are drawn at --site-art-scale of their size, at
+   twice the rows: the same planet, finer. */
 .planet {
   position: absolute;
   margin: 0;
   color: var(--hue);
   opacity: var(--site-planets);
-  font: 400 var(--fs-site-art)/var(--lh-site-art) var(--font-site);
+  /* bold: a glyph this small needs the ink */
+  font: 700 var(--fs-site-art)/var(--lh-site-art) var(--font-site);
   white-space: pre;
+  transform: scale(var(--site-art-scale));
 }
-/* Where each one sits, as a share of the page, so they spread out
-   over however long it is. Each overhangs an edge a little. */
-.planet--1 { top: 2%; right: -6%; }
-.planet--2 { top: 38%; left: -4%; }
-.planet--3 { top: 64%; right: -2%; }
-.planet--4 { top: 86%; left: 6%; }
+/* Where each one sits: inside the window, each from the corner it
+   grows out of. */
+.planet--1 { top: 3%; right: 2%; transform-origin: top right; }
+.planet--2 { top: 34%; left: 2%; transform-origin: top left; }
+.planet--3 { bottom: 10%; right: 4%; transform-origin: bottom right; }
+.planet--4 { bottom: 3%; left: 9%; transform-origin: bottom left; }
+/* The asteroids (.planet--5 and --6) are placed by space.js: in the
+   strips of window beside the page, sized to fit them. */
+@media (prefers-reduced-motion: reduce) {
+  .star { animation: none; }
+}
 
-.bar, .page, .foot { position: relative; z-index: var(--z-site-page); }
-
-/* --- the top bar ------------------------------------------- */
-.bar {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-site-bar);
-  background: var(--site-bg);
-  border-bottom: var(--hairline) solid var(--site-line);
-}
-.bar__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-8) var(--sp-24);
-  padding-top: var(--sp-8);
-  padding-bottom: var(--sp-8);
-}
-.nav { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.page, .foot { position: relative; z-index: var(--z-site-page); }
 
 /* --- buttons ----------------------------------------------- *
    An edge in the hue, and nothing inside it: black, whatever's
@@ -120,11 +127,6 @@ a:hover { color: var(--site-fg); }
 .button[aria-pressed="true"] { background: var(--hue); color: var(--site-bg); }
 .button:disabled { opacity: var(--site-stars); cursor: default; }
 .button:disabled:hover { color: var(--hue); }
-/* A small one, for a control beside a panel's name. */
-.button--small {
-  padding: var(--sp-2) var(--sp-8);
-  font: 400 var(--fs-site-small)/var(--lh-site-small) var(--font-site);
-}
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 
 /* --- panels ------------------------------------------------ */
@@ -140,7 +142,7 @@ a:hover { color: var(--site-fg); }
 }
 
 /* A panel's name on the left, and in the other corner, on the same
-   line, whatever goes with it (the Blog's sort buttons). */
+   line, whatever goes with it (how many pictures). */
 .panel__head {
   display: flex;
   flex-wrap: wrap;
@@ -148,34 +150,18 @@ a:hover { color: var(--site-fg); }
   justify-content: space-between;
   gap: var(--sp-8) var(--sp-24);
 }
-.sort {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  font: 400 var(--fs-site-small)/var(--lh-site-small) var(--font-site);
-}
 
-/* A section's name, in the section's hue, and after it what it's
-   showing, if that needs saying ("Topics · Music"). */
+/* A section's name, in the section's hue. */
 .label { color: var(--hue); font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
-.label__detail { color: var(--site-fg-2); }
 
 .lede { color: var(--site-fg-2); }
 .meta { color: var(--site-fg-3); }
 .crumb { color: var(--site-fg-3); }
 
 /* --- the headline ------------------------------------------ *
-   "Techtrash", a letter in each hue, and msaunders.dev's caret. */
+   "Techtrash", a letter in each hue. */
 .title { font: 500 var(--fs-site-title)/var(--lh-site-title) var(--font-site); }
 .title__letter { color: var(--hue); }
-.caret { color: var(--site-hue-1); animation: blink var(--site-blink) steps(1, end) infinite; }
-@keyframes blink {
-  0%, 49%   { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .caret { animation: none; }
-}
 
 /* A topic's or a post's title, on its own page. */
 .head { font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site); }
@@ -216,9 +202,67 @@ a:hover { color: var(--site-fg); }
 
 .topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
 
-/* The Blog, sorted by flag: a group for each, named in its hue. */
-.groups { display: flex; flex-direction: column; gap: var(--sp-32); }
-.group { display: flex; flex-direction: column; gap: var(--sp-12); }
+/* --- Home -------------------------------------------------- *
+   Home's words and the bulletins (news, things to know, each edged
+   in its hue on the left), and down the right side the newest
+   posts: a title, and its topic under it, smaller. On a phone the
+   side goes under. */
+.home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--site-side);
+  align-items: start;
+  gap: var(--sp-32);
+}
+.home__main { display: flex; flex-direction: column; gap: var(--sp-16); min-width: 0; }
+.home__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding-left: var(--sp-24);
+  border-left: var(--hairline) solid var(--site-line);
+}
+.side-posts { display: flex; flex-direction: column; gap: var(--sp-12); padding: 0; list-style: none; }
+.side-posts li { display: flex; flex-direction: column; }
+.side-posts__title { color: var(--site-fg); text-decoration: none; }
+.side-posts__title:hover { color: var(--hue); }
+.side-posts__topic {
+  color: var(--hue);
+  font: 400 var(--fs-site-small)/var(--lh-site-small) var(--font-site);
+  text-decoration: none;
+}
+.side-posts__topic:hover { text-decoration: underline; }
+
+/* One of the site's own pages (the tagline, Home's words, About me),
+   and the admin's button to write it. */
+.page-text { display: flex; flex-direction: column; gap: var(--sp-8); }
+.page-text__actions { display: flex; gap: var(--sp-16); }
+.bulletins { display: flex; flex-direction: column; gap: var(--sp-16); }
+.bulletin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-16);
+  background: var(--site-field);
+  border: var(--hairline) solid var(--site-line);
+  border-left-color: var(--hue);
+}
+.bulletin__title { color: var(--site-fg); font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
+.bulletin__actions { display: flex; gap: var(--sp-16); }
+/* The editor for a bulletin or a page like About me. */
+.writing-form { display: flex; flex-direction: column; gap: var(--sp-12); }
+.writing-form .editor__title { font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
+
+/* --- Pictures ---------------------------------------------- *
+   Every picture on the site, square, edge to edge: no borders, no
+   gaps. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(50%, var(--site-tile)), 1fr));
+}
+.gallery__item { display: block; }
+.gallery__item img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+
+/* A heading inside a panel: "Newest posts". */
 .group__head {
   display: flex;
   flex-wrap: wrap;
@@ -226,16 +270,6 @@ a:hover { color: var(--site-fg); }
   gap: 0 var(--sp-12);
   font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
 }
-.group__name { color: var(--site-fg-2); text-decoration: none; }
-a.group__name { color: var(--hue); }
-a.group__name:hover { text-decoration: underline; }
-
-/* --- flags ------------------------------------------------ *
-   A button each, "#Music", in the flag's hue. On a topic's card
-   they're just words. */
-.flag::before, .tag::before { content: "#"; }
-.tags { display: flex; flex-wrap: wrap; gap: 0 var(--sp-12); color: var(--site-fg-3); }
-.tag::before { color: var(--hue); }
 
 /* --- a post ------------------------------------------------ *
    What the editor makes, the same in the editor as on the page. */
@@ -313,7 +347,7 @@ a.group__name:hover { text-decoration: underline; }
 .editor:focus-within { border-color: var(--hue); }
 .editor__head {
   position: sticky;
-  top: var(--site-bar-h);
+  top: 0;
   z-index: var(--z-site-tools);
   background: var(--site-bg);
   border-bottom: var(--hairline) solid var(--site-line);
@@ -369,6 +403,28 @@ a.group__name:hover { text-decoration: underline; }
   padding: var(--sp-16);
   outline: 0;
 }
+/* Rich text, Markdown or HTML: the switch over the buttons. */
+.editor__modes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-8) 0;
+}
+/* Markdown or HTML, as text to write. */
+.editor__source {
+  display: block;
+  width: 100%;
+  min-height: var(--site-editor);
+  padding: var(--sp-16);
+  border: 0;
+  background: none;
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+  resize: vertical;
+}
+.editor__source:focus-visible { outline: 0; }
+.editor__area--short { min-height: var(--site-editor-short); }
 .editor__area.is-empty::before {
   content: attr(data-placeholder);
   position: absolute;
@@ -449,9 +505,11 @@ a.group__name:hover { text-decoration: underline; }
   border-radius: var(--r-control);
 }
 .form legend { padding: 0 var(--sp-4); color: var(--hue); }
-.form label { display: flex; flex-direction: column; gap: var(--sp-4); color: var(--site-fg-2); }
-.form input:not([type="file"]),
-.form textarea {
+.form label,
+.form__field { display: flex; flex-direction: column; gap: var(--sp-4); color: var(--site-fg-2); }
+/* A form's own fields: not the editor's, which has its own look. */
+.form label > input:not([type="file"]),
+.form label > textarea {
   width: 100%;
   padding: var(--sp-4) var(--sp-8);
   border: var(--hairline) solid var(--site-line-2);
@@ -460,9 +518,9 @@ a.group__name:hover { text-decoration: underline; }
   color: var(--site-fg);
   font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
 }
-.form input:focus-visible,
-.form textarea:focus-visible { outline: 0; border-color: var(--hue); }
-.form textarea { resize: vertical; }
+.form label > input:focus-visible,
+.form label > textarea:focus-visible { outline: 0; border-color: var(--hue); }
+.form label > textarea { resize: vertical; }
 .form input[type="file"] { color: var(--site-fg-2); font: inherit; }
 .form input[type="file"]::file-selector-button {
   margin-right: var(--sp-8);
@@ -484,32 +542,45 @@ a.group__name:hover { text-decoration: underline; }
   font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
 }
 .form input[type="checkbox"] { accent-color: var(--hue); }
-.form label.check { flex-direction: row; align-items: center; gap: var(--sp-8); }
+.form label.check { flex-direction: row; align-items: center; gap: var(--sp-8); white-space: nowrap; }
 .form__message:empty { display: none; }
 .form__picture { max-width: var(--site-thumb); border: var(--hairline) solid var(--site-line); }
 
-/* A field and its button, side by side. */
-.inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
-.form .inline input { flex: 1; width: auto; min-width: 0; }
-
-/* The flags a topic wears, to tick. */
-.form .picker { padding: var(--sp-12); }
-.chips { display: flex; flex-wrap: wrap; gap: var(--sp-8) var(--sp-16); }
-.form label.chip { flex-direction: row; align-items: center; gap: var(--sp-4); color: var(--hue); }
 
 /* The field only a bot fills in: there, but out of sight. */
 .trap { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
 
-/* --- the foot ---------------------------------------------- */
-.foot { padding-top: var(--sp-32); padding-bottom: var(--sp-48); color: var(--site-fg-3); text-align: center; }
+/* --- the foot ---------------------------------------------- *
+   Copyleft, Matthew Saunders, and the credits (Notepad, on the
+   desktop). The copyleft sign is the font's own © turned around:
+   JetBrains Mono has no copyleft of its own. */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-4) var(--sp-16);
+  padding-top: var(--sp-32);
+  padding-bottom: var(--sp-48);
+  color: var(--site-fg-3);
+}
+.copyleft { display: inline-block; transform: scaleX(-1); }
+.foot a { color: var(--site-fg-2); }
+.foot a:hover { color: var(--hue); }
 
 /* --- a phone, or a narrow window ------------------------------ */
 @media (max-width: 640px) {
   .wrap { padding: 0 var(--sp-16); }
   .panel { padding: var(--sp-16); }
   .title { font-size: var(--fs-site-title-s); line-height: var(--lh-site-title-s); }
-  .planet--2, .planet--4 { display: none; }
+  .planet { transform: scale(var(--site-art-scale-s)); }
   /* no room for words beside a picture */
   .prose .pic--left, .prose .pic--right { float: none; max-width: 100%; margin: 0; }
   .thread .thread { padding-left: var(--sp-8); }
+  .home { grid-template-columns: minmax(0, 1fr); }
+  .home__side {
+    padding-top: var(--sp-16);
+    padding-left: 0;
+    border-left: 0;
+    border-top: var(--hairline) solid var(--site-line);
+  }
 }

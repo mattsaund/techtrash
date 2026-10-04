@@ -20,11 +20,30 @@
 <body class="app">
   <main class="doc doc--mono" id="text"></main>
   <script>
+    // Addresses in the text are links, opening in a new tab: the web's, with
+    // or without https:// (github.com/..., dejavu-fonts.github.io), and the
+    // site's own files (/fonts/LGPL-2.1.txt). A name like cosmos.js isn't one.
+    const ADDRESS = /(https?:\/\/\S+|(?<![\w.])\/[\w.-]+\/[\w./-]+|\b(?:[\w-]+\.)+(?:com|org|net|io|dev|app|gov|edu)(?:\/[\w./%-]*)?)/g;
+    function linked(text) {
+      const out = document.createDocumentFragment();
+      text.split(ADDRESS).forEach((part, i) => {
+        if (i % 2 === 0) return out.append(part);
+        const link = document.createElement("a");
+        link.textContent = part;
+        link.href = /^(?:https?:|\/)/.test(part) ? part : `https://${part}`;
+        link.target = "_blank";
+        link.rel = "noopener";
+        out.append(link);
+      });
+      return out;
+    }
+
     if (file) {
+      const text = document.getElementById("text");
       fetch(`/files/${file}`)
         .then((response) => (response.ok ? response.text() : Promise.reject()))
-        .then((text) => { document.getElementById("text").textContent = text; })
-        .catch(() => { document.getElementById("text").textContent = `Cannot find the ${file} file.`; });
+        .then((words) => text.replaceChildren(linked(words)))
+        .catch(() => { text.textContent = `Cannot find the ${file} file.`; });
     }
   </script>
 </body>

@@ -214,12 +214,52 @@ export function playerElement(player) {
 
 // --- Markdown --------------------------------------------------------------------
 
+// Markdown to HTML (marked) and back (turndown), for Markdown files and the
+// editor's Markdown view. They're only loaded when they're needed:
+// loadMarkdown() first.
+let marked;
+let turndown;
+export async function loadMarkdown() {
+  if (turndown) return;
+  const [markedModule, { default: TurndownService }, { gfm }] = await Promise.all([
+    import("./vendor/marked.js"), import("./vendor/turndown.js"), import("./vendor/turndown-plugin-gfm.js"),
+  ]);
+  marked = markedModule.marked;
+  turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-", emDelimiter: "*", hr: "---" });
+  turndown.use(gfm);
+  // What Markdown has no way to say (a hue, where a picture sits, a line's
+  // alignment, underline) stays the HTML it is, which Markdown allows.
+  turndown.addRule("classes", {
+    filter: (node) => ["SPAN", "IMG", "P", "H2", "H3", "H4"].includes(node.nodeName) && Boolean(node.getAttribute("class")),
+    replacement: (content, node) => (["SPAN", "IMG"].includes(node.nodeName) ? node.outerHTML : `\n\n${node.outerHTML}\n\n`),
+  });
+  turndown.addRule("underline", { filter: ["u"], replacement: (content) => `<u>${content}</u>` });
+  // "- one", not turndown's "-   one": how people write lists by hand
+  turndown.addRule("listItem", {
+    filter: "li",
+    replacement: (content, node, options) => {
+      const list = node.parentNode;
+      let prefix = `${options.bulletListMarker} `;
+      if (list.nodeName === "OL") prefix = `${Number(list.getAttribute("start") ?? 1) + [...list.children].indexOf(node)}. `;
+      const inner = content.replace(/^\n+/, "").replace(/\n+$/, "\n").replace(/\n/gm, `\n${" ".repeat(prefix.length)}`);
+      return prefix + inner + (node.nextSibling && !/\n$/.test(inner) ? "\n" : "");
+    },
+  });
+}
+
+export const htmlToMarkdown = (html) => turndown.turndown(html);
+
+// The post's title is its only top heading, so a Markdown "#" heading goes down one.
+export const markdownToHtml = (text) => marked.parse(text, { gfm: true, async: false })
+  .replace(/<(\/?)h1\b/g, "<$1h2")
+  .replace(/<(\/?)h[56]\b/g, "<$1h4");
+
 // A Markdown file, as { title, html, missing }: its title, if it starts with
 // one ("# A title", or title: in front matter), its body as clean HTML, and
 // how many of its pictures were files on the computer it was written on,
 // which can't come along.
 export async function fromMarkdown(text) {
-  const { marked } = await import("./vendor/marked.js");
+  await loadMarkdown();
   let title = "";
   text = text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
   const front = text.match(/^---\n([\s\S]*?)\n---\n/);
@@ -232,10 +272,7 @@ export async function fromMarkdown(text) {
     title = heading[1];
     text = text.slice(heading[0].length);
   }
-  const html = marked.parse(text, { gfm: true, async: false })
-    // the post's title is its only top heading, so the file's go down one
-    .replace(/<(\/?)h1\b/g, "<$1h2")
-    .replace(/<(\/?)h[56]\b/g, "<$1h4");
+  const html = markdownToHtml(text);
   const box = document.createElement("template");
   box.innerHTML = html;
   const missing = [...box.content.querySelectorAll("img")].filter((img) => !SAFE_ADDRESS.test(img.getAttribute("src") ?? "")).length;
