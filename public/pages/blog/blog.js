@@ -56,36 +56,40 @@ function swap(spot, form) {
 
 // --- the front page --------------------------------------------------------------
 
-// The headline and its tagline, and under them one panel, picked by the
-// buttons under the headline: Home (what the front page opens to), the Blog,
-// Pictures, or About me.
-// (Drawn again after the admin changes something on it: the same panel.)
-let frontView = "home";
-async function showFront(view = frontView) {
-  frontView = view;
-  const [tagline, panel] = await Promise.all([
-    api("/api/blog/page?name=tagline"),
-    { home: homePanel, blog: blogPanel, pictures: picturesPanel, about: aboutPanel }[view](),
-  ]);
+// Every page: the headline, its tagline, and its buttons (Home, Blog,
+// Pictures, About me) with the one for where you are filled in, and under
+// them the page's own panels, made by build().
+async function framed(view, build) {
+  const [tagline, panels] = await Promise.all([api("/api/blog/page?name=tagline").catch(() => null), build()]);
   const hero = document.getElementById("hero").content.cloneNode(true);
   for (const link of hero.querySelectorAll("[data-view]")) {
     if (link.dataset.view === view) link.setAttribute("aria-current", "page");
   }
   // until it's written, the tagline is the one in index.html
   const lede = hero.querySelector(".lede");
-  lede.replaceWith(pageText(tagline, { fallback: lede.cloneNode(true), short: true, look: "lede", write: "Edit the tagline", edit: "Edit the tagline" }));
-  page.replaceChildren(hero, panel);
+  if (tagline) lede.replaceWith(pageText(tagline, { fallback: lede.cloneNode(true), short: true, look: "lede", edit: "Edit tagline" }));
+  page.replaceChildren(hero, ...[panels].flat());
 }
 
+// The front page's panels, picked by the buttons under the headline: Home
+// (what the front page opens to), the Blog, Pictures, or About me.
+// (Drawn again after the admin changes something on it: the same panel.)
+let frontView = "home";
+const showFront = (view = frontView) => {
+  frontView = view;
+  return framed(view, { home: homePanel, blog: blogPanel, pictures: picturesPanel, about: aboutPanel }[view]);
+};
+
 // One of the site's own pages (the tagline, Home's words, About me): its
-// words, or `fallback` until it's written, and for the admin a button that
-// opens them in the editor. Saving draws the page again.
-function pageText(text, { fallback = null, short = false, look = "", write = "Write it", edit = "Edit" }) {
+// words, or `fallback` until it's written, and for the admin a button (edit
+// says what it says) that opens them in the editor, with any `more` buttons
+// beside it. Saving draws the page again.
+function pageText(text, { fallback = null, short = false, look = "", edit, more = [] }) {
   const spot = el("div", { class: `page-text ${look}` });
   const written = Boolean(text.body.trim());
   spot.append(...[written ? el("div", { class: "prose" }, renderBody(text.body)) : fallback].filter(Boolean));
   if (admin) {
-    const button = el("button", { class: "link-button", type: "button", textContent: written ? edit : write });
+    const button = el("button", { class: "button", type: "button", textContent: edit });
     button.addEventListener("click", async () => {
       const back = swap(spot, await writingForm({
         body: text.body,
@@ -98,7 +102,7 @@ function pageText(text, { fallback = null, short = false, look = "", write = "Wr
         },
       }));
     });
-    spot.append(el("div", { class: "page-text__actions" }, button));
+    spot.append(el("div", { class: "button-row" }, button, more));
   }
   return spot;
 }
@@ -112,16 +116,13 @@ async function homePanel() {
     api("/api/blog/page?name=home"), api("/api/blog/bulletins"), api("/api/blog/posts?limit=8"),
   ]);
   titled("Techtrash");
-  const main = el("div", { class: "home__main" }, pageText(home, { write: "Write Home's words", edit: "Edit Home's words" }));
-  if (admin) {
-    const spot = el("div");
-    const add = el("button", { class: "button hue-5", type: "button", textContent: "New bulletin" });
-    add.addEventListener("click", async () => {
-      const back = swap(spot, await bulletinForm({ cancel: () => back() }));
-    });
-    spot.append(el("div", { class: "button-row" }, add));
-    main.append(spot);
-  }
+  // the admin's New bulletin sits beside Edit homepage, and opens its form under them
+  const spot = el("div");
+  const add = admin ? el("button", { class: "button", type: "button", textContent: "New bulletin" }) : null;
+  add?.addEventListener("click", async () => {
+    const back = swap(spot, await bulletinForm({ cancel: () => back() }));
+  });
+  const main = el("div", { class: "home__main" }, pageText(home, { edit: "Edit homepage", more: [add] }), spot);
   if (bulletins.length) main.append(el("div", { class: "bulletins" }, bulletins.map(bulletinBox)));
   else if (!home.body.trim() && !admin) main.append(el("p", { class: "meta", textContent: "Nothing here yet." }));
 
@@ -147,19 +148,20 @@ function bulletinBox(bulletin) {
       textContent: (bulletin.pinned ? "Pinned, " : "") + date(bulletin.created) + (bulletin.updated ? `, changed ${date(bulletin.updated)}` : ""),
     }));
   if (admin) {
-    const edit = el("button", { class: "link-button", type: "button", textContent: "Edit" });
+    // in Home's hue, not the bulletin's: only Delete is red
+    const edit = el("button", { class: "button hue-5", type: "button", textContent: "Edit bulletin" });
     edit.addEventListener("click", async () => {
       const back = swap(box, await bulletinForm({ bulletin, cancel: () => back() }));
     });
-    const pin = el("button", { class: "link-button", type: "button", textContent: bulletin.pinned ? "Unpin" : "Pin to the top" });
+    const pin = el("button", { class: "button hue-5", type: "button", textContent: bulletin.pinned ? "Unpin" : "Pin to the top" });
     pin.addEventListener("click", async () => {
       await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "PUT", json: { pinned: !bulletin.pinned } });
       await showFront();
     });
-    box.append(el("div", { class: "bulletin__actions" }, edit, pin, twoClick("Delete", "Click again to delete", async () => {
+    box.append(el("div", { class: "button-row" }, edit, pin, twoClick("Delete", "Click again to delete", async () => {
       await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "DELETE" });
       await showFront();
-    }, "link-button hue-1")));
+    })));
   }
   return box;
 }
@@ -286,31 +288,39 @@ async function aboutPanel() {
   titled(`${about.title} - Techtrash`);
   return el("section", { class: "panel hue-2", id: "about" },
     el("div", { class: "panel__head" }, label(about.title)),
-    pageText(about, { fallback: el("p", { class: "meta", textContent: "Nothing here yet." }) }));
+    pageText(about, { fallback: el("p", { class: "meta", textContent: "Nothing here yet." }), edit: "Edit about me" }));
 }
 
 // --- a topic ---------------------------------------------------------------------
 
-async function showTopic(topicSlug) {
+// A post's card, like a topic's: its first picture, title, the start of its
+// words, its date and comments.
+const postCard = (topic, post) => el("a", { class: `card ${hueOf(topic.id)}`, href: to.post(topic.slug, post.slug) },
+  post.cover ? el("img", { class: "card__cover", src: post.cover, alt: "" }) : null,
+  el("span", { class: "card__body" },
+    el("span", { class: "named", textContent: post.title }),
+    post.excerpt ? el("span", { class: "card__text", textContent: post.excerpt }) : null,
+    el("span", { class: "meta", textContent: `${date(post.created)}, ${plural(post.comment_count, "comment")}` })));
+
+// The Blog's panel, turned to one topic: its picture and description, and its
+// posts as cards, the newest first.
+const showTopic = (topicSlug) => framed("blog", async () => {
   const topic = await api(`/api/blog/topic?slug=${slug(topicSlug)}`);
   titled(`${topic.title} - Techtrash`);
-  const hue = hueOf(topic.id);
 
-  const head = el("section", { class: `panel ${hue}` },
-    crumb(el("span", { textContent: topic.title })),
+  // what the admin's Edit topic swaps for its form
+  const about = el("div", { class: "topic-about" },
     topic.picture ? el("img", { class: "topic-cover", src: pictureUrl(topic.picture), alt: "" }) : null,
-    el("h1", { class: "head", textContent: topic.title }),
     !topic.description.trim() ? null
       : /^\s*</.test(topic.description) ? el("div", { class: "prose" }, renderBody(topic.description))
       : el("p", { class: "lede", textContent: topic.description }));
-
   if (admin) {
     const edit = el("button", { class: "button hue-5", type: "button", textContent: "Edit topic" });
     edit.addEventListener("click", async () => {
       // a new title is a new slug, so a new address
-      const back = swap(head, await topicForm({ topic, done: (saved) => location.assign(to.topic(saved.slug)), cancel: () => back() }));
+      const back = swap(about, await topicForm({ topic, done: (saved) => location.assign(to.topic(saved.slug)), cancel: () => back() }));
     });
-    head.append(el("div", { class: "button-row" },
+    about.append(el("div", { class: "button-row" },
       el("a", { class: "button hue-4", href: to.write(topic.slug), textContent: "Write a post" }),
       edit,
       twoClick("Delete topic", `Click again: ${plural(topic.posts.length, "post")} go${topic.posts.length === 1 ? "es" : ""} with it`, async () => {
@@ -319,20 +329,18 @@ async function showTopic(topicSlug) {
       })));
   }
 
-  const posts = el("section", { class: `panel ${hue}` }, label("Posts"));
-  if (topic.posts.length === 0) posts.append(el("p", { class: "meta", textContent: "No posts yet." }));
-  else {
-    posts.append(el("ul", { class: "entries" }, topic.posts.map((post) => el("li", { class: "entry" },
-      el("span", { class: "named" }, el("a", { href: to.post(topic.slug, post.slug), textContent: post.title })),
-      el("span", { class: "meta", textContent: `${date(post.created)}, ${plural(post.comment_count, "comment")}` }),
-    ))));
-  }
-  page.replaceChildren(head, posts);
-}
+  return el("section", { class: `panel ${hueOf(topic.id)}`, id: "topic" },
+    crumb(el("span", { textContent: topic.title })),
+    el("div", { class: "panel__head" }, label(topic.title)),
+    about,
+    topic.posts.length
+      ? el("div", { class: "topics" }, topic.posts.map((post) => postCard(topic, post)))
+      : el("p", { class: "meta", textContent: "No posts yet." }));
+});
 
 // --- a post ----------------------------------------------------------------------
 
-async function showPost(topicSlug, postSlug) {
+const showPost = (topicSlug, postSlug) => framed("blog", async () => {
   const post = await api(`/api/blog/post?topic=${slug(topicSlug)}&slug=${slug(postSlug)}`);
   titled(`${post.title} - Techtrash`);
   const hue = hueOf(post.topic_id);
@@ -370,9 +378,8 @@ async function showPost(topicSlug, postSlug) {
   }
 
   article.append(el("div", { class: "prose" }, renderBody(post.body)));
-  page.replaceChildren(article, comments);
-  if (location.hash.startsWith("#comment")) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
-}
+  return [article, comments];
+});
 
 // --- the admin's editor ------------------------------------------------------------
 
@@ -476,7 +483,7 @@ async function showEditor(topicSlug, postSlug = null) {
     kept = el("p", { class: "meta" }, `Picked up where you left off: changes from ${new Date(draft.saved).toLocaleString()} that weren't ${post ? "saved" : "posted"}. `, throwAway);
   }
 
-  page.replaceChildren(el("section", { class: `panel ${hueOf(topic.id)}` },
+  await framed("blog", async () => el("section", { class: `panel ${hueOf(topic.id)}` },
     crumb(el("a", { href: to.topic(topic.slug), textContent: topic.title }), post ? el("a", { href: back, textContent: post.title }) : null, el("span", { textContent: post ? "edit" : "new post" })),
     kept,
     title,
@@ -508,9 +515,12 @@ try {
   else if (admin && first === "edit" && postSlug) await showEditor(topicSlug, postSlug);
   else if (admin && first === "write" && topicSlug) await showEditor(topicSlug);
   // (a visitor with the admin's address gets the page itself)
-  else if (["blog", "edit"].includes(first) && postSlug) await showPost(topicSlug, postSlug);
+  else if (["blog", "edit"].includes(first) && postSlug) {
+    await showPost(topicSlug, postSlug);
+    if (location.hash.startsWith("#comment")) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
+  }
   else if (["blog", "write"].includes(first) && topicSlug) await showTopic(topicSlug);
   else await showFront(["blog", "pictures", "about"].includes(first) ? first : old.has("flag") ? "blog" : "home");
 } catch (error) {
-  page.replaceChildren(el("section", { class: "panel hue-1" }, crumb(), el("p", { textContent: error.message })));
+  await framed(null, async () => el("section", { class: "panel hue-1" }, crumb(), el("p", { textContent: error.message })));
 }

@@ -69,9 +69,8 @@ export async function readyPicture(file) {
 // A section's name, in its hue: "Topics".
 export const label = (name) => el("h2", { class: "label", textContent: name });
 
-// Where a page is: Home › Blog › Music › Discovery
+// Where a page is, under the headline: Blog › Music › Discovery
 export const crumb = (...parts) => el("p", { class: "crumb" },
-  el("a", { href: "./", textContent: "Home" }), " › ",
   el("a", { href: "./?blog", textContent: "Blog" }),
   ...parts.filter(Boolean).flatMap((part) => [" › ", part]));
 

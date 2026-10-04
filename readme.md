@@ -246,8 +246,9 @@ where msaunders.dev is all blue.
   a letter in each hue, then the tagline
   (the admin writes it on the site; until then it's the one in `index.html`),
   then four buttons, **Home**, **Blog**, **Pictures** and **About me**, that
-  pick the panel under it (see "The blog"). A topic's or a post's page starts
-  with where it is, Home › Blog › the topic.
+  pick the panel under it (see "The blog"). The headline stays at the top of
+  every page, a topic's, a post's and the editor's too (with **Blog** filled
+  in), and those start with where they are: Blog › the topic.
 - **The multicolor** is six hues (`--site-hue-1` to `-6`: red, orange,
   yellow, green, blue, violet), and nothing picks a color of its own: an
   element takes one through a `.hue-1` to `.hue-6` class, and everything
@@ -317,7 +318,9 @@ described under **A post** below.
 - **A topic** has a title, a description if it wants one (written in the
   editor, so with pictures and players anywhere in it), and a cover picture
   if it wants one. In the Blog it's a card with the start of its description;
-  click it for its posts.
+  click it and the Blog's panel turns to it: its picture and description,
+  then its posts as cards the same way, the newest first, each with its first
+  picture, the start of its words, its date and how many comments.
 - **A post** lives in a topic, and is written in the editor (`editor.js`).
   It writes three ways, switched at its top: **Rich text** (what you see is
   what the post looks like), **Markdown**, or **HTML**, and what's written

@@ -30,7 +30,8 @@
 //
 //   GET    /api/blog/topics              every topic, newest post first, each with
 //                                        a summary of its description
-//   GET    /api/blog/topic?id= | ?slug=  a topic and its posts
+//   GET    /api/blog/topic?id= | ?slug=  a topic and its posts, each with the start of
+//                                        its words and its first picture
 //   POST   /api/blog/topics              admin: a form: title, description, picture
 //   PUT    /api/blog/topic?id=           admin: the same form, plus removePicture
 //   DELETE /api/blog/topic?id=           admin: the topic, its posts and their comments
@@ -336,11 +337,15 @@ export async function getTopic(request, env) {
   ).bind(params.has("slug") ? params.get("slug") : Number(params.get("id"))).first();
   if (!topic) return apiError(404, "That topic isn't here anymore.");
   const { results: posts } = await env.DB.prepare(
-    `SELECT id, title, slug, created, updated, comments_open,
+    `SELECT id, title, slug, body, created, updated, comments_open,
        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id AND deleted = 0) AS comment_count
      FROM posts WHERE topic_id = ? ORDER BY id DESC`,
   ).bind(topic.id).all();
-  return fresh({ ...topic, posts });
+  // each post as a card: the start of its words, and its first picture
+  return fresh({
+    ...topic,
+    posts: posts.map(({ body, ...post }) => ({ ...post, excerpt: excerpt(body, 160), cover: uploadedPicturesIn(body)[0]?.url ?? null })),
+  });
 }
 
 // The form for a new topic, or a change to one.
@@ -422,7 +427,8 @@ function excerpt(html, length = 220) {
     .replace(/https?:\/\/\S+/g, "")   // a player's link says nothing on its own
     .replace(/\s+/g, " ")
     .trim();
-  return text.length > length ? `${text.slice(0, length).replace(/\s+\S*$/, "")}...` : text;
+  // cut at a word, and without the cut sentence's own stop: "back...", not "back...."
+  return text.length > length ? `${text.slice(0, length).replace(/\s+\S*$/, "").replace(/[\s.,;:!?-]+$/, "")}...` : text;
 }
 
 export async function newestPosts(request, env) {

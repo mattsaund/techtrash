@@ -166,7 +166,7 @@ a:hover { color: var(--site-fg); }
 /* A topic's or a post's title, on its own page. */
 .head { font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site); }
 
-/* --- topics ------------------------------------------------ */
+/* --- topics, and a topic's posts: cards ---------------------- */
 .topics {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--site-card-min)), 1fr));
@@ -194,12 +194,10 @@ a:hover { color: var(--site-fg); }
 /* A title in a list: a topic's on its card, a post's in its topic. */
 .named { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
 
-/* --- a topic's posts ---------------------------------------- */
-.entries { display: flex; flex-direction: column; gap: var(--sp-12); padding: 0; list-style: none; }
-.entry { display: flex; flex-direction: column; }
-.entry a { color: var(--site-fg); text-decoration-color: var(--hue); }
-.entry a:hover { color: var(--hue); }
 
+/* A topic, in the Blog's panel: its picture and description, over its posts. */
+.topic-about { display: flex; flex-direction: column; gap: var(--sp-16); }
+.topic-about:empty { display: none; }
 .topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
 
 /* --- Home -------------------------------------------------- *
@@ -233,9 +231,8 @@ a:hover { color: var(--site-fg); }
 .side-posts__topic:hover { text-decoration: underline; }
 
 /* One of the site's own pages (the tagline, Home's words, About me),
-   and the admin's button to write it. */
+   and the admin's button to edit it. */
 .page-text { display: flex; flex-direction: column; gap: var(--sp-8); }
-.page-text__actions { display: flex; gap: var(--sp-16); }
 .bulletins { display: flex; flex-direction: column; gap: var(--sp-16); }
 .bulletin {
   display: flex;
@@ -247,7 +244,6 @@ a:hover { color: var(--site-fg); }
   border-left-color: var(--hue);
 }
 .bulletin__title { color: var(--site-fg); font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
-.bulletin__actions { display: flex; gap: var(--sp-16); }
 /* The editor for a bulletin or a page like About me. */
 .writing-form { display: flex; flex-direction: column; gap: var(--sp-12); }
 .writing-form .editor__title { font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
