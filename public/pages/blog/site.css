@@ -201,10 +201,10 @@ a:hover { color: var(--site-fg); }
 .topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
 
 /* --- Home -------------------------------------------------- *
-   Home's words and the bulletins (news, things to know, each edged
-   in its hue on the left), and down the right side the newest
-   posts: a title, and its topic under it, smaller. On a phone the
-   side goes under. */
+   The bulletin across the top, edged in the hue on the left; then
+   Home's words, and down the right side the newest posts: a title,
+   and its topic under it, smaller. On a phone the side goes
+   under. */
 .home {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--site-side);
@@ -233,20 +233,18 @@ a:hover { color: var(--site-fg); }
 /* One of the site's own pages (the tagline, Home's words, About me),
    and the admin's button to edit it. */
 .page-text { display: flex; flex-direction: column; gap: var(--sp-8); }
-.bulletins { display: flex; flex-direction: column; gap: var(--sp-16); }
+.home__bulletin:empty { display: none; }
 .bulletin {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-8);
+  gap: var(--sp-12);
   padding: var(--sp-16);
   background: var(--site-field);
   border: var(--hairline) solid var(--site-line);
   border-left-color: var(--hue);
 }
-.bulletin__title { color: var(--site-fg); font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
-/* The editor for a bulletin or a page like About me. */
+/* The editor for one of the site's own pages: Home's words, the bulletin, About me. */
 .writing-form { display: flex; flex-direction: column; gap: var(--sp-12); }
-.writing-form .editor__title { font: 500 var(--fs-site-sub)/var(--lh-site-sub) var(--font-site); }
 
 /* --- Pictures ---------------------------------------------- *
    Every picture on the site, square, edge to edge: no borders, no

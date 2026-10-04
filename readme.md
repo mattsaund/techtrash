@@ -88,7 +88,7 @@ public/styleguide/           /styleguide/: every rule, drawn with the kit itself
 worker.js                    The server: which address goes where
 server/desktop.js            The shared desktop (see "The shared desktop")
 server/admin.js              The admin account (see "The admin")
-server/blog.js               The blog: topics, posts, comments, bulletins, pictures
+server/blog.js               The blog: topics, posts, comments, the site's own pages, pictures
 server/http.js               Small helpers the rest share
 wrangler.jsonc               The Worker's Cloudflare settings
 tools/check_style.py         Enforces the rules. Run it before you push.
@@ -248,7 +248,8 @@ where msaunders.dev is all blue.
   then four buttons, **Home**, **Blog**, **Pictures** and **About me**, that
   pick the panel under it (see "The blog"). The headline stays at the top of
   every page, a topic's, a post's and the editor's too (with **Blog** filled
-  in), and those start with where they are: Blog › the topic.
+  in), and those start with **‹ Back**, up one: from a post to its topic, from
+  a topic to the Blog's list of topics.
 - **The multicolor** is six hues (`--site-hue-1` to `-6`: red, orange,
   yellow, green, blue, violet), and nothing picks a color of its own: an
   element takes one through a `.hue-1` to `.hue-6` class, and everything
@@ -287,34 +288,36 @@ where msaunders.dev is all blue.
 
 ## The blog
 
-**Bulletins**, **topics**, **posts**, **comments**, and the site's own words
-(the tagline, Home's words, About me), all made, changed and deleted on the
+**Topics**, **posts**, **comments**, and the site's own words (the tagline,
+the bulletin, Home's words, About me), all made, changed and deleted on the
 site itself, logged on as admin. (Anyone can read, and comment.) Topics cover
 any subject, so the blog is the whole site: Home, the Blog and Pictures are
 ways of looking at it.
 
-Everything with words in it (posts, topic descriptions, bulletins, the
+Everything with words in it (posts, topic descriptions, the bulletin, the
 tagline, Home's words, About me) is written in the same editor, `editor.js`,
-described under **A post** below.
+described under **A post** below. On the site, the admin's buttons for them
+say what they do: **Edit homepage**, **Add bulletin** / **Edit bulletin**,
+**Edit about me**, **Edit tagline**.
 
-- **Home** is what the front page opens to, under the headline: **Home's
-  words** (**Write Home's words**, then **Edit**), then the **bulletins**
-  (news, info to keep up, anything else to say), and down the right side the
-  eight **newest posts** from every topic: a title, and its topic under it,
-  smaller (under Home, on a phone). A bulletin is an optional title and a
-  body; **Pin to the top** keeps it above the others, the rest go newest
-  first. The admin gets **New bulletin**, and **Edit**, **Pin** and
-  **Delete** on each.
+- **Home** is what the front page opens to, under the headline: the
+  **bulletin** across the top, if there is one (one thing that matters right
+  now: news, anything; no date, and only ever one), then **Home's words**,
+  and down the right side the eight **newest posts** from every topic: a
+  title, and its topic under it, smaller (under Home, on a phone). The admin
+  gets **Edit homepage**, and **Add bulletin** beside it while there's none;
+  with one up, **Edit bulletin** and **Remove bulletin** (two clicks) under
+  it.
 - **The Blog** (`?blog`) is the same panel switched to every topic, the one
   with the newest post first. The admin gets **New topic**.
 - **Pictures** (`?pictures`) is the same panel switched to every picture
-  posted to the site (topics' pictures, and the ones in posts, bulletins and
+  posted to the site (topics' pictures, and the ones in posts, the bulletin and
   About me), newest first, square, in a grid with no borders and no gaps. Each
   one opens the page it's on. Nothing to manage: a picture shows up when it's
   posted and goes when it's taken out.
 - **About me** (`?about`) is the same panel switched to techtrash.org's own
-  About page, separate from msaunders.dev: **Write it**, then **Edit**. Until
-  it's written, it says "Nothing here yet."
+  About page, separate from msaunders.dev: **Edit about me**. Until it's
+  written, it says "Nothing here yet."
 - **A topic** has a title, a description if it wants one (written in the
   editor, so with pictures and players anywhere in it), and a cover picture
   if it wants one. In the Blog it's a card with the start of its description;
@@ -342,8 +345,8 @@ described under **A post** below.
   nothing. Ctrl+S posts, Ctrl+K makes a link.
 - **Changing** anything is the same form or editor again, with everything in
   it: a topic's title, description and picture; a post's title, words,
-  topic and comments setting; a bulletin's title, words and pin; the tagline,
-  Home's words and About me.
+  topic and comments setting; the bulletin, the tagline, Home's words and
+  About me.
 - **Comments** are anyone's, with a name, on a post or in reply to another
   comment, so each one can start a thread (replies step in 4 deep, then line
   up). The admin's own are marked "author". **Turn comments off** on a post
@@ -392,12 +395,8 @@ described under **A post** below.
 | `POST /api/blog/pictures` | admin | a picture for a post: a form with `picture`; says its address |
 | `POST /api/blog/comments` | anyone | `{ post, parent, name, body }`, while the post's comments are on |
 | `DELETE /api/blog/comment?id=` | admin | a comment's words (its replies stay) |
-| `GET /api/blog/bulletins` | anyone | every bulletin, pinned ones first, then the newest |
-| `POST /api/blog/bulletins` | admin | `{ title, body, pinned }` |
-| `PUT /api/blog/bulletin?id=` | admin | any of `{ title, body, pinned }` |
-| `DELETE /api/blog/bulletin?id=` | admin | a bulletin (and pictures nothing else shows) |
-| `GET /api/blog/page?name=` | anyone | one of the site's own pages, `home`, `about` or `tagline` (empty until it's written) |
-| `PUT /api/blog/page?name=` | admin | `{ body }` |
+| `GET /api/blog/page?name=` | anyone | one of the site's own pages, `home`, `bulletin`, `about` or `tagline` (empty until it's written, or once it's taken down) |
+| `PUT /api/blog/page?name=` | admin | `{ body }` (an empty one takes it down) |
 
 ## Windows
 

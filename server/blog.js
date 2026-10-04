@@ -9,11 +9,9 @@
 //            off, which keeps the ones already there and stops new ones.
 //   comment  anyone's, on a post, or a reply to another comment, so a post's
 //            comments are threads. A name and plain text, nothing else.
-//   bulletin news or info for the Home page, the admin's: an optional title
-//            and a body like a post's. Pinned ones stay at the top.
-//   page     a page of the site's own, written by the admin: Home's words,
-//            About me, and the tagline under the headline. Just a body like a
-//            post's.
+//   page     a page of the site's own, written by the admin: Home's words, the
+//            bulletin at the top of Home (one, or none), About me, and the
+//            tagline under the headline. Just a body like a post's.
 //
 // A topic and a post each have a slug, their title made fit for an address
 // ("Daft Punk's best" is daft-punks-best), so the site's addresses read
@@ -48,12 +46,8 @@
 //   POST   /api/blog/pictures            admin: a form with a picture; says its address
 //   POST   /api/blog/comments            anyone: { post, parent, name, body }
 //   DELETE /api/blog/comment?id=         admin: the comment's words go, its replies stay
-//   GET    /api/blog/bulletins           every bulletin, pinned ones first, then newest
-//   POST   /api/blog/bulletins           admin: { title, body, pinned }
-//   PUT    /api/blog/bulletin?id=        admin: any of { title, body, pinned }
-//   DELETE /api/blog/bulletin?id=        admin
-//   GET    /api/blog/page?name=          a page's body ("" until it's written): about,
-//                                        home or tagline
+//   GET    /api/blog/page?name=          a page's body ("" until it's written, or once
+//                                        it's taken down): home, bulletin, about, tagline
 //   PUT    /api/blog/page?name=          admin: { body }
 
 import { isAdmin } from "./admin.js";
@@ -100,14 +94,6 @@ function ensureSchema(env) {
         is_admin INTEGER NOT NULL DEFAULT 0,
         deleted INTEGER NOT NULL DEFAULT 0,
         created INTEGER NOT NULL
-      )`),
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS bulletins (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL DEFAULT '',
-        body TEXT NOT NULL,
-        pinned INTEGER NOT NULL DEFAULT 0,
-        created INTEGER NOT NULL,
-        updated INTEGER
       )`),
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS pages (
         name TEXT PRIMARY KEY,
@@ -296,17 +282,15 @@ async function deletePicture(env, name) {
   await Promise.all([env.PICTURES.delete(PICTURES + name), env.PICTURES.delete(FIRST_PICTURES + name)]);
 }
 
-// The pictures a post's (or a bulletin's) body shows, by name.
+// The pictures a post's (or a page's) body shows, by name.
 const picturesIn = (body) => [...(body ?? "").matchAll(/\/blog\/img\/([\w-]+\.(?:png|jpg|gif|webp|avif))/g)].map((m) => m[1]);
 
-// Deletes the pictures nothing shows anymore: no topic's, and in no post,
-// bulletin or page.
+// Deletes the pictures nothing shows anymore: no topic's, and in no post or page.
 async function dropUnused(env, names) {
   for (const name of new Set(names)) {
     const used = await env.DB.prepare(
       `SELECT 1 FROM topics WHERE picture = ?1 UNION ALL SELECT 1 FROM topics WHERE instr(description, ?2) > 0
        UNION ALL SELECT 1 FROM posts WHERE instr(body, ?2) > 0
-       UNION ALL SELECT 1 FROM bulletins WHERE instr(body, ?2) > 0
        UNION ALL SELECT 1 FROM pages WHERE instr(body, ?2) > 0 LIMIT 1`,
     ).bind(name, `/blog/img/${name}`).first();
     if (!used) await deletePicture(env, name);
@@ -530,7 +514,7 @@ export async function deletePost(request, env) {
   return done();
 }
 
-// The pictures uploaded to the site that a post's (or a bulletin's) body
+// The pictures uploaded to the site that a post's (or a page's) body
 // shows, in order: { url, alt }. Pictures from elsewhere on the web aren't
 // the site's, so they're left out.
 function uploadedPicturesIn(html) {
@@ -540,18 +524,17 @@ function uploadedPicturesIn(html) {
 }
 
 // Every picture posted to the site, newest first: topics' pictures, and the
-// ones in topics' descriptions, posts, bulletins and pages, each once, with
-// where it's from.
+// ones in topics' descriptions, posts and pages, each once, with where it's
+// from.
 export async function listPictures(request, env) {
   await ensureSchema(env);
-  const [topics, described, posts, bulletins, pages] = await Promise.all([
+  const [topics, described, posts, pages] = await Promise.all([
     env.DB.prepare("SELECT id, title, slug, picture, created FROM topics WHERE picture IS NOT NULL").all(),
     env.DB.prepare("SELECT id, title, slug, description AS body, created FROM topics WHERE instr(description, '/blog/img/') > 0").all(),
     env.DB.prepare(
       `SELECT posts.id, posts.title, posts.slug, posts.body, posts.created, topics.slug AS topic_slug
        FROM posts JOIN topics ON topics.id = posts.topic_id WHERE instr(posts.body, '/blog/img/') > 0`,
     ).all(),
-    env.DB.prepare("SELECT id, title, body, created FROM bulletins WHERE instr(body, '/blog/img/') > 0").all(),
     env.DB.prepare("SELECT name AS id, body, updated AS created FROM pages WHERE instr(body, '/blog/img/') > 0").all(),
   ]);
   // where a picture is: { kind, id, title }, and a topic's or a post's slugs
@@ -560,7 +543,7 @@ export async function listPictures(request, env) {
     ...(row.slug ? { slug: row.slug } : {}), ...(row.topic_slug ? { topic_slug: row.topic_slug } : {}),
   });
   const found = topics.results.map((topic) => ({ url: `/blog/img/${topic.picture}`, alt: "", created: topic.created, from: from("topic", topic) }));
-  for (const [kind, rows] of [["topic", described.results], ["post", posts.results], ["bulletin", bulletins.results], ["page", pages.results]]) {
+  for (const [kind, rows] of [["topic", described.results], ["post", posts.results], ["page", pages.results]]) {
     for (const row of rows) {
       for (const picture of uploadedPicturesIn(row.body)) found.push({ ...picture, created: row.created, from: from(kind, row) });
     }
@@ -615,70 +598,10 @@ export async function deleteComment(request, env) {
   return done();
 }
 
-// --- bulletins -------------------------------------------------------------------
-
-export async function listBulletins(request, env) {
-  await ensureSchema(env);
-  const { results: bulletins } = await env.DB.prepare(
-    "SELECT id, title, body, pinned, created, updated FROM bulletins ORDER BY pinned DESC, id DESC",
-  ).all();
-  return fresh({ bulletins });
-}
-
-// Whatever of { title, body, pinned } a request sends, cleaned.
-async function bulletinInput(request) {
-  const input = await readJson(request, MAX_LENGTH.body * 2 + 10_000);
-  if (!input) return null;
-  const out = {};
-  if ("title" in input) out.title = cleanText(input.title, MAX_LENGTH.title);
-  if ("body" in input) out.body = typeof input.body === "string" ? input.body.slice(0, MAX_LENGTH.body) : "";
-  if ("pinned" in input) out.pinned = input.pinned ? 1 : 0;
-  return out;
-}
-
-export async function createBulletin(request, env) {
-  await ensureSchema(env);
-  const input = await bulletinInput(request);
-  if (!input) return apiError(400, "That didn't come through. Try again.");
-  if (!input.body?.trim()) return apiError(400, "A bulletin needs something in it.");
-  const bulletin = await env.DB.prepare(
-    "INSERT INTO bulletins (title, body, pinned, created) VALUES (?, ?, ?, ?) RETURNING id",
-  ).bind(input.title ?? "", input.body, input.pinned ?? 0, Date.now()).first();
-  return fresh(bulletin, 201);
-}
-
-export async function updateBulletin(request, env) {
-  await ensureSchema(env);
-  const id = idParam(request);
-  const before = await env.DB.prepare("SELECT title, body, pinned FROM bulletins WHERE id = ?").bind(id).first();
-  if (!before) return apiError(404, "That bulletin isn't here anymore.");
-  const input = await bulletinInput(request);
-  if (!input) return apiError(400, "That didn't come through. Try again.");
-  const next = { ...before, ...input };
-  if (!next.body.trim()) return apiError(400, "A bulletin needs something in it.");
-  // Pinning or unpinning one isn't an edit to it, so it doesn't say "changed".
-  const edited = next.title !== before.title || next.body !== before.body;
-  await env.DB.prepare(
-    `UPDATE bulletins SET title = ?, body = ?, pinned = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
-  ).bind(next.title, next.body, next.pinned, ...(edited ? [Date.now()] : []), id).run();
-  const kept = new Set(picturesIn(next.body));
-  await dropUnused(env, picturesIn(before.body).filter((name) => !kept.has(name)));
-  return fresh({ id });
-}
-
-export async function deleteBulletin(request, env) {
-  await ensureSchema(env);
-  const id = idParam(request);
-  const bulletin = await env.DB.prepare("SELECT body FROM bulletins WHERE id = ?").bind(id).first();
-  await env.DB.prepare("DELETE FROM bulletins WHERE id = ?").bind(id).run();
-  await dropUnused(env, picturesIn(bulletin?.body));
-  return done();
-}
-
 // --- pages -----------------------------------------------------------------------
 
 // The site's own pages the admin writes, by name, and what they're called.
-const PAGES = { home: "Home", about: "About me", tagline: "Tagline" };
+const PAGES = { home: "Home", bulletin: "Bulletin", about: "About me", tagline: "Tagline" };
 const pageName = (request) => {
   const name = new URL(request.url).searchParams.get("name");
   return Object.hasOwn(PAGES, name) ? name : null;

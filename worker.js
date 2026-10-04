@@ -36,10 +36,6 @@ const BLOG = {
   "POST pictures": blog.uploadPicture,
   "POST comments": blog.createComment,   // anyone's, see server/blog.js
   "DELETE comment": blog.deleteComment,
-  "GET bulletins": blog.listBulletins,
-  "POST bulletins": blog.createBulletin,
-  "PUT bulletin": blog.updateBulletin,
-  "DELETE bulletin": blog.deleteBulletin,
   "GET page": blog.getPage,
   "PUT page": blog.savePage,
 };

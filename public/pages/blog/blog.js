@@ -3,7 +3,7 @@
 // Picked by the address, which reads like a path after the "?" (the desktop
 // shows it as the site's own address, #blog/rockets/liftoff):
 //   (nothing)                the front page: the headline, and under it Home:
-//                            its words and the bulletins, the newest posts beside
+//                            the bulletin, its words, the newest posts beside
 //   ?blog                    the headline, and under it the Blog: every topic
 //   ?pictures                the headline, and under it every picture on the site
 //   ?about                   the headline, and under it About me
@@ -25,7 +25,7 @@
 import { commentsPanel } from "./comments.js";
 import { renderBody } from "./content.js";
 import { topicForm } from "./forms.js";
-import { api, crumb, date, el, hueOf, label, pictureUrl, plural, remembered, status, twoClick } from "./util.js";
+import { api, backTo, date, el, hueOf, label, pictureUrl, plural, remembered, status, twoClick } from "./util.js";
 
 const page = document.getElementById("page");
 
@@ -109,22 +109,19 @@ function pageText(text, { fallback = null, short = false, look = "", edit, more 
 
 // --- Home ------------------------------------------------------------------------
 
-// Home's words and the bulletins (news, things to know; pinned ones on top),
-// and down the right side the newest posts: a title, and its topic under it.
+// The bulletin across the top (if there is one), then Home's words, and down
+// the right side the newest posts: a title, and its topic under it.
 async function homePanel() {
-  const [home, { bulletins }, { posts }] = await Promise.all([
-    api("/api/blog/page?name=home"), api("/api/blog/bulletins"), api("/api/blog/posts?limit=8"),
+  const [home, bulletin, { posts }] = await Promise.all([
+    api("/api/blog/page?name=home"), api("/api/blog/page?name=bulletin"), api("/api/blog/posts?limit=8"),
   ]);
   titled("Techtrash");
-  // the admin's New bulletin sits beside Edit homepage, and opens its form under them
-  const spot = el("div");
-  const add = admin ? el("button", { class: "button", type: "button", textContent: "New bulletin" }) : null;
-  add?.addEventListener("click", async () => {
-    const back = swap(spot, await bulletinForm({ cancel: () => back() }));
-  });
-  const main = el("div", { class: "home__main" }, pageText(home, { edit: "Edit homepage", more: [add] }), spot);
-  if (bulletins.length) main.append(el("div", { class: "bulletins" }, bulletins.map(bulletinBox)));
-  else if (!home.body.trim() && !admin) main.append(el("p", { class: "meta", textContent: "Nothing here yet." }));
+  const top = bulletinSpot(bulletin);
+  // with no bulletin up, the admin's Add bulletin sits beside Edit homepage
+  const add = admin && !bulletin.body.trim() ? el("button", { class: "button", type: "button", textContent: "Add bulletin" }) : null;
+  add?.addEventListener("click", () => top.write());
+  const main = el("div", { class: "home__main" }, pageText(home, { edit: "Edit homepage", more: [add] }));
+  if (!home.body.trim() && !admin) main.append(el("p", { class: "meta", textContent: "Nothing here yet." }));
 
   const side = el("aside", { class: "home__side", "aria-label": "Newest posts" },
     el("h3", { class: "group__head", textContent: "Newest posts" }),
@@ -136,62 +133,48 @@ async function homePanel() {
 
   return el("section", { class: "panel hue-5", id: "home" },
     el("div", { class: "panel__head" }, label("Home")),
+    top,
     el("div", { class: "home" }, main, side));
 }
 
-function bulletinBox(bulletin) {
-  const box = el("article", { class: `bulletin ${hueOf(bulletin.id)}` },
-    bulletin.title ? el("h3", { class: "bulletin__title", textContent: bulletin.title }) : null,
-    el("div", { class: "prose" }, renderBody(bulletin.body)),
-    el("p", {
-      class: "meta",
-      textContent: (bulletin.pinned ? "Pinned, " : "") + date(bulletin.created) + (bulletin.updated ? `, changed ${date(bulletin.updated)}` : ""),
+// The bulletin: one thing at the top of Home that matters right now (news,
+// anything), or nothing. The admin edits it or takes it down; .write() opens
+// the editor in its place, for Add bulletin.
+function bulletinSpot(bulletin) {
+  const spot = el("div", { class: "home__bulletin" });
+  const write = async () => {
+    const back = swap(spot, await writingForm({
+      body: bulletin.body,
+      saveText: "Save bulletin",
+      cancel: () => back(),
+      save: async (data) => {
+        await api("/api/blog/page?name=bulletin", { method: "PUT", json: data });
+        await showFront();
+      },
     }));
-  if (admin) {
-    // in Home's hue, not the bulletin's: only Delete is red
-    const edit = el("button", { class: "button hue-5", type: "button", textContent: "Edit bulletin" });
-    edit.addEventListener("click", async () => {
-      const back = swap(box, await bulletinForm({ bulletin, cancel: () => back() }));
-    });
-    const pin = el("button", { class: "button hue-5", type: "button", textContent: bulletin.pinned ? "Unpin" : "Pin to the top" });
-    pin.addEventListener("click", async () => {
-      await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "PUT", json: { pinned: !bulletin.pinned } });
-      await showFront();
-    });
-    box.append(el("div", { class: "button-row" }, edit, pin, twoClick("Delete", "Click again to delete", async () => {
-      await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "DELETE" });
-      await showFront();
-    })));
+  };
+  if (bulletin.body.trim()) {
+    const box = el("article", { class: "bulletin" }, el("div", { class: "prose" }, renderBody(bulletin.body)));
+    if (admin) {
+      const edit = el("button", { class: "button", type: "button", textContent: "Edit bulletin" });
+      edit.addEventListener("click", write);
+      box.append(el("div", { class: "button-row" }, edit, twoClick("Remove bulletin", "Click again to take it down", async () => {
+        await api("/api/blog/page?name=bulletin", { method: "PUT", json: { body: "" } });
+        await showFront();
+      })));
+    }
+    spot.append(box);
   }
-  return box;
+  spot.write = write;
+  return spot;
 }
 
-// A new bulletin (no bulletin), or a change to one.
-function bulletinForm({ bulletin = null, cancel }) {
-  return writingForm({
-    title: bulletin?.title ?? "",
-    body: bulletin?.body ?? "",
-    pinned: bulletin?.pinned ?? 0,
-    saveText: bulletin ? "Save bulletin" : "Post bulletin",
-    cancel,
-    save: async (data) => {
-      if (bulletin) await api(`/api/blog/bulletin?id=${bulletin.id}`, { method: "PUT", json: data });
-      else await api("/api/blog/bulletins", { method: "POST", json: data });
-      await showFront();
-    },
-  });
-}
-
-// The editor posts have, with Save and Cancel, for a bulletin or a page.
-// A title field if there's a title (one's optional), and a pin checkbox if
-// there's a pinned; short for a line or two. save(data) sends
-// { body, title?, pinned? } and goes on.
-async function writingForm({ title, body = "", pinned, short = false, saveText, save, cancel }) {
+// The editor posts have, with Save and Cancel, for one of the site's own
+// pages (Home's words, the bulletin, About me, the tagline); short for a line
+// or two. save({ body }) sends it and goes on.
+async function writingForm({ body = "", short = false, saveText, save, cancel }) {
   const { createEditor } = await import("./editor.js");
-  const titleField = title === undefined ? null
-    : el("input", { class: "editor__title", maxlength: "120", placeholder: "Title (if you like)", "aria-label": "Title", value: title });
   const editor = createEditor(body, { short });
-  const pin = pinned === undefined ? null : el("input", { type: "checkbox", checked: Boolean(pinned) });
   const message = status();
   const saveButton = el("button", { class: "button hue-4", type: "button", textContent: saveText });
   const back = el("button", { class: "button hue-1", type: "button", textContent: "Cancel" });
@@ -203,20 +186,15 @@ async function writingForm({ title, body = "", pinned, short = false, saveText, 
     }
     saveButton.disabled = true;
     message.textContent = "Saving...";
-    const data = { body: editor.html() };
-    if (titleField) data.title = titleField.value;
-    if (pin) data.pinned = pin.checked;
     try {
-      await save(data);
+      await save({ body: editor.html() });
     } catch (error) {
       message.textContent = error.message;
       saveButton.disabled = false;
     }
   });
   return el("div", { class: "writing-form" },
-    titleField,
     editor.element,
-    pin ? el("div", { class: "form settings" }, el("label", { class: "check" }, pin, "Pin it to the top")) : null,
     el("div", { class: "button-row" }, saveButton, back),
     message);
 }
@@ -232,7 +210,6 @@ async function picturesPanel() {
   const where = (from) => ({
     topic: () => to.topic(from.slug),
     post: () => to.post(from.topic_slug, from.slug),
-    bulletin: () => to.home,
     page: () => (from.id === "about" ? to.about : to.home),
   })[from.kind]();
   return el("section", { class: "panel hue-6", id: "pictures" },
@@ -330,7 +307,7 @@ const showTopic = (topicSlug) => framed("blog", async () => {
   }
 
   return el("section", { class: `panel ${hueOf(topic.id)}`, id: "topic" },
-    crumb(el("span", { textContent: topic.title })),
+    backTo(to.blog),
     el("div", { class: "panel__head" }, label(topic.title)),
     about,
     topic.posts.length
@@ -346,7 +323,7 @@ const showPost = (topicSlug, postSlug) => framed("blog", async () => {
   const hue = hueOf(post.topic_id);
 
   const article = el("article", { class: `panel ${hue}` },
-    crumb(el("a", { href: to.topic(post.topic_slug), textContent: post.topic_title })),
+    backTo(to.topic(post.topic_slug)),
     el("h1", { class: "head", textContent: post.title }),
     el("p", { class: "meta", textContent: date(post.created) + (post.updated ? `, changed ${date(post.updated)}` : "") }));
   const comments = commentsPanel(post, { admin, hue });
@@ -395,7 +372,7 @@ async function showEditor(topicSlug, postSlug = null) {
   if (!topic) throw new Error("That topic isn't here anymore.");
   const key = `techtrash:draft:${post ? `post-${post.id}` : `topic-${topic.id}`}`;
   const draft = remembered.get(key);
-  const back = post ? to.post(post.topic_slug, post.slug) : to.topic(topic.slug);
+  const leave = post ? to.post(post.topic_slug, post.slug) : to.topic(topic.slug);
   titled(post ? `Editing ${post.title} - Techtrash` : "New post - Techtrash");
 
   let leaving = false;
@@ -469,7 +446,7 @@ async function showEditor(topicSlug, postSlug = null) {
     }
     leaving = true;
     remembered.forget(key);
-    location.assign(back);
+    location.assign(leave);
   });
 
   let kept = null;
@@ -484,7 +461,7 @@ async function showEditor(topicSlug, postSlug = null) {
   }
 
   await framed("blog", async () => el("section", { class: `panel ${hueOf(topic.id)}` },
-    crumb(el("a", { href: to.topic(topic.slug), textContent: topic.title }), post ? el("a", { href: back, textContent: post.title }) : null, el("span", { textContent: post ? "edit" : "new post" })),
+    backTo(leave),
     kept,
     title,
     editor.element,
@@ -522,5 +499,5 @@ try {
   else if (["blog", "write"].includes(first) && topicSlug) await showTopic(topicSlug);
   else await showFront(["blog", "pictures", "about"].includes(first) ? first : old.has("flag") ? "blog" : "home");
 } catch (error) {
-  await framed(null, async () => el("section", { class: "panel hue-1" }, crumb(), el("p", { textContent: error.message })));
+  await framed(null, async () => el("section", { class: "panel hue-1" }, backTo(to.blog), el("p", { textContent: error.message })));
 }
