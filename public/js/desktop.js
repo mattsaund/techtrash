@@ -160,23 +160,36 @@ function create(app, rest, maximized) {
   rename(app.title);
 
   // The page inside sets the title (Notepad's is "journal.txt - Notepad"),
-  // and the address follows it as it moves around inside its own app.
-  frame.addEventListener("load", () => {
+  // and the address follows it as it moves around inside its own app: from
+  // the moment the page says it's here (js/app.js does, as soon as it's
+  // read, not once every picture and player on it has loaded), or else from
+  // when it's loaded. Once for each page.
+  let hooked = null;
+  win.hook = () => {
     const inner = frame.contentWindow;
-    if (!frame.contentDocument) return;
-    rename(frame.contentDocument.title || app.title);
+    const page = frame.contentDocument;
+    if (!page || page === hooked) return;
+    hooked = page;
+    rename(page.title || app.title);
     // ...and follows it when the page changes it without loading again, as
-    // the blog does once it knows which topic or post it's showing.
-    new MutationObserver(() => rename(frame.contentDocument.title || app.title))
-      .observe(frame.contentDocument.head, { subtree: true, childList: true, characterData: true });
-    const path = inner.location.pathname + inner.location.search;
-    win.rest = path.startsWith(app.url) ? path.slice(app.url.length) : "";
+    // the blog does once it knows which blog it's showing.
+    new MutationObserver(() => rename(page.title || app.title))
+      .observe(page.head, { subtree: true, childList: true, characterData: true });
+    // The same for its address, which a page can change without loading
+    // again too, and says so: the blog's Blog does, as flags are picked.
+    const follow = () => {
+      const path = inner.location.pathname + inner.location.search;
+      win.rest = path.startsWith(app.url) ? path.slice(app.url.length) : "";
+      if (front === win) address();
+    };
+    inner.addEventListener("addresschange", follow);
     inner.addEventListener("pointerdown", () => {
       activate(win);
       showStart(false);
     });
-    if (front === win) address();
-  });
+    follow();
+  };
+  frame.addEventListener("load", win.hook);
   frame.src = app.url + rest;
 
   el.addEventListener("pointerdown", () => activate(win), true);
@@ -346,11 +359,11 @@ function close(win) {
 // The front window's place, in the site's address. Another app's is
 // #<app>/<where in it> (#notepad/?file=credits.txt). The site's own (the
 // home app's) is just where it is, because it is the site: its pages'
-// addresses read like paths (?blog/rockets/liftoff, ?pictures), and the
-// address bar shows them as they are, #blog/rockets/liftoff, #pictures. Its
+// addresses read like paths (?blog/liftoff, ?pictures), and the
+// address bar shows them as they are, #blog/liftoff, #pictures. Its
 // front page is the plain address.
 
-// "?blog/rockets/liftoff" as "blog/rockets/liftoff", or null if it isn't a
+// "?blog/liftoff" as "blog/liftoff", or null if it isn't a
 // path (an old ?post=3, which the site sends on to its new address)
 function siteHash(rest) {
   if (!rest) return "";
@@ -367,7 +380,7 @@ function address() {
 }
 
 // What the address asks for, as { app, rest }: #files and #notepad/... are
-// those apps; anything else is a place on the site (#blog/rockets/liftoff),
+// those apps; anything else is a place on the site (#blog/liftoff),
 // and so is the old way of saying one (#blog/?post=3).
 function fromAddress() {
   const m = location.hash.match(/^#([\w-]+)(?:\/(.*))?$/);
@@ -421,10 +434,15 @@ tick();
 setInterval(tick, 10000);
 
 // Apps open other apps through this (js/app.js does it for their links).
-window.desktop = { open };
+// A page in a window, saying it's here (js/app.js).
+function arrived(inner) {
+  stack.find((w) => w.frame.contentWindow === inner)?.hook();
+}
+
+window.desktop = { open, arrived };
 
 // Arriving: the site opens, maximized, every time. An address on it
-// (#blog/rockets/liftoff) opens it there; one for another app (#files) opens that too, in
+// (#blog/liftoff) opens it there; one for another app (#files) opens that too, in
 // front of it.
 function arrive() {
   const { app, rest } = fromAddress();

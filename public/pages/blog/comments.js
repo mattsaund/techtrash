@@ -147,7 +147,7 @@ export function commentsPanel(post, { admin, hue }) {
     if (live === 0) panel.append(el("p", { class: "meta", textContent: "No comments yet." }));
     panel.append(form(null));
   } else {
-    panel.append(el("p", { class: "meta", textContent: live ? "Comments are closed." : "Comments are off for this post." }));
+    panel.append(el("p", { class: "meta", textContent: live ? "Comments are closed." : "Comments are off for this blog." }));
   }
   return panel;
 }

@@ -7,10 +7,10 @@ export const date = (ms) => dateFormat.format(ms);
 export const pictureUrl = (name) => `/blog/img/${encodeURIComponent(name)}`;
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-// Each topic (and each flag) has one of the six hues, from its number, and keeps it.
+// Each blog (and each flag) has one of the six hues, from its number, and keeps it.
 export const hueOf = (id) => `hue-${((Number(id) - 1) % 6 + 6) % 6 + 1}`;
 
-// el("a", { href: "?topic=1", class: "card" }, "a child", anotherElement)
+// el("a", { href: "?blog/liftoff", class: "card" }, "a child", anotherElement)
 // Anything the element has as a property is set as one (textContent, hidden,
 // checked...); the rest become attributes (class, for, aria-label, data-...).
 export function el(tag, props = {}, ...children) {
@@ -66,11 +66,10 @@ export async function readyPicture(file) {
   return picture;
 }
 
-// A section's name, in its hue: "Topics".
+// A section's name, in its hue: "Blog".
 export const label = (name) => el("h2", { class: "label", textContent: name });
 
-// "Back", at the top of a panel: up one, from a post to its topic, and from
-// a topic to the Blog's list of topics.
+// "Back", at the top of a panel: up one, from a blog to the Blog.
 export const backTo = (href) => el("p", { class: "crumb" }, el("a", { href, textContent: "Back" }));
 
 // A button that takes two clicks: the first one asks, the second one does it.
@@ -105,24 +104,29 @@ export function twoClick(text, ask, work, look = "button hue-1") {
 // A form's line that says what's going on.
 export const status = () => el("p", { class: "form__message meta", role: "status" });
 
-// What this browser remembers (a comment's name, a post not posted yet).
-// It can be switched off, or full, so it's only ever a convenience.
-export const remembered = {
-  get(key) {
-    try {
-      return JSON.parse(localStorage.getItem(key));
-    } catch {
-      return null;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
-  },
-  forget(key) {
-    try {
-      localStorage.removeItem(key);
-    } catch {}
-  },
-};
+// What this browser remembers (a comment's name, a blog not saved yet), and
+// what this tab does while it's open (the Blog's sort). Either can be
+// switched off, or full, so it's only ever a convenience.
+function keeper(storage) {
+  return {
+    get(key) {
+      try {
+        return JSON.parse(storage().getItem(key));
+      } catch {
+        return null;
+      }
+    },
+    set(key, value) {
+      try {
+        storage().setItem(key, JSON.stringify(value));
+      } catch {}
+    },
+    forget(key) {
+      try {
+        storage().removeItem(key);
+      } catch {}
+    },
+  };
+}
+export const remembered = keeper(() => localStorage);
+export const forNow = keeper(() => sessionStorage);

@@ -2,9 +2,9 @@
    techtrash.org : the website
 
    The page every visit opens up to, inside the Internet Explorer
-   window. Its own look, not XP's: msaunders.dev's (black, JetBrains
-   Mono, hairline panels over a sky of cosmos.js planets), but
-   multicolor, with a real top bar and real buttons.
+   window. Its own look, not XP's: msaunders.dev's (black, hairline
+   panels over a sky of cosmos.js planets), but multicolor, in Paper
+   Mono, with real buttons.
 
    Colors come in through .hue-1 to .hue-6, which set --hue for
    everything inside: a link, a button, a section's name, a card's
@@ -46,10 +46,20 @@ a:hover { color: var(--site-fg); }
 ::selection { background: var(--hue); color: var(--site-bg); }
 :focus-visible { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-2); }
 
+/* The column: panels at most --site-wrap wide, and once the window is
+   narrower than that, as far from its sides as from its top and from
+   each other (--site-gap). Its start is rounded down to a whole pixel,
+   so a column centered in an odd window doesn't start on a half one and
+   draw every hairline in it across two; the end takes up the half. (A
+   browser without round() centers it as before.) */
 .wrap {
-  max-width: var(--site-wrap);
+  max-width: calc(var(--site-wrap) + 2 * var(--site-gap));
   margin: 0 auto;
-  padding: 0 var(--sp-24);
+  padding: 0 var(--site-gap);
+}
+.wrap {
+  margin-inline-start: round(down, max(0px, (100% - var(--site-wrap) - 2 * var(--site-gap)) / 2), var(--site-whole));
+  margin-inline-end: auto;
 }
 
 /* --- the sky ----------------------------------------------- *
@@ -100,6 +110,14 @@ a:hover { color: var(--site-fg); }
 .planet--4 { bottom: 3%; left: 9%; transform-origin: bottom left; }
 /* The asteroids (.planet--5 and --6) are placed by space.js: in the
    strips of window beside the page, sized to fit them. */
+/* A pixel for every pixel: unhinted, and a hairline of stroke, for
+   the glyphs' ink (see --site-art-stroke). */
+@media (max-resolution: 1dppx) {
+  .planet {
+    text-rendering: geometricPrecision;
+    -webkit-text-stroke-width: var(--site-art-stroke);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .star { animation: none; }
 }
@@ -128,28 +146,59 @@ a:hover { color: var(--site-fg); }
 .button:disabled { opacity: var(--site-stars); cursor: default; }
 .button:disabled:hover { color: var(--hue); }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+/* A small one: the Blog's sort and its flags, a flag in the editor.
+   Body size like everything else, and one label line tall, so a row of
+   them shares the line with a panel's name. */
+.button--small {
+  padding: 0 var(--sp-8);
+  font: 400 var(--fs-site-body)/var(--lh-site-small) var(--font-site);
+}
 
-/* --- panels ------------------------------------------------ */
-.page { padding-top: var(--sp-16); }
+/* --- panels ------------------------------------------------ *
+   msaunders.dev's spacing (see "spacing" in tokens.css): the first
+   panel as far from the window's top as the panels are from each other
+   and from the window's sides, one step (16) between everything inside
+   a panel, and its letters as far from its top and bottom as from its
+   sides. */
+.page { padding-top: var(--site-gap); }
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
-  margin-bottom: var(--sp-16);
-  padding: var(--sp-24);
+  margin-bottom: var(--site-gap);
+  padding: calc(var(--site-pad) - var(--site-trim-top)) var(--site-pad) calc(var(--site-pad) - var(--site-trim-bottom));
   background: var(--site-panel);
   border: var(--hairline) solid var(--site-line);
 }
+/* Ending on a box, its edge is the ink: the full inset under it. */
+.panel > :last-child:is(.button-row, .cards, .gallery, .comment-form),
+.panel > .page-text:last-child > .button-row:last-child { margin-bottom: var(--site-trim-bottom); }
 
 /* A panel's name on the left, and in the other corner, on the same
-   line, whatever goes with it (how many pictures). */
+   line, whatever goes with it (how many pictures, the Blog's sort).
+   Lined up by their tops, so a name sits in the same place in every
+   panel, whatever's beside it. */
 .panel__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-8) var(--sp-24);
 }
+
+/* Small buttons in a line, after what they're for: the Blog's sort
+   ("Sort by"), its flags, and any or all of the flags picked. */
+.sort, .filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+}
+/* The sort's buttons are boxes at the top of their panel, where the
+   inset is trimmed for letters (see .panel): down by the trim, so their
+   edges sit as far from the panel's top as from its side. */
+.panel__head .sort { margin-top: var(--site-trim-top); }
+.filters { display: flex; flex-direction: column; gap: var(--sp-8); }
 
 /* A section's name, in the section's hue. */
 .label { color: var(--hue); font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
@@ -159,15 +208,25 @@ a:hover { color: var(--site-fg); }
 .crumb { color: var(--site-fg-3); }
 
 /* --- the headline ------------------------------------------ *
-   "Techtrash", a letter in each hue. */
-.title { font: 500 var(--fs-site-title)/var(--lh-site-title) var(--font-site); }
+   "Techtrash", a letter in each hue, msaunders.dev's size and
+   tracking. Its line box carries more over its capitals than a
+   label's, so it's pulled up into the panel's inset by the
+   difference (--site-title-trim). */
+.title {
+  margin-top: var(--site-title-trim);
+  font: 500 var(--fs-site-title)/var(--lh-site-title) var(--font-site);
+  letter-spacing: var(--ls-site-title);
+}
 .title__letter { color: var(--hue); }
 
-/* A topic's or a post's title, on its own page. */
-.head { font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site); }
+/* A blog's title, on its own page. */
+.head {
+  font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site);
+  letter-spacing: var(--ls-site-head);
+}
 
-/* --- topics, and a topic's posts: cards ---------------------- */
-.topics {
+/* --- the Blog: a card for each blog ------------------------- */
+.cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--site-card-min)), 1fr));
   align-items: start;   /* each card as tall as what's on it */
@@ -188,63 +247,75 @@ a:hover { color: var(--site-fg); }
   object-fit: cover;
   border-bottom: var(--hairline) solid var(--site-line);
 }
-.card__body { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-16); }
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: calc(var(--site-card-pad) - var(--site-trim-top)) var(--site-card-pad) calc(var(--site-card-pad) - var(--site-trim-bottom));
+}
 .card__text { color: var(--site-fg-2); }
 
-/* A title in a list: a topic's on its card, a post's in its topic. */
+/* A blog's title, on its card. */
 .named { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
 
+/* The admin's New blog and drafts, over the Blog: each draft's
+   title, and the day it was started. */
+.admin-blog { display: flex; flex-direction: column; gap: var(--sp-16); }
+.drafts { display: flex; flex-direction: column; gap: var(--sp-16); }
+.draft-list { display: flex; flex-direction: column; gap: var(--sp-8); padding: 0; list-style: none; }
+.draft-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-16); }
 
-/* A topic, in the Blog's panel: its picture and description, over its posts. */
-.topic-about { display: flex; flex-direction: column; gap: var(--sp-16); }
-.topic-about:empty { display: none; }
-.topic-cover { max-width: var(--site-measure); border: var(--hairline) solid var(--site-line); }
+/* --- flags ------------------------------------------------- *
+   "#space", in the flag's hue: a button to filter the Blog by, a
+   link under a blog's title, words on its card. */
+.flag::before, .tag::before { content: "#"; }
+.tags { display: flex; flex-wrap: wrap; gap: 0 var(--sp-16); }
+.tag { color: var(--hue); text-decoration: none; }
+a.tag:hover { color: var(--site-fg); }
 
 /* --- Home -------------------------------------------------- *
    The bulletin across the top, edged in the hue on the left; then
-   Home's words, and down the right side the newest posts: a title,
-   and its topic under it, smaller. On a phone the side goes
-   under. */
+   Home's words, and down the right side the newest blogs: a title,
+   and its flags under it, smaller. On a phone the side goes
+   under, a step down like everything else. */
 .home {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--site-side);
   align-items: start;
-  gap: var(--sp-32);
+  gap: var(--sp-16) var(--sp-32);
 }
 .home__main { display: flex; flex-direction: column; gap: var(--sp-16); min-width: 0; }
 .home__side {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-12);
+  gap: var(--sp-16);
   padding-left: var(--sp-24);
   border-left: var(--hairline) solid var(--site-line);
 }
-.side-posts { display: flex; flex-direction: column; gap: var(--sp-12); padding: 0; list-style: none; }
+.side-posts { display: flex; flex-direction: column; gap: var(--sp-16); padding: 0; list-style: none; }
 .side-posts li { display: flex; flex-direction: column; }
-.side-posts__title { color: var(--site-fg); text-decoration: none; }
-.side-posts__title:hover { color: var(--hue); }
-.side-posts__topic {
-  color: var(--hue);
-  font: 400 var(--fs-site-small)/var(--lh-site-small) var(--font-site);
+.side-posts__title {
+  color: var(--site-fg);
+  font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
   text-decoration: none;
 }
-.side-posts__topic:hover { text-decoration: underline; }
+.side-posts__title:hover { color: var(--hue); }
 
 /* One of the site's own pages (the tagline, Home's words, About me),
    and the admin's button to edit it. */
-.page-text { display: flex; flex-direction: column; gap: var(--sp-8); }
+.page-text { display: flex; flex-direction: column; gap: var(--sp-16); }
 .home__bulletin:empty { display: none; }
 .bulletin {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-12);
-  padding: var(--sp-16);
+  gap: var(--sp-16);
+  padding: calc(var(--site-card-pad) - var(--site-trim-top)) var(--site-card-pad) calc(var(--site-card-pad) - var(--site-trim-bottom));
   background: var(--site-field);
   border: var(--hairline) solid var(--site-line);
   border-left-color: var(--hue);
 }
 /* The editor for one of the site's own pages: Home's words, the bulletin, About me. */
-.writing-form { display: flex; flex-direction: column; gap: var(--sp-12); }
+.writing-form { display: flex; flex-direction: column; gap: var(--sp-16); }
 
 /* --- Pictures ---------------------------------------------- *
    Every picture on the site, square, edge to edge: no borders, no
@@ -256,16 +327,25 @@ a:hover { color: var(--site-fg); }
 .gallery__item { display: block; }
 .gallery__item img { width: 100%; aspect-ratio: 1; object-fit: cover; }
 
-/* A heading inside a panel: "Newest posts". */
+/* A heading inside a panel: "Newest blogs", "Drafts". */
 .group__head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0 var(--sp-12);
+  gap: 0 var(--sp-16);
   font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
 }
 
-/* --- a post ------------------------------------------------ *
+/* What only the admin sees on a draft's page: that it's a draft. */
+.notice {
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--site-field);
+  border: var(--hairline) solid var(--site-line);
+  border-left-color: var(--hue);
+  color: var(--site-fg-2);
+}
+
+/* --- a blog ------------------------------------------------ *
    What the editor makes, the same in the editor as on the page. */
 .prose {
   display: flow-root;   /* holds a picture the words go around */
@@ -330,8 +410,8 @@ a:hover { color: var(--site-fg); }
 .embed--list iframe { height: var(--site-album); }
 
 /* --- the admin's editor -------------------------------------- *
-   The buttons stay in reach under the top bar as a long post
-   scrolls; the box under them is drawn the way the post will be. */
+   The buttons stay in reach at the top as a long blog
+   scrolls; the box under them is drawn the way the blog will be. */
 .editor {
   display: flex;
   flex-direction: column;
@@ -451,21 +531,46 @@ a:hover { color: var(--site-fg); }
   background: none;
   color: var(--site-fg);
   font: 500 var(--fs-site-head)/var(--lh-site-head) var(--font-site);
+  letter-spacing: var(--ls-site-head);
 }
 .editor__title:focus-visible { outline: 0; border-color: var(--hue); }
-.settings { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-16) var(--sp-24); }
+/* Under the box: the blog's flags, and its comments on or off. */
+.settings { display: flex; flex-direction: column; align-items: start; gap: var(--sp-16); }
+
+/* Its flags: a small button each (a click takes it off), a box to
+   name another, and under them the flags other blogs have. */
+.flag-picker { display: flex; flex-direction: column; gap: var(--sp-8); }
+.flag-picker__row, .flag-picker__on { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+.flag-picker__on:empty { display: none; }
+.flag-picker__x { margin-left: var(--sp-4); }
+.flag-picker__field {
+  padding: 0 var(--sp-8);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-small) var(--font-site);
+}
+.flag-picker__field:focus-visible { outline: 0; border-color: var(--hue); }
+.flag-picker__others {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-16);
+}
+.flag-picker__others:empty { display: none; }
 
 /* --- comments ------------------------------------------------ *
-   Threads: each reply a step in, on a line in the post's hue. */
+   Threads: each reply a step in, on a line in the blog's hue. */
 .thread { display: flex; flex-direction: column; gap: var(--sp-16); padding: 0; list-style: none; }
 .thread .thread {
-  margin-top: var(--sp-12);
+  margin-top: var(--sp-16);
   padding-left: var(--sp-16);
   border-left: var(--hairline) solid var(--site-line-2);
 }
-.comment { display: flex; flex-direction: column; gap: var(--sp-4); }
+.comment { display: flex; flex-direction: column; gap: var(--sp-8); }
 .comment.is-new > .comment__head .comment__name { color: var(--hue); }
-.comment__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-12); }
+.comment__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-16); }
 .comment__name { color: var(--site-fg); font-weight: 500; }
 .comment__badge { color: var(--hue); }
 .comment__date { color: var(--site-fg-3); text-decoration: none; }
@@ -492,15 +597,15 @@ a:hover { color: var(--site-fg); }
 .form fieldset {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-12);
+  gap: var(--sp-16);
   max-width: var(--site-measure);
-  padding: var(--sp-16);
+  padding: calc(var(--site-card-pad) - var(--site-trim-top)) var(--site-card-pad) calc(var(--site-card-pad) - var(--site-trim-bottom));
   border: var(--hairline) solid var(--site-line);
   border-radius: var(--r-control);
 }
 .form legend { padding: 0 var(--sp-4); color: var(--hue); }
 .form label,
-.form__field { display: flex; flex-direction: column; gap: var(--sp-4); color: var(--site-fg-2); }
+.form__field { display: flex; flex-direction: column; gap: var(--sp-8); color: var(--site-fg-2); }
 /* A form's own fields: not the editor's, which has its own look. */
 .form label > input:not([type="file"]),
 .form label > textarea {
@@ -538,7 +643,6 @@ a:hover { color: var(--site-fg); }
 .form input[type="checkbox"] { accent-color: var(--hue); }
 .form label.check { flex-direction: row; align-items: center; gap: var(--sp-8); white-space: nowrap; }
 .form__message:empty { display: none; }
-.form__picture { max-width: var(--site-thumb); border: var(--hairline) solid var(--site-line); }
 
 
 /* The field only a bot fills in: there, but out of sight. */
@@ -546,26 +650,41 @@ a:hover { color: var(--site-fg); }
 
 /* --- the foot ---------------------------------------------- *
    Copyleft, Matthew Saunders, and the credits (Notepad, on the
-   desktop). The copyleft sign is the font's own © turned around:
-   JetBrains Mono has no copyleft of its own. */
+   desktop): a gap under the last panel, like the gap between any
+   two, and the same under it. The copyleft sign is the font's own ©
+   turned around (Paper Mono has no copyleft of its own), half again
+   the size of the line, as msaunders.dev sets it (--fs-site-mark). */
 .foot {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--sp-4) var(--sp-16);
-  padding-top: var(--sp-32);
-  padding-bottom: var(--sp-48);
+  gap: 0 var(--sp-16);
+  padding-bottom: var(--site-gap);
   color: var(--site-fg-3);
 }
-.copyleft { display: inline-block; transform: scaleX(-1); }
+.copyleft {
+  display: inline-block;
+  font-size: var(--fs-site-mark);
+  vertical-align: var(--site-mark-drop);
+  transform: scaleX(-1);
+}
 .foot a { color: var(--site-fg-2); }
 .foot a:hover { color: var(--hue); }
 
 /* --- a phone, or a narrow window ------------------------------ */
 @media (max-width: 640px) {
-  .wrap { padding: 0 var(--sp-16); }
-  .panel { padding: var(--sp-16); }
-  .title { font-size: var(--fs-site-title-s); line-height: var(--lh-site-title-s); }
+  /* every gap and inset a size down, all at once */
+  :root {
+    --site-gap: var(--site-gap-s);
+    --site-pad: var(--site-pad-s);
+    --site-card-pad: var(--site-card-pad-s);
+    --site-title-trim: var(--site-title-trim-s);
+  }
+  .title {
+    font-size: var(--fs-site-title-s);
+    line-height: var(--lh-site-title-s);
+    letter-spacing: var(--ls-site-title-s);
+  }
   .planet { transform: scale(var(--site-art-scale-s)); }
   /* no room for words beside a picture */
   .prose .pic--left, .prose .pic--right { float: none; max-width: 100%; margin: 0; }

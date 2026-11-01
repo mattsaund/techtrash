@@ -5,6 +5,13 @@
 // and a scatter of stars in the six hues, twinkling. The sky stays put while
 // the page scrolls over it, so every planet is on screen from the start.
 //
+// Each body gets a cosmos.js of its own. cosmos.js keeps the part of a frame
+// that doesn't turn (its view cache) for one body at a time, so six bodies
+// taking turns with one would build it again for every one, every frame;
+// each run of the script is a cosmos.js of its own, cache and all. Each is
+// told the shape of a glyph in the font the planets are actually drawn in
+// (setAspect), measured once it's loaded, so a round planet comes out round.
+//
 // The planets are drawn at twice the rows the editor would use, in glyphs
 // half the size (site.css scales them by --site-art-scale): the same size on
 // screen, with twice the detail.
@@ -22,28 +29,33 @@
 //
 // To change a planet, tune it in the cosmos.js editor (msaunders.dev/cosmos)
 // and copy its settings into PLANETS: they're the editor's own settings, by
-// the same names (with rows doubled, as above). Two things come from the site
-// instead of the editor: its color is a hue class, so it stays one of the
-// six, and where it sits is its .planet--N rule in site.css.
+// the same names. Three things come from the site instead of the editor: its
+// frame (rows, doubled as above, and wide, the frame's width over its
+// height), its color, which is a hue class so it stays one of the six, and
+// where it sits, its .planet--N rule in site.css. zoom is the editor's, but
+// past 1 here: the ringed one's frame is cut close around its rings as they
+// lie, the way it looked before cosmos.js cut every frame for rings at their
+// widest.
 //
 // Someone who's asked their computer for less motion gets the sky standing
 // still: no turning, no twinkling.
 
 const PLANETS = [
-  { place: "planet--1", hue: "hue-6", texture: "gas",  rows: 88, brightness: 1.3, rings: true, tilt: 0.42, roll: -0.35, speed: 0.05, seed: 1994 },
-  { place: "planet--2", hue: "hue-2", texture: "lava", rows: 60, brightness: 1.3, tilt: 0.20, roll: 0.30, speed: 0.08, seed: 20260929 },
-  { place: "planet--3", hue: "hue-5", texture: "ice",  rows: 52, brightness: 1.3, tilt: 0.50, roll: 0.10, speed: 0.07, direction: -1, seed: 1969 },
-  { place: "planet--4", hue: "hue-4", texture: "rock", rows: 36, brightness: 1.3, craters: 22, lumpiness: 0.25, speed: 0.11, seed: 42 },
+  { place: "planet--1", hue: "hue-6", rows: 88, wide: 1.847, texture: "gas", zoom: 1.926, brightness: 1.3, rings: true, tilt: 0.42, roll: -0.35, speed: 0.05, seed: 1994 },
+  { place: "planet--2", hue: "hue-2", rows: 60, wide: 1, texture: "lava", zoom: 1, brightness: 1.3, tilt: 0.20, roll: 0.30, speed: 0.08, seed: 20260929 },
+  { place: "planet--3", hue: "hue-5", rows: 52, wide: 1, texture: "ice", zoom: 1, brightness: 1.3, tilt: 0.50, roll: 0.10, speed: 0.07, direction: -1, seed: 1969 },
+  { place: "planet--4", hue: "hue-4", rows: 36, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 22, lumpiness: 0.25, speed: 0.11, seed: 42 },
   // two asteroids: lumpy, potato-shaped rocks, tumbling quicker than the planets
   // turn. side, across and at say where: which side of the page, how far across
   // that strip of window from its edge (1 is up against the page), and how far
   // down the window.
-  { place: "planet--5", hue: "hue-3", side: "right", across: 0.5, at: 0.42, texture: "rock", rows: 51, brightness: 1.3, craters: 24, lumpiness: 1.5, tilt: 0.70, roll: 0.90, speed: 0.20, seed: 99942 },
-  { place: "planet--6", hue: "hue-1", side: "left", across: 0.7, at: 0.12, texture: "rock", rows: 51, brightness: 1.3, craters: 18, lumpiness: 1.7, tilt: 0.70, roll: 0.90, speed: 0.16, direction: -1, seed: 1221 },
+  { place: "planet--5", hue: "hue-3", side: "right", across: 0.5, at: 0.42, rows: 51, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 24, lumpiness: 1.5, tilt: 0.70, roll: 0.90, speed: 0.20, seed: 99942 },
+  { place: "planet--6", hue: "hue-1", side: "left", across: 0.7, at: 0.12, rows: 51, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 18, lumpiness: 1.7, tilt: 0.70, roll: 0.90, speed: 0.16, direction: -1, seed: 1221 },
 ];
 
+const COSMOS = "/pages/blog/cosmos/planet.js";
 const STARS = 150;
-const STAR_GLYPHS = [".", ".", ".", "·", "·", "+", "*"];
+const STAR_GLYPHS = [".", ".", ".", ".", ".", "+", "*"];
 const STAR_SEED = 2026;   // the same sky on every visit
 const FRAME_MS = 100;     // the planets turn slowly: ten frames a second is plenty
 const TURNS = 16;         // how many angles a planet is looked at, to find all it covers
@@ -67,16 +79,49 @@ function seeded(seed) {
 
 // --- planets -------------------------------------------------------------------
 
-const planets = PLANETS.map(({ place, hue, side, across, at, ...settings }) => {
+// A cosmos.js of its own: the script, run again. (One at a time, so each
+// Cosmos it leaves behind is caught before the next one's run.)
+const cosmos = () => new Promise((resolve, reject) => {
+  const script = document.createElement("script");
+  script.src = COSMOS;
+  script.onload = () => {
+    script.remove();
+    resolve(window.Cosmos);
+  };
+  script.onerror = () => reject(new Error(`${COSMOS} didn't load`));
+  document.head.append(script);
+});
+
+// The shape of a glyph the planets are drawn in, as cosmos.js wants it: its
+// width over its height. Measured in the font itself, once it's here (one
+// still loading would measure the one standing in for it).
+async function glyphShape() {
+  const probe = document.createElement("pre");
+  probe.className = "planet";
+  probe.style.visibility = "hidden";
+  probe.textContent = `${"M".repeat(100)}\n`.repeat(10).trimEnd();
+  sky.append(probe);
+  const look = getComputedStyle(probe);
+  await document.fonts.load(`${look.fontWeight} ${look.fontSize} ${look.fontFamily}`).catch(() => {});
+  const { width, height } = probe.getBoundingClientRect();
+  probe.remove();
+  return width / 100 / (height / 10);
+}
+
+const shape = await glyphShape();
+const planets = [];
+for (const { place, hue, side, across, at, rows, wide, ...settings } of PLANETS) {
   const pre = document.createElement("pre");
   pre.className = `planet ${place} ${hue}`;
   sky.append(pre);
-  const cfg = Object.assign(window.Cosmos.defaults(), settings);
-  const body = window.Cosmos.build(cfg);
+  const renderer = await cosmos();
+  renderer.setAspect(shape);
+  const cfg = Object.assign(renderer.defaults(), settings);
+  const body = renderer.build(cfg, { rows, wide });
   // every glyph the planet covers at any angle
   const covers = new Uint8Array(body.rows * body.cols);
   for (let i = 0; i < TURNS; i++) {
-    window.Cosmos.render(body, (i / TURNS) * 2 * Math.PI).split("\n").forEach((line, row) => {
+    renderer.render(body, (i / TURNS) * 2 * Math.PI).split("\n").forEach((line, row) => {
       for (let col = 0; col < line.length; col++) if (line[col] !== " ") covers[row * body.cols + col] = 1;
     });
   }
@@ -91,8 +136,8 @@ const planets = PLANETS.map(({ place, hue, side, across, at, ...settings }) => {
     box.left = Math.min(box.left, col);
     box.right = Math.max(box.right, col + 1);
   });
-  return { pre, body, covers, box, side, across, at, turn: cfg.speed * cfg.direction };
-});
+  planets.push({ pre, renderer, body, covers, box, side, across, at, turn: cfg.speed * cfg.direction });
+}
 
 // Each asteroid in its strip of window beside the page, where it says
 // (across, at), as big as fits (up to the planets' size), or not at all.
@@ -132,7 +177,7 @@ function placeAsteroids() {
 
 function draw(seconds) {
   for (const planet of planets) {
-    if (!planet.pre.hidden) planet.pre.textContent = window.Cosmos.render(planet.body, seconds * planet.turn);
+    if (!planet.pre.hidden) planet.pre.textContent = planet.renderer.render(planet.body, seconds * planet.turn);
   }
 }
 

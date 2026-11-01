@@ -13,7 +13,8 @@ attribute in public/, and lists everything that breaks a rule:
   - a line-height that isn't a --lh-* token
   - a font-weight other than 400, 500 or 700
   - a z-index that isn't a --z-* token
-  - a media query at any width but the breakpoint below
+  - a media query at any width but the breakpoint below, or at any
+    resolution but the planets' (--site-art-coarse)
   - a var(--name) that nothing defines, which is almost always a typo
   - a color written into an HTML attribute (fill, stroke, bgcolor...)
 
@@ -34,6 +35,9 @@ SKIP_DIRS = {"fonts"}
 # query can't read a custom property, so CSS writes the number out and this
 # makes sure it's that number.
 BREAKPOINTS = set(re.findall(r"--breakpoint:\s*([\d.]+px)", TOKENS.read_text()))
+# ...and the one resolution: the screens the website's planets need a stroke on.
+RESOLUTIONS = set(re.findall(r"--site-art-coarse:\s*([\d.]+dppx)", TOKENS.read_text()))
+RESOLUTION = re.compile(r"(?<![\w.#-])(?:\d+\.?\d*|\.\d+)(?:dppx|dpi|dpcm|x)\b", re.I)
 # XP is 400 and 700 (Tahoma has nothing between); the website is 400 and 500,
 # and 700 for bold words in a post.
 WEIGHTS = {"400", "500", "700", "inherit"}
@@ -119,6 +123,9 @@ def check_css(text, start_line=1):
         for w in LENGTH.finditer(m.group(1)):
             if w.group().lower() not in BREAKPOINTS:
                 found.append((line, f"media query at '{w.group()}': the only breakpoint is {', '.join(sorted(BREAKPOINTS))}"))
+        for r in RESOLUTION.finditer(m.group(1)):
+            if r.group().lower() not in RESOLUTIONS:
+                found.append((line, f"media query at '{r.group()}': the only resolution is {', '.join(sorted(RESOLUTIONS))}"))
     for m in DECL.finditer(text):
         line = start_line + text.count("\n", 0, m.start())
         for problem in check_value(m.group(1), m.group(2)):

@@ -22,16 +22,12 @@ export { Desktop } from "./server/desktop.js";
 
 // "<method> <what>" for /api/blog/<what>. Reading is anyone's; the rest is the admin's.
 const BLOG = {
-  "GET topics": blog.listTopics,
-  "POST topics": blog.createTopic,
-  "GET topic": blog.getTopic,
-  "PUT topic": blog.updateTopic,
-  "DELETE topic": blog.deleteTopic,
-  "GET posts": blog.newestPosts,
+  "GET posts": blog.listPosts,     // (its drafts: the admin's, checked there)
   "POST posts": blog.createPost,
-  "GET post": blog.getPost,
+  "GET post": blog.getPost,        // (a draft: the admin's, checked there)
   "PUT post": blog.updatePost,
   "DELETE post": blog.deletePost,
+  "GET flags": blog.listFlags,
   "GET pictures": blog.listPictures,
   "POST pictures": blog.uploadPicture,
   "POST comments": blog.createComment,   // anyone's, see server/blog.js

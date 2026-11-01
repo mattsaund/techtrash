@@ -358,66 +358,128 @@
 
    techtrash.org itself: the page inside the Internet Explorer
    window, the one every visit opens up to. It isn't XP. It has its
-   own look, after msaunders.dev (black, JetBrains Mono, hairline
+   own look, after msaunders.dev (black, a monospaced face, hairline
    panels over a sky of cosmos.js planets), but multicolor where
-   msaunders.dev is all blue, with a real top bar and real buttons.
+   msaunders.dev is all blue, and in Paper Mono, with real buttons.
 
    Everything the website uses is below, plus the spacing scale
    (--sp-*), --hairline and --r-control from above. Same rule as
    the rest of the file: nothing raw anywhere else.
    ============================================================ */
 
-/* JetBrains Mono, from msaunders.dev: one variable file for every
-   weight, Latin only. OFL, see fonts/JetBrainsMono-OFL.txt. */
+/* Paper Mono, the face cosmos.js's editor is set in: one variable
+   file for every weight, 100 to 800. OFL, see fonts/PaperMono-OFL.txt.
+
+   Set up the way msaunders.dev sets it up. Its own advance is 0.606
+   em, a whole number of pixels at no size anyone sets, so size-adjust
+   scales it to exactly 0.625 em: at any size that's a multiple of 8,
+   every column lands on a whole pixel (the 16px labels on 10px
+   columns, the 48px headline on 30px ones). The letters come out 3%
+   bigger than the font's own. A browser without size-adjust (Safari
+   before 17) gets the plain 0.606. space.js measures the advance to
+   size the planets, so this changes the art's grid with it. */
 @font-face {
-  font-family: "JetBrains Mono";
-  src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2");
-  font-weight: 400 800;
+  font-family: "Paper Mono";
+  src: url("/fonts/paper-mono.woff2") format("woff2");
+  font-weight: 100 800;
   font-style: normal;
   font-display: swap;
+  size-adjust: 103.1353%;   /* 0.606 em advance up to 0.625 */
 }
 
 :root {
-  --font-site: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular,
+  --font-site: "Paper Mono", ui-monospace, "SF Mono", SFMono-Regular,
                "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   /* --- type -------------------------------------------------
-     Six sizes, each with its one line height, and two weights:
-     400 and 500, msaunders.dev's. Bold words in a post are 700, so
-     they read as bold (and so the editor's B button knows them).
+     msaunders.dev's: two sizes for everything, each with its one
+     line height, a length (a ratio lands on a fraction at most
+     sizes), and the headline. Nothing is smaller than the body size.
+     Two weights, 400 and 500; bold words in a blog are 700, so they
+     read as bold (and so the editor's B button knows them).
 
-     body   14/23  everything it says: copy, lists, buttons, dates,
+     body   14/23  everything it says: copy, buttons, dates, flags,
                    the footer, comments
-     label  16/23  anything that names something: the top bar,
-                   section labels, topic and post titles in a list,
-                   a small heading in a post
-     small  12/18  a small button beside a panel's name (the Blog's
-                   sort buttons)
-     sub    20/28  a heading in a post
-     head   28/36  a topic's or a post's title, on its own page
-     title  50/60  "Techtrash", once. 40/48 on a phone.
+     label  16/23  anything that titles or labels something: a
+                   panel's name, a blog's title on its card and
+                   beside Home
+     head   30/36  a blog's title, on its own page and in the editor:
+                   msaunders.dev's smallest headline, a step over the
+                   biggest heading a blog's words start with
+     title  48/60  "Techtrash", once. 40/48 on a phone.
+
+     What's in a blog is the admin's to size, in the editor. Its
+     headings start at these:
+     sub    20/28  a heading (H2); a smaller one (H3) is a label,
+                   and the smallest (H4) is body size, in 500
 
      art    5/1    the planets: a glyph of cosmos.js's is one cell
                    of a picture, not text */
-  --fs-site-small:   12px;  --lh-site-small:   18px;
   --fs-site-body:    14px;  --lh-site-body:    23px;
   --fs-site-label:   16px;  --lh-site-label:   23px;
   --fs-site-sub:     20px;  --lh-site-sub:     28px;
-  --fs-site-head:    28px;  --lh-site-head:    36px;
-  --fs-site-title:   50px;  --lh-site-title:   60px;
+  --fs-site-head:    30px;  --lh-site-head:    36px;
+  --fs-site-title:   48px;  --lh-site-title:   60px;
   --fs-site-title-s: 40px;  --lh-site-title-s: 48px;
   --fs-site-art:      5px;  --lh-site-art:      1;
+  /* The headlines' letters a step closer: whole pixels, so every one
+     stays on its whole-pixel column. msaunders.dev's. */
+  --ls-site-head:    -1px;
+  --ls-site-title:   -2px;
+  --ls-site-title-s: -1px;
+  /* A small button (the Blog's sort, its flags, a flag in the editor):
+     one label line tall, its hairlines included, so it shares the line
+     with a panel's name and the name sits where it does in every panel. */
+  --lh-site-small:   21px;
+  /* The copyleft sign in the foot: half again the size of its line (at
+     the line's own size, Paper Mono's ring closes into a dot), and set
+     down to sit on the line. msaunders.dev's. */
+  --fs-site-mark:    1.5em;
+  --site-mark-drop:  -0.12em;
   --site-art-scale:   0.5;    /* the planets' glyphs, drawn at half that: finer */
   --site-art-scale-s: 0.32;   /* ...and smaller still on a phone, so all four fit */
+  /* On a screen with one pixel for every pixel the page asks for, and
+     only there, Paper Mono's glyphs at the planets' size come out
+     thin: hinting snaps their strokes to the pixels, and the planets
+     keep under half their ink. Drawn unhinted, with a hairline of
+     stroke, they get it back, light and dark alike. A custom
+     property can't go in a media query, so site.css writes the
+     resolution out, and tools/check_style.py rejects any other. */
+  --site-art-coarse: 1dppx;
+  --site-art-stroke: 0.15px;
+
+  /* --- spacing ----------------------------------------------
+     msaunders.dev's. One gap: between panels, and the same around
+     them, from the window's top and its sides (once the window is
+     narrow enough for the column to reach them) and under the foot.
+     Inside a panel, one inset all round, less 3px at the top and 2px
+     at the bottom: a line box is taller than its letters, and those
+     put the letters as far from the panel's top and bottom as from its
+     sides. A panel that ends on a box (buttons, cards, pictures, a
+     form) gives the 2px back, since a box's edge is its ink. The
+     headline's line box carries more over its capitals than a
+     label's, so it's trimmed more. A card, the bulletin and a form's
+     box have an inset of their own, trimmed the same way. All smaller
+     on a phone. */
+  --site-gap:          16px;
+  --site-gap-s:        12px;
+  --site-pad:          24px;
+  --site-pad-s:        16px;
+  --site-card-pad:     24px;
+  --site-card-pad-s:   16px;
+  --site-trim-top:      3px;
+  --site-trim-bottom:   2px;
+  --site-title-trim:   -6px;
+  --site-title-trim-s: -4px;
+  --site-whole:         1px;   /* a whole pixel: what the column's start rounds to */
 
   /* --- sizes ------------------------------------------------ */
-  --site-wrap:     1204px;  /* the column everything sits in, msaunders.dev's */
+  --site-wrap:     1204px;  /* a panel at its widest, msaunders.dev's */
   --site-measure:  640px;   /* the longest line of a post, about 75 characters */
-  --site-card-min: 272px;   /* a topic's card, at its narrowest */
-  --site-cover:    16 / 9;  /* a topic's picture, on its card */
-  --site-thumb:    144px;   /* a topic's picture, in the form that changes it */
+  --site-card-min: 336px;   /* a blog's card, at its narrowest: three across a whole panel, as msaunders.dev lays its out */
+  --site-cover:    16 / 9;  /* a blog's first picture, on its card */
   --site-tile:     160px;   /* a picture in Pictures, at its narrowest */
-  --site-side:     272px;   /* Home's side, with the newest posts */
+  --site-side:     272px;   /* Home's side, with the newest blogs */
   --site-float:    50%;     /* a picture in a post with the words around it, at most */
   --site-editor:   360px;   /* the editor's box, at its shortest */
   --site-editor-short: 96px; /* ...when it's for a line or two (the tagline) */
@@ -449,7 +511,7 @@
 
   /* The multicolor: six hues, every one readable on black. Anything
      that takes a color takes one of these, through a .hue-1 to
-     .hue-6 class; a topic keeps the same one everywhere. */
+     .hue-6 class; a blog or a flag keeps the same one everywhere. */
   --site-hue-1: #ff6b6b;   /* red */
   --site-hue-2: #ffa94d;   /* orange */
   --site-hue-3: #ffd43b;   /* yellow */

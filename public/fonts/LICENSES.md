@@ -3,11 +3,12 @@
 The Tahoma and DejaVu files are built by `tools/make_fonts.py`. Don't edit them
 by hand.
 
-## jetbrains-mono-latin.woff2
+## paper-mono.woff2
 
-JetBrains Mono, the website's face, copied from msaunders.dev (where it's
-subset to Latin, one variable file for every weight). SIL Open Font License
-1.1: see `JetBrainsMono-OFL.txt`. https://github.com/JetBrains/JetBrainsMono
+Paper Mono, the website's face, copied unchanged from cosmos.js
+(`web/fonts/paper-mono.woff2`): one variable file for every weight, 100 to
+800. Copyright 2025 The Paper-Mono.Git Project Authors. SIL Open Font License
+1.1: see `PaperMono-OFL.txt`. https://github.com/paper-design/paper-mono
 
 ## tahoma-latin.woff2, tahoma-bold-latin.woff2
 

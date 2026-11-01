@@ -4,9 +4,12 @@
 // - Opened on its own (a search result, a shared link), it sends the visitor
 //   to the desktop with itself open at the same place:
 //   /pages/notepad/?file=credits.txt becomes /#notepad/?file=credits.txt,
-//   and /pages/blog/?blog/rockets/liftoff becomes
-//   /#blog/?blog/rockets/liftoff, which the desktop tidies into the site's
-//   own /#blog/rockets/liftoff.
+//   and /pages/blog/?blog/liftoff becomes
+//   /#blog/?blog/liftoff, which the desktop tidies into the site's
+//   own /#blog/liftoff.
+// - Inside its window, it tells the desktop it's here as soon as it's read,
+//   so the window's title and the address follow it without waiting for
+//   every picture and player on it to load.
 // - Inside its window, a link to another app opens that app's window rather
 //   than loading it here, a link to anywhere else on the site replaces the
 //   whole desktop (unless it has a target of its own, like a file Notepad
@@ -25,6 +28,8 @@
     }
     return;
   }
+
+  document.addEventListener("DOMContentLoaded", () => window.top.desktop?.arrived?.(window));
 
   document.addEventListener("click", (e) => {
     const link = e.target.closest("a[href]");

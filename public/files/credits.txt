@@ -21,10 +21,10 @@ DejaVu Sans Mono
   Bitstream Vera license: /fonts/DejaVu-LICENSE.txt
   dejavu-fonts.github.io
 
-JetBrains Mono (the website)
-  The JetBrains Mono Project Authors.
-  SIL Open Font License 1.1: /fonts/JetBrainsMono-OFL.txt
-  github.com/JetBrains/JetBrainsMono
+Paper Mono (the website)
+  The Paper-Mono.Git Project Authors.
+  SIL Open Font License 1.1: /fonts/PaperMono-OFL.txt
+  github.com/paper-design/paper-mono
 
 
 PLANETS
