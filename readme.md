@@ -54,7 +54,9 @@ public/pages/blog/vendor/    marked, DOMPurify and turndown, copied unchanged
 public/pages/blog/space.js   Its sky: stars, and planets drawn with cosmos.js
 public/pages/blog/cosmos/    cosmos.js's planet renderer, copied unchanged
 public/programs/<id>/        Programs: files (the File Browser), notepad
-public/files/                Text files Notepad opens: credits.txt
+public/files/                Text files Notepad opens: credits.txt. And
+                             create-mod-all.mrpack, the server's modpack
+                             (see "The modpack")
 public/404.html              XP's blue screen, for any address that isn't here
 public/under-construction/   The same screen, for anything not built yet: point
                              an unfinished link at /under-construction/
@@ -95,6 +97,8 @@ wrangler.jsonc               The Worker's Cloudflare settings
 tools/check_style.py         Enforces the rules. Run it before you push.
 tools/make_fonts.py          Rebuilds public/fonts/ from Wine's Tahoma and DejaVu
 tools/make_icons.py          Rebuilds public/img/icons/xp/ from XP's own icons
+tools/make_modpack.py        Rebuilds public/files/create-mod-all.mrpack from
+                             the Prism instance the server's mods are played in
 ```
 
 ## Running it locally
@@ -448,6 +452,24 @@ bulletin**, **Edit about me**, **Edit tagline**.
 | `DELETE /api/blog/comment?id=` | admin | a comment's words (its replies stay) |
 | `GET /api/blog/page?name=` | anyone | one of the site's own pages, `home`, `bulletin`, `about` or `tagline` (empty until it's written, or once it's taken down) |
 | `PUT /api/blog/page?name=` | admin | `{ body }` (an empty one takes it down) |
+
+## The modpack
+
+`public/files/create-mod-all.mrpack` is the Create server's modpack, linked
+from the bulletin: `https://techtrash.org/files/create-mod-all.mrpack`. It's a
+Modrinth pack: a list of every mod, with its hashes and the address Modrinth
+serves it from, so it's a few KB and hands out nobody's jars. It carries
+nothing else (no configs, settings, worlds, resource packs or server list), so
+importing it gives a fresh instance with the mods. Prism imports it from the
+link (Add Instance, Import, paste it); the Modrinth App opens the file. The
+CurseForge app can't read Modrinth packs.
+
+`tools/make_modpack.py` makes it from the Prism instance the mods are played
+in (`~/.local/share/PrismLauncher/instances/1.21.1 Create Mod All`). Every mod
+has to have come from Modrinth through Prism's mod browser; the tool checks
+each jar against Prism's record of it and has Modrinth confirm every file by
+its hash before it writes anything. After changing the mods: run
+`python3 tools/make_modpack.py`, and push.
 
 ## Windows
 
