@@ -269,7 +269,13 @@ where msaunders.dev is all blue.
   renderer keeps the part of a frame that doesn't turn, its view cache, for
   one body at a time, so bodies sharing one would build it again every
   frame. Each is told the shape of a glyph as the browser really draws Paper
-  Mono, measured once the font is in, so a round planet comes out round. It stays
+  Mono, measured once the page's styles and the font are in, so a round
+  planet comes out round. That's checked again against the planets as
+  they're drawn (after the first frame, when a font loads, when the window
+  changes size, and every two seconds), and if they're drawn in any other
+  shape, they're built again for it. A phone can run the script before its
+  styles or its font have arrived, and the planets used to come out wide
+  until the next page load. It stays
   put while the page scrolls over it, so everything in it is on screen from the
   start: a planet tucked into each corner of the window (its `.planet--N` rule
   in `site.css`). The asteroids keep to the strips of window beside the page,

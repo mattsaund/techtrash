@@ -10,7 +10,13 @@
 // taking turns with one would build it again for every one, every frame;
 // each run of the script is a cosmos.js of its own, cache and all. Each is
 // told the shape of a glyph in the font the planets are actually drawn in
-// (setAspect), measured once it's loaded, so a round planet comes out round.
+// (setAspect), so a round planet comes out round: measured once the page's
+// styles and the font have both arrived, and then checked against the planets
+// as they're really drawn (keepRound): right after the first frame, whenever
+// a font finishes loading, when the window changes size, and every couple of
+// seconds besides. Drawn in any other shape (a phone can run this before its
+// styles or its font have reached the page, and the planets come out wide),
+// they're built again for the real one.
 //
 // The planets are drawn at twice the rows the editor would use, in glyphs
 // half the size (site.css scales them by --site-art-scale): the same size on
@@ -62,6 +68,9 @@ const TURNS = 16;         // how many angles a planet is looked at, to find all 
 const CLEAR = 6;          // how far, in pixels, a star stays from a planet
 const ROCK_AIR = 12;      // ...and an asteroid from the page's column and the window's edge
 const ROCK_LEAST = 40;    // an asteroid smaller than this, in pixels, isn't drawn
+const SHAPE_SLACK = 0.02; // how far the glyphs as drawn can be from the shape the planets
+                          // were built for (2%) before they're built again
+const RECHECK_MS = 2000;  // ...and how often that's looked at, whatever else happens
 
 const sky = document.querySelector(".sky");
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -92,15 +101,22 @@ const cosmos = () => new Promise((resolve, reject) => {
   document.head.append(script);
 });
 
+// Has the page's styling reached this <pre>? Until it has, it measures as
+// anything: the window's width, a line of the browser's own 13px text.
+const styled = (pre) => getComputedStyle(pre).position === "absolute";
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // The shape of a glyph the planets are drawn in, as cosmos.js wants it: its
-// width over its height. Measured in the font itself, once it's here (one
-// still loading would measure the one standing in for it).
+// width over its height. Measured in the font itself, once the page's styles
+// and the font have both arrived (either one missing would measure whatever
+// stands in for it), for up to 5 seconds of waiting for the styles.
 async function glyphShape() {
   const probe = document.createElement("pre");
   probe.className = "planet";
   probe.style.visibility = "hidden";
   probe.textContent = `${"M".repeat(100)}\n`.repeat(10).trimEnd();
   sky.append(probe);
+  for (let i = 0; i < 100 && !styled(probe); i++) await pause(50);
   const look = getComputedStyle(probe);
   await document.fonts.load(`${look.fontWeight} ${look.fontSize} ${look.fontFamily}`).catch(() => {});
   const { width, height } = probe.getBoundingClientRect();
@@ -108,16 +124,12 @@ async function glyphShape() {
   return width / 100 / (height / 10);
 }
 
-const shape = await glyphShape();
-const planets = [];
-for (const { place, hue, side, across, at, rows, wide, ...settings } of PLANETS) {
-  const pre = document.createElement("pre");
-  pre.className = `planet ${place} ${hue}`;
-  sky.append(pre);
-  const renderer = await cosmos();
+// A planet built for glyphs of this shape, and every glyph it covers at any
+// angle. (cosmos.js turns away a shape no font has, and keeps the one it had.)
+function build(planet, shape) {
+  const { renderer } = planet;
   renderer.setAspect(shape);
-  const cfg = Object.assign(renderer.defaults(), settings);
-  const body = renderer.build(cfg, { rows, wide });
+  const body = renderer.build(planet.cfg, planet.grid);
   // every glyph the planet covers at any angle
   const covers = new Uint8Array(body.rows * body.cols);
   for (let i = 0; i < TURNS; i++) {
@@ -136,8 +148,21 @@ for (const { place, hue, side, across, at, rows, wide, ...settings } of PLANETS)
     box.left = Math.min(box.left, col);
     box.right = Math.max(box.right, col + 1);
   });
-  planets.push({ pre, renderer, body, covers, box, side, across, at, turn: cfg.speed * cfg.direction });
+  Object.assign(planet, { body, covers, box });
 }
+
+const planets = [];
+for (const { place, hue, side, across, at, rows, wide, ...settings } of PLANETS) {
+  const pre = document.createElement("pre");
+  pre.className = `planet ${place} ${hue}`;
+  sky.append(pre);
+  const renderer = await cosmos();
+  const cfg = Object.assign(renderer.defaults(), settings);
+  planets.push({ pre, renderer, cfg, grid: { rows, wide }, side, across, at, turn: cfg.speed * cfg.direction });
+}
+let built = await glyphShape();   // the shape the planets are built for
+for (const planet of planets) build(planet, built);
+built = planets[0].renderer.aspect();
 
 // Each asteroid in its strip of window beside the page, where it says
 // (across, at), as big as fits (up to the planets' size), or not at all.
@@ -175,10 +200,31 @@ function placeAsteroids() {
   }
 }
 
-function draw(seconds) {
+// Every planet showing (or every one at all), turned to where it is at seconds.
+let drawnAt = 0;
+function draw(seconds, all = false) {
+  drawnAt = seconds;
   for (const planet of planets) {
-    if (!planet.pre.hidden) planet.pre.textContent = planet.renderer.render(planet.body, seconds * planet.turn);
+    if (all || !planet.pre.hidden) planet.pre.textContent = planet.renderer.render(planet.body, seconds * planet.turn);
   }
+}
+
+// The glyphs as they're really drawn, read off the biggest planet showing. If
+// that isn't the shape the planets were built for, they're built again for
+// the real one (and drawn, and the asteroids and stars placed again around
+// them), and it says so.
+function keepRound() {
+  const planet = planets.filter((p) => !p.pre.hidden && styled(p.pre)).sort((a, b) => b.body.cols - a.body.cols)[0];
+  if (!planet) return false;
+  const { width, height } = planet.pre.getBoundingClientRect();
+  const drawn = width / planet.body.cols / (height / planet.body.rows);
+  if (!(drawn > 0.2 && drawn < 1.2) || Math.abs(drawn / built - 1) < SHAPE_SLACK) return false;
+  for (const p of planets) build(p, drawn);
+  built = planets[0].renderer.aspect();
+  draw(drawnAt, true);
+  placeAsteroids();
+  placeStars();
+  return true;
 }
 
 // Is this point of the window on a planet, or within CLEAR pixels of one?
@@ -240,6 +286,7 @@ let resizing;
 new ResizeObserver(() => {
   clearTimeout(resizing);
   resizing = setTimeout(() => {
+    if (keepRound()) return;
     placeAsteroids();
     placeStars();
   }, 150);
@@ -247,6 +294,9 @@ new ResizeObserver(() => {
 draw(0);
 placeAsteroids();
 placeStars();
+keepRound();   // before the first frame is on screen
+document.fonts.addEventListener("loadingdone", keepRound);
+setInterval(keepRound, RECHECK_MS);
 
 if (!still) {
   let last = 0;
