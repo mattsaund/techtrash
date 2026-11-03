@@ -17,6 +17,10 @@
 //     on, but not its looks: it's cleaned the way a post is.
 //   - A picture or a player moves up or down a line with its Up and Down
 //     buttons (click a picture for them; a player has them under it).
+//   - A picture on the left or the right has the words beside it: it's kept
+//     the first thing in the paragraph whose words go beside it (words typed
+//     in front of it would put it below them), and choosing Left or Right puts
+//     the cursor right after it, to type beside it.
 //   - A picture or a player gets bigger or smaller by its corners: click it
 //     (a player by its bar, under it) and drag one. It keeps its shape (a
 //     song's player only gets wider), and never gets wider than the column.
@@ -391,10 +395,20 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   const places = [["Across", ""], ["Left", "pic--left"], ["Middle", "pic--center"], ["Right", "pic--right"]].map(([name, place]) => {
     const button = el("button", { class: "tool", type: "button", textContent: name, title: place ? `Small, ${name.toLowerCase()}, with the words around it` : "Across the column" });
     button.addEventListener("click", () => {
-      picked.classList.remove(...PICTURE_PLACES);
-      if (place) picked.classList.add(place);
-      pick(picked);
-      onChange();
+      const img = picked;
+      img.classList.remove(...PICTURE_PLACES);
+      if (place) img.classList.add(place);
+      if (beside(img)) {
+        keepBeside(img, true);
+        // straight to typing beside it
+        const after = document.createRange();
+        after.setStartAfter(img);
+        after.collapse(true);
+        select(after);
+        tell("Type beside it: the words go around it.");
+      }
+      pick(img);
+      changed();
     });
     return [button, place];
   });
@@ -437,6 +451,42 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   }
   area.addEventListener("click", (e) => pick(e.target.closest("img, .embed")));
   area.addEventListener("keydown", () => pick(null));
+
+  // --- words beside a picture ---------------------------------------------------------
+
+  // A picture on the left or the right floats beside the words that come after
+  // it, from the line it's on. So it's kept the first thing in its paragraph:
+  // words typed in front of it (a click beside it puts the cursor there) would
+  // sit above it, and push it down the page as they grew. And a picture on a
+  // line of its own takes the next paragraph's words beside it, from their
+  // first line: carried into the start of that paragraph (with the line it was
+  // on gone, if nothing else was on it and the cursor isn't there).
+  const beside = (node) => node?.nodeName === "IMG" && (node.classList.contains("pic--left") || node.classList.contains("pic--right"));
+  const wordless = (node) => !node.textContent.replace(/\u200B/g, "").trim();
+
+  function keepBeside(img, carry = false) {
+    const line = img.parentElement?.closest("p, li, blockquote, h2, h3, h4");
+    if (!line || !area.contains(line)) return;
+    const ahead = document.createRange();
+    ahead.setStart(line, 0);
+    ahead.setEndBefore(img);
+    const before = ahead.cloneContents();
+    if (!wordless(before) || [...before.querySelectorAll("img")].some((other) => !beside(other))) {
+      line.prepend(img);
+      return;
+    }
+    const next = line.nextElementSibling;
+    const alone = line.matches("p") && wordless(line) && [...line.querySelectorAll("img")].every(beside);
+    const cursorThere = line.contains(getSelection().anchorNode);
+    if (alone && next?.matches("p") && !wordless(next) && (carry || !cursorThere)) {
+      next.prepend(...line.querySelectorAll("img"));
+      line.remove();
+    }
+  }
+
+  area.addEventListener("input", () => {
+    for (const img of area.querySelectorAll("img.pic--left, img.pic--right")) keepBeside(img);
+  });
 
   // --- sizes ----------------------------------------------------------------------
 

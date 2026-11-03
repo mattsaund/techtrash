@@ -379,7 +379,12 @@ bulletin**, **Edit about me**, **Edit tagline**.
   picture button, a paste or a drop), in any of the three ways, and are
   uploaded as they go in; click one to describe it, sit it small on the left,
   middle or right with the words around it, or move it **Up** or **Down** a
-  line. **A video's or a song's link** on its own line (the **video** button,
+  line. **Words beside a picture:** choose **Left** or **Right** and the cursor
+  goes right after it, to type beside it. A picture on a side is kept the
+  first thing in its paragraph, so its words run beside it from its top edge
+  (words typed in front of it would push it down under them), and one on a
+  line of its own takes the next paragraph beside it. On a phone there's no
+  room beside a picture, so the words go under it. **A video's or a song's link** on its own line (the **video** button,
   or paste it on an empty line) becomes its player, with its own **Up**,
   **Down**, **Reset size** and **Remove**: YouTube, Vimeo, Dailymotion,
   Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud, Apple Music, or a
