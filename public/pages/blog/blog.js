@@ -212,7 +212,8 @@ function bulletinSpot(bulletin) {
 // or two. save({ body }) sends it and goes on.
 async function writingForm({ body = "", short = false, saveText, save, cancel }) {
   const { createEditor } = await import("./editor.js");
-  const editor = createEditor(body, { short });
+  // (what goes wrong in it, a picture that won't upload, is said under Save)
+  const editor = createEditor(body, { short, onProblem: (text) => { message.textContent = text; } });
   const message = status();
   const saveButton = el("button", { class: "button hue-4", type: "button", textContent: saveText });
   const back = el("button", { class: "button hue-1", type: "button", textContent: "Cancel" });
@@ -579,6 +580,7 @@ async function showEditor(postSlug = null) {
       title.value = name;
       keep();
     },
+    onProblem: (text) => say(text),
   });
   const flags = flagPicker(kept?.flags ?? post?.flags.map((flag) => flag.name) ?? [], known, keep);
   const comments = el("input", { type: "checkbox", checked: kept ? kept.comments : post ? Boolean(post.comments_open) : true });

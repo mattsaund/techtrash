@@ -62,10 +62,12 @@ export function widthOf(value) {
   return width > 0 ? width : null;
 }
 
-// A paragraph with nothing in it: no words (spaces, no-break spaces and the
+// A line with nothing in it: no words (spaces, no-break spaces and the
 // editor's invisible ones aren't words) and no picture. Moving words about
-// leaves them behind, and Enter makes them.
-export const blankLine = (node) => node?.nodeType === Node.ELEMENT_NODE && node.matches("p")
+// leaves them behind, Enter makes them, and so does a heading (or a quote, or
+// a code block) picked for a line and left empty.
+const LINE_KINDS = "p, h1, h2, h3, h4, h5, h6, blockquote, pre";
+export const blankLine = (node) => node?.nodeType === Node.ELEMENT_NODE && node.matches(LINE_KINDS)
   && !node.textContent.replace(/[\s\u00a0\u200b]/g, "") && !node.querySelector("img");
 
 // Cleaned, as a fragment of this page.
@@ -76,7 +78,7 @@ function cleanFragment(html) {
   for (const span of body.querySelectorAll("span:not([class])")) span.replaceWith(...span.childNodes);
   // an empty line: the space between paragraphs is the site's own, the same
   // everywhere, and an empty one would double it
-  for (const p of body.querySelectorAll("p")) if (blankLine(p)) p.remove();
+  for (const line of body.querySelectorAll(LINE_KINDS)) if (blankLine(line)) line.remove();
   return body;
 }
 
@@ -290,10 +292,29 @@ export async function loadMarkdown() {
 
 export const htmlToMarkdown = (html) => turndown.turndown(html);
 
+// A line of dashes (or of =) straight under a line of words is Markdown's
+// other way of writing a heading: the words above it are one. The editor
+// draws a line of dashes as a divider, as it's mostly meant, so it is one: a
+// blank line goes in above it (and above a line of =, drawn as words). Not
+// in code.
+function dividersStayDividers(text) {
+  let fence = null;
+  const out = [];
+  for (const line of text.split("\n")) {
+    const opens = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (fence) {
+      if (/^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length) fence = null;
+    } else if (opens) fence = opens[1];
+    else if (/^ {0,3}(?:=+|-{3,})[ \t]*$/.test(line) && out.length && out[out.length - 1].trim()) out.push("");
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 // The post's title is its only top heading, so a Markdown "#" heading goes
 // down one. A line's end is a line's end (as Obsidian has it): the editor
 // writes Markdown a line to a row, and what's on a row of its own stays on one.
-export const markdownToHtml = (text) => marked.parse(text, { gfm: true, breaks: true, async: false })
+export const markdownToHtml = (text) => marked.parse(dividersStayDividers(text), { gfm: true, breaks: true, async: false })
   .replace(/<(\/?)h1\b/g, "<$1h2")
   .replace(/<(\/?)h[56]\b/g, "<$1h4");
 

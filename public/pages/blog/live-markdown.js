@@ -348,13 +348,18 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     while (node && node.parentNode !== box) node = node.parentNode;
     return node ? Array.prototype.indexOf.call(box.children, node) : -1;
   };
+  // (only while the box has the cursor: Firefox leaves its selection in the
+  // box when a field, like the title, is clicked)
   function markActive() {
     const s = getSelection();
     let [from, to] = [-1, -1];
-    if (s.rangeCount && box.contains(s.anchorNode) && box.contains(s.focusNode)) [from, to] = ordered([lineIndex(s.anchorNode), lineIndex(s.focusNode)]);
+    if (box.contains(document.activeElement) && s.rangeCount && box.contains(s.anchorNode) && box.contains(s.focusNode)) {
+      [from, to] = ordered([lineIndex(s.anchorNode), lineIndex(s.focusNode)]);
+    }
     for (let i = 0; i < box.children.length; i++) box.children[i].classList.toggle("is-active", from >= 0 && i >= from && i <= to);
   }
   document.addEventListener("selectionchange", markActive);
+  box.addEventListener("focus", markActive);
   box.addEventListener("blur", markActive);
 
   // --- changes -----------------------------------------------------------------------
@@ -474,7 +479,25 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     return true;
   }
 
+  // Backspace at a line's start (or Delete at its end) takes out the line
+  // break, and only it: the browsers' own would take a drawn picture or player
+  // with it (Firefox, the line's words too).
+  function joinLines(back) {
+    const at = selection();
+    if (!at || at[0] !== at[1]) return false;
+    const all = whole();
+    const spot = at[0];
+    if (back ? spot === 0 || all[spot - 1] !== "\n" : all[spot] !== "\n") return false;
+    replace(back ? spot - 1 : spot, back ? spot : spot + 1, "");
+    return true;
+  }
+
   box.addEventListener("beforeinput", (e) => {
+    // (a phone's keyboard: no keydown first)
+    if ((e.inputType === "deleteContentBackward" || e.inputType === "deleteContentForward") && !composing) {
+      if (joinLines(e.inputType === "deleteContentBackward")) e.preventDefault();
+      return;
+    }
     const handle = {
       insertParagraph: enter,
       insertLineBreak: enter,
@@ -504,11 +527,22 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
       e.preventDefault();
       wrap("*");
     } else if (e.key === "Tab" && !composing && indent(e.shiftKey)) e.preventDefault();
+    else if ((e.key === "Backspace" || e.key === "Delete") && !composing && !e.altKey && joinLines(e.key === "Backspace")) e.preventDefault();
   });
 
   // A click on a picture or a player picks it (editor.js): the cursor stays put.
+  // A divider has nothing to pick: a click on it puts the cursor at the end of
+  // its line, to show its --- (and take it out).
   box.addEventListener("mousedown", (e) => {
-    if (e.target.closest(".md-widget") && !e.target.closest("button")) e.preventDefault();
+    const part = e.target.closest(".md-widget");
+    if (!part || e.target.closest("button")) return;
+    e.preventDefault();
+    if (!part.querySelector(".md-rule")) return;
+    const i = lineIndex(part);
+    const end = lines.slice(0, i + 1).reduce((n, line) => n + line.length + 1, 0) - 1;
+    box.focus({ preventScroll: true });
+    select([end, end]);
+    markActive();
   });
 
   // --- copy, cut, paste, drag and drop: the Markdown's own words ----------------------

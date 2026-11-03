@@ -26,9 +26,22 @@
 //   - The browser's own looks go as soon as it leaves them (joining a paragraph
 //     to a heading keeps the paragraph's size in a span, so the line looks like
 //     a paragraph and spaces like a heading): what's shown is what's saved.
+//     An alignment, however the browser writes it (Chrome a style, Firefox an
+//     align=""), becomes its class, and only the one.
 //   - The space between paragraphs is always the same: an empty line (cutting
 //     a whole paragraph leaves one, two Enters make one) goes as soon as the
 //     cursor's off it and something changes, and none is ever saved.
+//   - Every line is a block of its own, the same in every browser: Firefox
+//     makes a <div> where Chrome makes a <p> (Enter after a heading), and can
+//     leave words in no line at all. A <div> becomes a <p>, loose words go
+//     into one, and the cursor stays where it was.
+//   - A divider, a player, or a picture on a line of its own is a thing the
+//     cursor can't be in. Backspace at the start of the line after one (or
+//     Delete at the end of the line before one) takes a divider out, and picks
+//     a picture or a player (Firefox would throw away the line's words, or its
+//     heading); pressed again, it goes. A click picks one too. And the box
+//     always ends on a line to type on, so what's typed under the last thing
+//     goes under it, not above it.
 //   - A picture or a player gets bigger or smaller by its corners: click it
 //     (a player by its bar, under it) and drag one. It keeps its shape (a
 //     song's player only gets wider), and never gets wider than the column.
@@ -42,10 +55,12 @@
 //     whatever Markdown can't say (a hue, where a picture sits, how wide it
 //     is) stays as HTML in it. Pictures and players go in from any of the three.
 //
-// createEditor(html, { onChange, onTitle, short }) gives back
+// createEditor(html, { onChange, onTitle, onProblem, short }) gives back
 //   { element, html(), empty(), focus() }
 // where html() is what's written, as it'll be saved, onTitle(title) is told a
-// Markdown file's title, and short makes the box short, for a line or two.
+// Markdown file's title, onProblem(text) what went wrong (a picture that
+// wouldn't upload: the box's own foot is only its word count), and short
+// makes the box short, for a line or two.
 
 import {
   blankLine, clean, embedPlayers, fromMarkdown, htmlToMarkdown, loadMarkdown, markdownToHtml, PICTURE_PLACES, playerElement, playerFor,
@@ -58,6 +73,8 @@ import { api, el, plural, readyPicture } from "./util.js";
 // The six hues, by the names tokens.css gives them.
 const HUES = ["red", "orange", "yellow", "green", "blue", "violet"];
 const BLOCKS = new Set(["P", "H2", "H3", "H4", "PRE", "BLOCKQUOTE", "LI"]);
+// what a line of the box can be; anything else straight in it is loose words
+const LINES = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "UL", "OL", "PRE", "BLOCKQUOTE", "HR", "FIGURE", "TABLE", "DIV"]);
 const PLAYERS = "YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud, Apple Music, or a link to a video or sound file";
 const LEAST_PICTURE = 32;   // how small a picture can be dragged, in pixels
 const LEAST_PLAYER = 240;   // ...and a player, which is no use any smaller
@@ -98,12 +115,21 @@ const hueOfColor = (color) => {
 // it was ever cleaned.
 const inert = () => document.implementation.createHTMLDocument("");
 
+// A line's alignment, however the browser wrote it (Chrome: style="text-align:
+// right"; Firefox: align="right"), as the class a post uses, and only that
+// one: the line it was carried on from (Enter carries it) may have another.
+function lineUp(node) {
+  const align = (node.style.textAlign || node.getAttribute("align") || "").toLowerCase();
+  node.removeAttribute("align");
+  if (!align) return;
+  node.classList.remove("align-center", "align-right");
+  if (align === "center" || align === "right") node.classList.add(`align-${align}`);
+}
+
 function tidy(root) {
   const doc = root.ownerDocument;
-  for (const node of root.querySelectorAll("[style], font")) {
-    const align = node.style.textAlign;
-    if (align === "center" || align === "right") node.classList.add(`align-${align}`);
-    else if (align) node.classList.remove("align-center", "align-right");
+  for (const node of root.querySelectorAll("[style], [align], font")) {
+    lineUp(node);
     const color = node.getAttribute("color") || node.style.color;
     node.removeAttribute("style");
     const hue = color && hueOfColor(color);
@@ -175,9 +201,12 @@ const tidyHtml = (html) => {
 
 // --- the editor ------------------------------------------------------------------
 
-export function createEditor(start, { onChange = () => {}, onTitle = () => {}, short = false } = {}) {
-  document.execCommand("defaultParagraphSeparator", false, "p");
-  document.execCommand("styleWithCSS", false, false);
+export function createEditor(start, { onChange = () => {}, onTitle = () => {}, onProblem = () => {}, short = false } = {}) {
+  const useParagraphs = () => {
+    document.execCommand("defaultParagraphSeparator", false, "p");
+    document.execCommand("styleWithCSS", false, false);
+  };
+  useParagraphs();
 
   const area = el("div", {
     class: `editor__area prose${short ? " editor__area--short" : ""}`,
@@ -188,6 +217,9 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     "data-placeholder": "Write something...",
     spellcheck: true,
   });
+  // (Firefox only takes them once the box has the cursor: before, Enter after
+  // a heading makes a <div>)
+  area.addEventListener("focus", useParagraphs);
   const modes = el("div", { class: "editor__modes", role: "group", "aria-label": "Write in" });
   const tools = el("div", { class: "editor__tools", role: "toolbar", "aria-label": "Formatting" });
   const sourceTools = el("div", { class: "editor__tools", role: "toolbar", "aria-label": "Put in", hidden: true });
@@ -197,7 +229,6 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   });
   const ask = el("div", { class: "editor__row", hidden: true });
   const pictureRow = el("div", { class: "editor__row", hidden: true });
-  const note = el("span", { class: "editor__note", role: "status" });
   const count = el("span", { class: "editor__count" });
   const picturePicker = el("input", { type: "file", accept: "image/*", multiple: true, hidden: true });
   const markdownPicker = el("input", { type: "file", accept: ".md,.markdown,.mdown,.mkd,text/markdown", hidden: true });
@@ -222,10 +253,9 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     area,
     markdown.element,
     source,
-    el("div", { class: "editor__foot meta" }, note, count),
+    el("div", { class: "editor__foot meta" }, count),
     picturePicker, markdownPicker);
 
-  const tell = (text) => { note.textContent = text; };
   let mode = "rich";   // or "markdown", or "html": see setMode
 
   // --- where the cursor is --------------------------------------------------------
@@ -276,9 +306,16 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   };
   const isEmptyLine = (node) => node?.matches?.("p") && !node.textContent.trim() && !node.querySelector("img");
 
+  // After any change to the box: every line a block, no empty line but the
+  // cursor's, and a line at the end to type on.
   function changed() {
+    if (mode === "rich") {
+      settleLines();
+      dropBlankLines();
+      endLine();
+      history.soon();
+    }
     area.classList.toggle("is-empty", empty());
-    if (mode === "rich") history.soon();
     onChange();
   }
 
@@ -289,6 +326,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     (state) => {
       area.innerHTML = state.content;
       embedPlayers(area, playerBlock);
+      endLine();
       pick(null);
       area.focus({ preventScroll: true });
       putCaret(area, state.caret, (node) => Boolean(node.parentElement.closest(".embed")));
@@ -309,9 +347,13 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     }
   }
 
-  // Words, a moment after the typing stops.
+  // What the browser did, made the box's own; and the words counted, a
+  // moment after the typing stops.
   let counting;
   area.addEventListener("input", () => {
+    settleLines();
+    dropStyles();
+    for (const img of area.querySelectorAll("img.pic--left, img.pic--right")) keepBeside(img);
     changed();
     clearTimeout(counting);
     counting = setTimeout(countWords, 300);
@@ -348,7 +390,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
       document.execCommand("insertText", false, code.textContent);
     } else {
       const text = getSelection().toString();
-      if (!text) return tell("Select some words first.");
+      if (!text) return;   // (it's for words picked out)
       insertHtml(`<code>${escape(text)}</code>`);
     }
     changed();
@@ -358,7 +400,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   // or in place of the cursor's line if it's empty, with a line after it to
   // carry on typing on.
   function insertBlock(node, at = saved) {
-    const line = lineOf(at?.startContainer);
+    // (a cursor in the box itself, between two lines: the line before it)
+    const line = at?.startContainer === area ? area.childNodes[Math.max(0, at.startOffset - 1)] ?? null : lineOf(at?.startContainer);
     if (isEmptyLine(line)) line.replaceWith(node);
     else if (line) line.after(node);
     else area.append(node);
@@ -443,7 +486,6 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
 
   async function addPictures(files, at) {
     for (const file of files.filter((f) => f.type.startsWith("image/"))) {
-      tell(`Uploading ${file.name || "the picture"}...`);
       try {
         const form = new FormData();
         form.append("picture", await readyPicture(file), file.name || "picture");
@@ -458,10 +500,9 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
         at = here();   // the next one goes after this one
         changed();
       } catch (error) {
-        return tell(error.message);
+        return onProblem(`${file.name || "The picture"} didn't go in: ${error.message}`);
       }
     }
-    tell(mode === "rich" ? "Click a picture to say what's in it or where it sits, and drag its corners to size it." : "");
   }
 
   picturePicker.addEventListener("change", () => {
@@ -543,8 +584,22 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
       button.setAttribute("aria-pressed", String(place ? picture.classList.contains(place) : !PICTURE_PLACES.some((p) => picture.classList.contains(p))));
     }
   }
-  area.addEventListener("click", (e) => pick(e.target.closest("img, .embed")));
-  area.addEventListener("keydown", () => pick(null));
+  // (the cursor beside what's clicked, not on it: in Firefox, a picture
+  // clicked is selected, and typing would replace it, and a divider clicked
+  // has the cursor in no line at all)
+  area.addEventListener("click", (e) => {
+    const item = e.target.closest("img, .embed, hr");
+    pick(item);
+    if (item?.matches("hr")) {
+      const line = [item.nextElementSibling, item.previousElementSibling].find((node) => node && !isThing(node));
+      if (line) cursorTo(line, line === item.previousElementSibling);
+    } else if (item?.matches("img") && !getSelection().isCollapsed) {
+      const after = document.createRange();
+      after.setStartAfter(item);
+      after.collapse(true);
+      select(after);
+    }
+  });
   markdown.element.addEventListener("click", (e) => pick(e.target.closest(".md-widget img, .md-widget.embed")));
   markdown.element.addEventListener("keydown", () => pick(null));
 
@@ -580,12 +635,6 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     }
   }
 
-  area.addEventListener("input", () => {
-    dropStyles();
-    for (const img of area.querySelectorAll("img.pic--left, img.pic--right")) keepBeside(img);
-    dropBlankLines();
-  });
-
   // The browser's own looks, as soon as it leaves them. Joining a paragraph to
   // a heading, say, wraps the paragraph's words in a span that keeps their
   // size and color: the line looks like a paragraph and spaces like a heading,
@@ -593,26 +642,196 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   // the buttons made becomes its class; a hue, its class.) A player's own
   // width stays.
   function dropStyles() {
-    for (const node of area.querySelectorAll("[style]")) {
+    for (const node of area.querySelectorAll("[style], [align]")) {
       if (node.closest(".embed")) continue;
-      const align = node.style.textAlign;
-      if (align === "center" || align === "right") node.classList.add(`align-${align}`);
-      else if (align) node.classList.remove("align-center", "align-right");
+      lineUp(node);
       const hue = node.matches("span") && node.style.color && hueOfColor(node.style.color);
       if (hue) node.classList.add(`hue-${hue}`);
       node.removeAttribute("style");
+      if (!node.className) node.removeAttribute("class");
     }
   }
 
   // An empty line goes, unless the cursor's on it (to type on), so the space
   // between paragraphs is always the same here, as it is on the page. (Cutting
-  // a whole paragraph leaves one behind; two Enters make one; clean() drops any
-  // left when it's saved.)
+  // a whole paragraph leaves one behind; two Enters make one; a heading picked
+  // for a line, then left empty, is one; clean() drops any left when it's
+  // saved.) The last line stays if it's after a thing: it's the only place to
+  // type under it.
   function dropBlankLines() {
     const cursor = getSelection().anchorNode;
     for (const line of [...area.children]) {
+      if (line === area.lastElementChild && isThing(line.previousElementSibling)) continue;
       if (area.children.length > 1 && blankLine(line) && !line.contains(cursor)) line.remove();
     }
+  }
+
+  // Every line in the box a block: a <div> (Firefox's) becomes a <p>, and
+  // loose words straight in the box (Firefox leaves them after a Select All
+  // and Delete, say) go into one. The cursor stays where it was: moving the
+  // words it's in would lose it, so it's put back in them.
+  let composing = false;
+  area.addEventListener("compositionstart", () => { composing = true; });
+  area.addEventListener("compositionend", () => { composing = false; });
+  function settleLines() {
+    if (composing) return;
+    const selection = getSelection();
+    const ours = selection.rangeCount && area.contains(selection.anchorNode) && area.contains(selection.focusNode);
+    // a point in the box itself, as the line it's before (null: the end)
+    const pin = (node, offset) => (node === area ? { before: area.childNodes[offset] ?? null } : { node, offset });
+    const points = ours ? [pin(selection.anchorNode, selection.anchorOffset), pin(selection.focusNode, selection.focusOffset)] : [];
+    const renamed = new Map();
+    let moved = false;
+    let into = null;
+    for (const node of [...area.childNodes]) {
+      if (node.nodeType === Node.ELEMENT_NODE && LINES.has(node.nodeName)) {
+        into = null;
+        if (node.nodeName === "DIV" && !node.querySelector("p, div, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, hr, figure, table")) {
+          const p = document.createElement("p");
+          if (node.className) p.className = node.className;
+          p.append(...node.childNodes);
+          node.replaceWith(p);
+          renamed.set(node, p);
+          moved = true;
+        }
+        continue;
+      }
+      // (the spaces between lines are no words)
+      const loose = node.nodeType === Node.ELEMENT_NODE || (node.nodeType === Node.TEXT_NODE && (into || node.data.trim()));
+      if (!loose) continue;
+      if (!into) {
+        into = document.createElement("p");
+        node.before(into);
+      }
+      into.append(node);
+      moved = true;
+    }
+    // (emptied altogether: a line, the cursor on it)
+    if (!area.firstElementChild && !area.textContent.trim()) {
+      const line = el("p", {}, el("br"));
+      area.replaceChildren(line);
+      if (ours) selection.setBaseAndExtent(line, 0, line, 0);
+      return;
+    }
+    if (!moved || points.length === 0) return;
+    const place = ({ node, offset, before }) => {
+      if (node) return [renamed.get(node) ?? node, offset];
+      if (!before) return [area, area.childNodes.length];
+      const now = renamed.get(before) ?? before;
+      return [now.parentNode, [...now.parentNode.childNodes].indexOf(now)];
+    };
+    const [[anchor, anchorAt], [focus, focusAt]] = points.map(place);
+    selection.setBaseAndExtent(anchor, anchorAt, focus, focusAt);
+  }
+
+  // The box ends on a line to type on. After a thing there's nowhere else to
+  // put the cursor: a click under it puts the cursor above it, and the words
+  // typed with it.
+  function endLine() {
+    if (!area.lastElementChild || isThing(area.lastElementChild)) area.append(el("p", {}, el("br")));
+  }
+
+  // --- things: dividers, players, pictures on lines of their own ------------------------
+
+  // A thing the cursor can't be in, only beside: a divider, a player, or a
+  // picture (or two) on a line of its own.
+  const isThing = (node) => Boolean(node?.matches?.("hr, figure.embed")
+    || (node?.matches?.("p") && node.querySelector("img") && wordless(node)));
+
+  // The line the cursor's on, if it's right at the start of it (back) or at
+  // its end (a line's last <br>, a browser's to give it height, isn't in it).
+  function atEdge(back) {
+    const selection = getSelection();
+    if (!selection.rangeCount || !selection.isCollapsed) return null;
+    const { anchorNode: node, anchorOffset: offset } = selection;
+    if (node === area || !area.contains(node)) return null;
+    const line = lineOf(node);
+    if (!line || line.matches("hr, figure")) return null;
+    const part = document.createRange();
+    part.selectNodeContents(line);
+    if (back) part.setEnd(node, offset);
+    else part.setStart(node, offset);
+    const bit = part.cloneContents();
+    if (bit.textContent.replace(/​/g, "") || bit.querySelector("img, hr, figure")) return null;
+    const breaks = bit.querySelectorAll("br").length;
+    if (back ? breaks > 0 : breaks > 1 || (breaks === 1 && line.lastChild?.nodeName !== "BR")) return null;
+    return line;
+  }
+
+  // What Backspace (back) or Delete takes that isn't words, and whether it
+  // goes (or is only picked): the thing picked; the divider the cursor's on
+  // (in Firefox, a click on one puts it there); or the thing beside the line
+  // the cursor's at the edge of. (In a list, Backspace at its start takes the
+  // list off: the browser's own.)
+  function thingBy(back) {
+    if (picked && area.contains(picked)) return { thing: picked, goes: true };
+    const selection = getSelection();
+    if (selection.rangeCount && selection.isCollapsed && area.contains(selection.anchorNode)) {
+      const { anchorNode: node, anchorOffset: offset } = selection;
+      if (node.nodeName === "HR") return { thing: node, goes: true };
+      if (node === area) {
+        const near = area.childNodes[back ? offset - 1 : offset];
+        if (isThing(near)) return { thing: near, goes: near.nodeName === "HR" };
+      }
+    }
+    const line = atEdge(back);
+    if (!line || (back && line.matches("ul, ol"))) return null;
+    const near = back ? line.previousElementSibling : line.nextElementSibling;
+    return isThing(near) ? { thing: near, goes: near.nodeName === "HR" } : null;
+  }
+
+  area.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" || e.key === "Delete") {
+      const back = e.key === "Backspace";
+      const found = thingBy(back);
+      if (found) {
+        e.preventDefault();
+        if (found.goes) takeOut(found.thing);
+        else pick(found.thing.matches("p") ? [...found.thing.querySelectorAll("img")].at(back ? -1 : 0) : found.thing);
+        return;
+      }
+    }
+    if (!["Shift", "Control", "Alt", "Meta"].includes(e.key)) pick(null);
+  });
+
+  // The cursor at the start of a line, or at its end.
+  function cursorTo(line, end = false) {
+    const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+    let text = null;
+    for (let node; (node = walker.nextNode());) {
+      text = node;
+      if (!end) break;
+    }
+    const range = document.createRange();
+    if (text) range.setStart(text, end ? text.data.length : 0);
+    else range.setStart(line, 0);
+    range.collapse(true);
+    select(range);
+  }
+
+  // Takes a thing out (or a picked picture, and its line if it's left
+  // empty). The cursor stays on its line, or, if it was on what went, goes
+  // to the line after it (or before it).
+  function takeOut(thing) {
+    pick(null);
+    let gone = thing;
+    if (thing.matches("img")) {
+      const line = lineOf(thing);
+      thing.remove();
+      gone = line?.matches("p") && wordless(line) && !line.querySelector("img") ? line : null;
+    }
+    if (gone) {
+      const cursor = getSelection().anchorNode;
+      const lost = !cursor || cursor === area || gone.contains(cursor) || !area.contains(cursor);
+      const after = gone.nextElementSibling;
+      const before = gone.previousElementSibling;
+      gone.remove();
+      if (lost) {
+        if (after && !isThing(after)) cursorTo(after);
+        else if (before && !isThing(before)) cursorTo(before, true);
+      }
+    }
+    changed();
   }
 
   // --- sizes ----------------------------------------------------------------------
@@ -628,7 +847,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   let following = 0;
   function follow() {
     cancelAnimationFrame(following);
-    if (!picked?.isConnected || mode === "html") {
+    if (!picked?.isConnected || mode === "html" || picked.matches("hr")) {
       resizer.hidden = true;
       return;
     }
@@ -690,12 +909,11 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   // --- Markdown -------------------------------------------------------------------
 
   async function addMarkdown(file, at) {
-    tell(`Reading ${file.name}...`);
     let md;
     try {
       md = await fromMarkdown(await file.text());
     } catch {
-      return tell(`${file.name} couldn't be read.`);
+      return onProblem(`${file.name} couldn't be read.`);
     }
     if (empty()) setHtml(md.html);
     else {
@@ -706,9 +924,9 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     if (md.title) onTitle(md.title);
     changed();
     countWords();
-    tell(`${file.name} is in.` + (md.missing
-      ? ` ${plural(md.missing, "picture")} in it ${md.missing === 1 ? "was a file" : "were files"} on your computer: put ${md.missing === 1 ? "it" : "them"} in with the picture button.`
-      : ""));
+    if (md.missing) {
+      onProblem(`${plural(md.missing, "picture")} in ${file.name} ${md.missing === 1 ? "was a file" : "were files"} on your computer: put ${md.missing === 1 ? "it" : "them"} in with the picture button.`);
+    }
   }
 
   markdownPicker.addEventListener("change", () => {
@@ -906,6 +1124,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   function setHtml(value) {
     area.innerHTML = clean(value) || "<p><br></p>";
     embedPlayers(area, playerBlock);
+    settleLines();
+    endLine();
     history.reset();
   }
 
@@ -943,11 +1163,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
 
   async function setMode(next) {
     if (next === mode) return;
-    if (next === "markdown" || mode === "markdown") {
-      tell("Getting Markdown ready...");
-      await loadMarkdown();
-      tell("");
-    }
+    if (next === "markdown" || mode === "markdown") await loadMarkdown();
     const written = html();
     mode = next;
     if (mode === "rich") setHtml(written);

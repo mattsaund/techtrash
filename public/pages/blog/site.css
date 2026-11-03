@@ -568,6 +568,10 @@ a.tag:hover { color: var(--site-fg); }
 .editor__area .embed.is-picked { outline: var(--sp-2) solid var(--hue); }
 .editor__area .embed { user-select: none; }
 .editor__area .embed__bar { cursor: pointer; }
+/* a divider: a click on it, or a little above or below it, picks it */
+.editor__area hr { position: relative; overflow: visible; cursor: pointer; }
+.editor__area hr::after { content: ""; position: absolute; inset: calc(-1 * var(--sp-8)) 0; }
+.editor__area hr.is-picked { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-4); }
 /* A picked picture's or player's corners: a square in the hue on each,
    to drag it bigger or smaller (editor.js). Under the editor's buttons as
    the post scrolls beneath them. */
@@ -597,7 +601,7 @@ a.tag:hover { color: var(--site-fg); }
 .embed__address { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor__foot {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--sp-16);
   padding: var(--sp-4) var(--sp-8);
   border-top: var(--hairline) solid var(--site-line);

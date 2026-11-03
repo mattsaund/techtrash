@@ -383,6 +383,18 @@ bulletin**, **Edit about me**, **Edit tagline**.
   makes changes of its own). Whatever looks the browser leaves when words
   are joined or moved (a paragraph joined to a heading keeps the paragraph's
   size in a hidden span) go straight away, so what's shown is what's saved.
+  Every line is a block of its own in every browser: Firefox makes a `<div>`
+  after a heading, and can leave words in no line at all, and both become
+  paragraphs, the cursor staying where it was. A line's alignment is kept the
+  same from each browser too (Chrome writes it as a style, Firefox as an
+  `align`; the post keeps it as a class). **Dividers, players and
+  pictures on lines of their own** can't hold the cursor, only sit beside it:
+  Backspace at the start of the line under one (or Delete at the end of the
+  line above it) takes a divider out, and picks a picture or a player, which
+  goes if it's pressed again (Firefox's own Backspace would throw away the
+  line's words, or its heading). A click picks one too (a divider, on its line
+  or just above or below it). The box always ends on a line to type on, so
+  what's typed under the last divider or player goes under it.
   **Pictures**
   go anywhere, mid-text, as many as you like (several at once from the
   picture button, a paste or a drop), in any of the three ways, and are
@@ -415,10 +427,17 @@ bulletin**, **Edit about me**, **Edit tagline**.
   quote on (Enter on an empty item ends it, with an empty line after it),
   Tab steps an item in, Ctrl+B and Ctrl+I make words bold or italic, and Undo
   and Redo are its own too. A line's end is a line break, as in Obsidian.
+  Backspace at a line's start (or Delete at its end) only joins the two
+  lines, beside a picture or a player too (the browsers' own would take the
+  picture's line with it), and a line of dashes is always a divider (straight
+  under a line of words, Markdown on its own would make those words a
+  heading).
   **The space between paragraphs** is always the same: an empty line (cutting
-  a whole paragraph leaves one behind, two Enters make one) goes as soon as
-  the cursor's off it and something changes, none is ever saved, and any a
-  blog already has isn't shown.
+  a whole paragraph leaves one behind, two Enters make one, and so does a
+  heading picked for a line and left empty) goes as soon as the cursor's off
+  it and something changes, none is ever saved, and any a blog already has
+  isn't shown. Under the box is only its word count: anything that goes
+  wrong (a picture that won't upload) is said under the Save button.
   Under the box, its **flags**: type one and press Enter (or a comma), and the
   ones other blogs wear are a click away under it; click one to take it off.
   And **Comments on**, or off.
