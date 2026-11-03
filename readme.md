@@ -407,7 +407,8 @@ bulletin**, **Edit about me**, **Edit tagline**.
   line of its own takes the next paragraph beside it. **To get under it,**
   press Enter on an empty line beside it (Enter, Enter at the end of the words
   beside it): that line goes under the picture, and what's written from there
-  is under it too, in the post as well (the line keeps the class `under-pic`).
+  is under it too, in the post as well (the line keeps the class `under-pic`);
+  Enter from there makes new lines under it.
   On a phone there's no room beside a picture, so the words go under it. **A video's or a song's link** on its own line (the **video** button,
   or paste it on an empty line) becomes its player, with its own **Up**,
   **Down**, **Reset size** and **Remove**: YouTube, Vimeo, Dailymotion,
@@ -435,12 +436,17 @@ bulletin**, **Edit about me**, **Edit tagline**.
   picture's line with it), and a line of dashes is always a divider (straight
   under a line of words, Markdown on its own would make those words a
   heading).
-  **The space between paragraphs** is always the same: an empty line (cutting
-  a whole paragraph leaves one behind, two Enters make one, and so does a
-  heading picked for a line and left empty) goes as soon as the cursor's off
-  it and something changes, none is ever saved, and any a blog already has
-  isn't shown. Under the box is only its word count: anything that goes
-  wrong (a picture that won't upload) is said under the Save button.
+  **Empty lines** space things out: Enter on an empty line makes another,
+  and each is saved and shown a line high, the same in the editor and on the
+  page (but none at the very start or end of a post). Backspace or Delete
+  beside an empty line takes only it out, so the line beside it stays what
+  it is: a heading stays a heading (Enter at a heading's start pushes it
+  down, Backspace brings it back up). A heading left empty becomes an empty
+  line, and the empty line a paragraph dragged elsewhere leaves behind goes.
+  In Markdown one empty line is the space between two paragraphs, as
+  always, and each one more is an empty line in the post. Under the box is
+  only its word count: anything that goes wrong (a picture that won't
+  upload) is said under the Save button.
   Under the box, its **flags**: type one and press Enter (or a comma), and the
   ones other blogs wear are a click away under it; click one to take it off.
   And **Comments on**, or off.

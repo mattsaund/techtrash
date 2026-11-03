@@ -23,7 +23,8 @@
 //     the cursor right after it, to type beside it.
 //   - The lines after a picture on the left or the right go beside it, as far
 //     down as it goes. Enter on an empty line beside it puts that line under
-//     it (a class the post keeps), so Enter, Enter gets out from beside it.
+//     it (a class the post keeps), so Enter, Enter gets out from beside it,
+//     and Enter from there makes new lines under it.
 //   - Undo and Redo are its own (createHistory): the browser's only know the
 //     changes the browser made, and this editor makes some of its own.
 //   - The browser's own looks go as soon as it leaves them (joining a paragraph
@@ -31,9 +32,12 @@
 //     a paragraph and spaces like a heading): what's shown is what's saved.
 //     An alignment, however the browser writes it (Chrome a style, Firefox an
 //     align=""), becomes its class, and only the one.
-//   - The space between paragraphs is always the same: an empty line (cutting
-//     a whole paragraph leaves one, two Enters make one) goes as soon as the
-//     cursor's off it and something changes, and none is ever saved.
+//   - An empty line is the space of a line, put in on purpose: Enter on an
+//     empty line makes one, and it stays, and is saved, a line high (but not
+//     at the start or the end of a post). Backspace or Delete beside one takes
+//     only it out: the line beside it stays what it is (a heading stays a
+//     heading). A heading left empty is an empty line too. The empty line a
+//     paragraph dragged elsewhere leaves behind goes.
 //   - Every line is a block of its own, the same in every browser: Firefox
 //     makes a <div> where Chrome makes a <p> (Enter after a heading), and can
 //     leave words in no line at all. A <div> becomes a <p>, loose words go
@@ -310,12 +314,13 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   };
   const isEmptyLine = (node) => node?.matches?.("p") && !node.textContent.trim() && !node.querySelector("img");
 
-  // After any change to the box: every line a block, no empty line but the
-  // cursor's, and a line at the end to type on.
+  // After any change to the box: every line a block, a heading left empty an
+  // empty line (but the cursor's), and a line at the end to type on.
   function changed() {
     if (mode === "rich") {
       settleLines();
-      dropBlankLines();
+      emptyBlocksToLines();
+      dropHelpers();
       endLine();
       settleUnder();
       history.soon();
@@ -410,7 +415,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     if (isEmptyLine(line)) line.replaceWith(node);
     else if (line) line.after(node);
     else area.append(node);
-    if (!node.nextElementSibling || !node.nextElementSibling.matches("p")) node.after(el("p", {}, el("br")));
+    if (!node.nextElementSibling || !node.nextElementSibling.matches("p")) node.after(helperLine());
     const next = document.createRange();
     next.setStart(node.nextElementSibling, 0);
     select(next);
@@ -631,11 +636,19 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
       line.prepend(img);
       return;
     }
-    const next = line.nextElementSibling;
     const alone = line.matches("p") && wordless(line) && [...line.querySelectorAll("img")].every(beside);
     const cursorThere = line.contains(getSelection().anchorNode);
+    // (Left or Right just chosen: past any empty lines under it, which were
+    // the space under a picture across the column, and go)
+    let next = line.nextElementSibling;
+    const spaces = [];
+    while (carry && emptyLine(next) && !next.classList.contains(UNDER)) {
+      spaces.push(next);
+      next = next.nextElementSibling;
+    }
     // (not into a line that's under it: that's where it was asked to be)
     if (alone && next?.matches("p") && !next.classList.contains(UNDER) && !wordless(next) && (carry || !cursorThere)) {
+      for (const space of spaces) space.remove();
       next.prepend(...line.querySelectorAll("img"));
       line.remove();
     }
@@ -658,19 +671,38 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     }
   }
 
-  // An empty line goes, unless the cursor's on it (to type on), so the space
-  // between paragraphs is always the same here, as it is on the page. (Cutting
-  // a whole paragraph leaves one behind; two Enters make one; a heading picked
-  // for a line, then left empty, is one; clean() drops any left when it's
-  // saved.) The last line stays if it's after a thing: it's the only place to
-  // type under it.
-  function dropBlankLines() {
+  // An empty line is the space of a line, put in on purpose: Enter on an
+  // empty line makes one, and it stays, and is saved, a line high (clean()
+  // keeps it, but not at the start or the end of a post). A heading (or a
+  // quote, or a code block) left empty is an empty line too, once the
+  // cursor's off it: a paragraph, a line high, not a gap a heading high.
+  // (Enter at a heading's start makes an empty heading over it, to push it
+  // down: an empty line over it, then.)
+  function emptyBlocksToLines() {
     const cursor = getSelection().anchorNode;
     for (const line of [...area.children]) {
-      if (line === area.lastElementChild && isThing(line.previousElementSibling)) continue;
-      if (area.children.length > 1 && blankLine(line) && !line.contains(cursor)) line.remove();
+      if (line.matches("p") || !blankLine(line) || line.contains(cursor)) continue;
+      const empty = el("p", {}, el("br"));
+      if (line.className) empty.className = line.className;
+      line.replaceWith(empty);
     }
   }
+
+  // A paragraph dragged somewhere else leaves its line behind, empty, which
+  // nobody put there: it goes (an empty line that was there before stays).
+  let emptyBefore = null;
+  area.addEventListener("dragstart", () => {
+    emptyBefore = new Set([...area.children].filter(emptyLine));
+  });
+  area.addEventListener("dragend", () => {
+    if (!emptyBefore) return;
+    const cursor = getSelection().anchorNode;
+    for (const line of [...area.children]) {
+      if (area.children.length > 1 && emptyLine(line) && !emptyBefore.has(line) && !line.contains(cursor)) line.remove();
+    }
+    emptyBefore = null;
+    changed();
+  });
 
   // Every line in the box a block: a <div> (Firefox's) becomes a <p>, and
   // loose words straight in the box (Firefox leaves them after a Select All
@@ -734,7 +766,27 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   // put the cursor: a click under it puts the cursor above it, and the words
   // typed with it.
   function endLine() {
-    if (!area.lastElementChild || isThing(area.lastElementChild)) area.append(el("p", {}, el("br")));
+    if (!area.lastElementChild || isThing(area.lastElementChild)) area.append(helperLine());
+  }
+
+  // The lines the editor puts in for the cursor to go on (after a divider or
+  // a player that goes in, and after the box's last thing) aren't the
+  // writer's: one that's still empty once the cursor's elsewhere goes again
+  // (unless it's still the only place to type under the last thing). Enter on
+  // one makes it the writer's, to stay, as any empty line Enter makes.
+  const helpers = new WeakSet();
+  function helperLine() {
+    const line = el("p", {}, el("br"));
+    helpers.add(line);
+    return line;
+  }
+  function dropHelpers() {
+    const cursor = getSelection().anchorNode;
+    for (const line of [...area.children]) {
+      if (!helpers.has(line) || !emptyLine(line) || line.contains(cursor)) continue;
+      if (line === area.lastElementChild && isThing(line.previousElementSibling)) continue;
+      line.remove();
+    }
   }
 
   // --- under a picture ------------------------------------------------------------------
@@ -742,16 +794,14 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   // A picture on the left or the right has the lines after it beside it, as
   // far down as it goes. Enter on an empty line beside one puts that line
   // under it (UNDER, which the post keeps: site.css clears it of pictures),
-  // so pressing Enter till the cursor's under the picture works as it always
-  // has, though empty lines don't stay. This is the empty line the cursor's
-  // on, if it's beside a picture or already put under one.
+  // and Enter from there makes new lines under it, as anywhere. This is the
+  // empty line the cursor's on, if it's beside a picture.
   function emptyLineBy() {
     const selection = getSelection();
     if (!selection.rangeCount || !selection.isCollapsed || !area.contains(selection.anchorNode)) return null;
     const node = selection.anchorNode === area ? area.childNodes[selection.anchorOffset] : selection.anchorNode;
     const line = lineOf(node);
-    if (!line?.matches?.("p") || !blankLine(line)) return null;
-    if (line.classList.contains(UNDER)) return line;
+    if (!emptyLine(line) || line.classList.contains(UNDER)) return null;
     const top = line.getBoundingClientRect().top;
     for (const img of area.querySelectorAll("img.pic--left, img.pic--right")) {
       if (!(img.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING) || getComputedStyle(img).float === "none") continue;
@@ -797,56 +847,91 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     if (back) part.setEnd(node, offset);
     else part.setStart(node, offset);
     const bit = part.cloneContents();
-    if (bit.textContent.replace(/​/g, "") || bit.querySelector("img, hr, figure")) return null;
+    if (bit.textContent.replace(/\u200B/g, "") || bit.querySelector("img, hr, figure")) return null;
     const breaks = bit.querySelectorAll("br").length;
     if (back ? breaks > 0 : breaks > 1 || (breaks === 1 && line.lastChild?.nodeName !== "BR")) return null;
     return line;
   }
 
-  // What Backspace (back) or Delete takes that isn't words, and whether it
-  // goes (or is only picked): the thing picked; the divider the cursor's on
-  // (in Firefox, a click on one puts it there); or the thing beside the line
-  // the cursor's at the edge of. (In a list, Backspace at its start takes the
-  // list off: the browser's own.)
-  function thingBy(back) {
-    if (picked && area.contains(picked)) return { thing: picked, goes: true };
+  // An empty line: a line with nothing in it, the space of a line (a heading
+  // with nothing in it, the cursor on it, is one too).
+  const emptyLine = (node) => Boolean(node) && blankLine(node);
+  // A line the cursor can go on: any but a thing.
+  const holdsCursor = (node) => Boolean(node) && !isThing(node);
+  // the picture of a picture's line that's nearest the cursor
+  const partOf = (thing, back) => (thing.matches("p") ? [...thing.querySelectorAll("img")].at(back ? -1 : 0) : thing);
+
+  // What Backspace (back) or Delete does, where the browsers get it wrong
+  // (joining a heading to an empty line above it makes it a paragraph;
+  // Chrome takes a picture or a player with an empty line beside it; Firefox
+  // throws away words, or a heading, beside a picture or a divider), if
+  // anything:
+  //   - the thing picked goes, and so does the divider the cursor's on (in
+  //     Firefox, a click on one puts it there);
+  //   - an empty line beside the line the cursor's at the edge of goes, and
+  //     only it: that line stays what it is (a heading stays a heading);
+  //   - the cursor's own line, if it's empty, goes, the cursor on the line in
+  //     its place (Delete; Backspace too, with a thing before it);
+  //   - a divider beside the line goes; a picture or a player is picked, to
+  //     go if it's pressed again.
+  // (In a list, Backspace at its start takes the list off: the browser's own.)
+  function edgeEdit(back) {
+    if (picked && area.contains(picked)) return () => takeOut(picked);
     const selection = getSelection();
-    if (selection.rangeCount && selection.isCollapsed && area.contains(selection.anchorNode)) {
-      const { anchorNode: node, anchorOffset: offset } = selection;
-      if (node.nodeName === "HR") return { thing: node, goes: true };
-      if (node === area) {
-        const near = area.childNodes[back ? offset - 1 : offset];
-        if (isThing(near)) return { thing: near, goes: near.nodeName === "HR" };
-      }
+    if (!selection.rangeCount || !selection.isCollapsed || !area.contains(selection.anchorNode)) return null;
+    const { anchorNode: node, anchorOffset: offset } = selection;
+    if (node.nodeName === "HR") return () => takeOut(node);
+    if (node === area) {
+      const near = area.childNodes[back ? offset - 1 : offset];
+      if (near?.nodeName === "HR") return () => takeOut(near);
+      return isThing(near) ? () => pick(partOf(near, back)) : null;
     }
     const line = atEdge(back);
-    if (!line || (back && line.matches("ul, ol"))) return null;
+    if (!line) return null;
     const near = back ? line.previousElementSibling : line.nextElementSibling;
-    return isThing(near) ? { thing: near, goes: near.nodeName === "HR" } : null;
+    if (emptyLine(near)) return () => dropLine(near);
+    if (emptyLine(line)) {
+      const after = line.nextElementSibling;
+      const before = line.previousElementSibling;
+      if (!back && holdsCursor(after)) return () => dropLine(line, () => cursorTo(after));
+      if (!back && holdsCursor(before)) return () => dropLine(line, () => cursorTo(before, true));
+      if (back && isThing(before) && holdsCursor(after)) return () => dropLine(line, () => cursorTo(after));
+    }
+    if (back && line.matches("ul, ol")) return null;
+    if (near?.nodeName === "HR") return () => takeOut(near);
+    if (isThing(near)) return () => pick(partOf(near, back));
+    return null;
+  }
+
+  // An empty line out (the cursor, if it was on it, where then() puts it).
+  // One that was under a picture leaves the line after it under it too.
+  function dropLine(line, then) {
+    if (line.classList.contains(UNDER)) line.nextElementSibling?.classList.add(UNDER);
+    line.remove();
+    then?.();
+    changed();
   }
 
   area.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !composing) {
+    if (e.isComposing || composing) return;
+    // (Enter on an empty line the editor put in: an empty line the writer wants)
+    if (e.key === "Enter") helpers.delete(lineOf(getSelection().anchorNode));
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // beside a picture: the empty line goes under it
       const line = emptyLineBy();
       if (line) {
-        // beside a picture: the line goes under it; already under it: an
-        // empty line more would only go again
         e.preventDefault();
-        if (!line.classList.contains(UNDER)) {
-          line.classList.add(UNDER);
-          line.scrollIntoView({ block: "nearest" });
-          changed();
-        }
+        line.classList.add(UNDER);
+        line.scrollIntoView({ block: "nearest" });
+        changed();
         return;
       }
     }
     if (e.key === "Backspace" || e.key === "Delete") {
-      const back = e.key === "Backspace";
-      const found = thingBy(back);
-      if (found) {
+      const edit = edgeEdit(e.key === "Backspace");
+      if (edit) {
         e.preventDefault();
-        if (found.goes) takeOut(found.thing);
-        else pick(found.thing.matches("p") ? [...found.thing.querySelectorAll("img")].at(back ? -1 : 0) : found.thing);
+        edit();
         return;
       }
     }

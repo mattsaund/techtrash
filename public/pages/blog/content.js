@@ -65,9 +65,9 @@ export function widthOf(value) {
 }
 
 // A line with nothing in it: no words (spaces, no-break spaces and the
-// editor's invisible ones aren't words) and no picture. Moving words about
-// leaves them behind, Enter makes them, and so does a heading (or a quote, or
-// a code block) picked for a line and left empty.
+// editor's invisible ones aren't words) and no picture. An empty paragraph is
+// the space of a line, put in on purpose; a heading (or a quote, or a code
+// block) picked for a line and left empty is only a gap.
 const LINE_KINDS = "p, h1, h2, h3, h4, h5, h6, blockquote, pre";
 export const blankLine = (node) => node?.nodeType === Node.ELEMENT_NODE && node.matches(LINE_KINDS)
   && !node.textContent.replace(/[\s\u00a0\u200b]/g, "") && !node.querySelector("img");
@@ -78,9 +78,25 @@ function cleanFragment(html) {
   for (const img of body.querySelectorAll("img:not([src])")) img.remove();
   // a span that doesn't color anything is only in the way
   for (const span of body.querySelectorAll("span:not([class])")) span.replaceWith(...span.childNodes);
-  // an empty line: the space between paragraphs is the site's own, the same
-  // everywhere, and an empty one would double it
-  for (const line of body.querySelectorAll(LINE_KINDS)) if (blankLine(line)) line.remove();
+  // An empty line between a post's lines is the space of a line, put in on
+  // purpose: it stays, as a paragraph with a line break in it, so it's a line
+  // high however it came (an empty <p></p> would be no height at all, an
+  // empty heading a heading's gap). One inside a quote or a list goes, and so
+  // do empty lines at the start and the end of a post.
+  for (const line of body.querySelectorAll(LINE_KINDS)) {
+    if (!blankLine(line)) continue;
+    if (line.parentNode !== body) {
+      line.remove();
+      continue;
+    }
+    const empty = document.createElement("p");
+    if (line.getAttribute("class")) empty.setAttribute("class", line.getAttribute("class"));
+    empty.append(document.createElement("br"));
+    line.replaceWith(empty);
+  }
+  const edge = (node) => node && ((node.nodeType === Node.TEXT_NODE && !node.data.trim()) || blankLine(node));
+  while (edge(body.firstChild)) body.firstChild.remove();
+  while (edge(body.lastChild)) body.lastChild.remove();
   return body;
 }
 
@@ -279,6 +295,11 @@ export async function loadMarkdown() {
     replacement: (content, node) => (["SPAN", "IMG"].includes(node.nodeName) ? node.outerHTML : `\n\n${node.outerHTML}\n\n`),
   });
   turndown.addRule("underline", { filter: ["u"], replacement: (content) => `<u>${content}</u>` });
+  // (an empty line with a class, one under a picture, stays the HTML it is)
+  turndown.addRule("emptyLine", {
+    filter: (node) => node.nodeName === "P" && !node.getAttribute("class") && blankLine(node),
+    replacement: () => `\n\n${EMPTY}\n\n`,
+  });
   // "- one", not turndown's "-   one": how people write lists by hand
   turndown.addRule("listItem", {
     filter: "li",
@@ -292,7 +313,40 @@ export async function loadMarkdown() {
   });
 }
 
-export const htmlToMarkdown = (html) => turndown.turndown(html);
+// An empty line in a post is an empty line more in its Markdown: one empty
+// line is only the space between two paragraphs, as in any Markdown, and each
+// one more is a line's space (see emptyLinesStay). Turndown has no way to
+// write a run of them, so each is a mark until it's done.
+const EMPTY = "\uE000";
+export const htmlToMarkdown = (html) => turndown.turndown(html)
+  .replace(new RegExp(`${EMPTY}\n\n`, "g"), "\n")
+  .replace(new RegExp(`\n*${EMPTY}\n*`, "g"), "");
+
+// ...and back: more than one empty line between two lines, each one more an
+// empty line in the post (Markdown on its own makes any number of them the
+// space between two paragraphs). Not in code.
+function emptyLinesStay(text) {
+  const out = [];
+  let fence = null;
+  let empties = 0;
+  for (const line of text.split("\n")) {
+    if (!fence && !line.trim()) {
+      empties += 1;
+      continue;
+    }
+    if (empties && out.length) {
+      out.push("");
+      for (let i = 1; i < empties; i++) out.push("&nbsp;", "");
+    }
+    empties = 0;
+    const opens = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (fence) {
+      if (/^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length) fence = null;
+    } else if (opens) fence = opens[1];
+    out.push(line);
+  }
+  return out.join("\n");
+}
 
 // A line of dashes (or of =) straight under a line of words is Markdown's
 // other way of writing a heading: the words above it are one. The editor
@@ -316,7 +370,7 @@ function dividersStayDividers(text) {
 // The post's title is its only top heading, so a Markdown "#" heading goes
 // down one. A line's end is a line's end (as Obsidian has it): the editor
 // writes Markdown a line to a row, and what's on a row of its own stays on one.
-export const markdownToHtml = (text) => marked.parse(dividersStayDividers(text), { gfm: true, breaks: true, async: false })
+export const markdownToHtml = (text) => marked.parse(dividersStayDividers(emptyLinesStay(text)), { gfm: true, breaks: true, async: false })
   .replace(/<(\/?)h1\b/g, "<$1h2")
   .replace(/<(\/?)h[56]\b/g, "<$1h4");
 
