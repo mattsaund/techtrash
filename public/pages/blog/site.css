@@ -346,10 +346,11 @@ a.tag:hover { color: var(--site-fg); }
 }
 
 /* --- a blog ------------------------------------------------ *
-   What the editor makes, the same in the editor as on the page. */
+   What the editor makes, the same in the editor as on the page,
+   across the whole width of its panel: the panel is the measure,
+   as on msaunders.dev. */
 .prose {
   display: flow-root;   /* holds a picture the words go around */
-  max-width: var(--site-measure);
   color: var(--site-fg-2);
   overflow-wrap: anywhere;
 }
@@ -575,7 +576,7 @@ a.tag:hover { color: var(--site-fg); }
 .comment__badge { color: var(--hue); }
 .comment__date { color: var(--site-fg-3); text-decoration: none; }
 .comment__date:hover { color: var(--hue); }
-.comment__body { max-width: var(--site-measure); color: var(--site-fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment__body { color: var(--site-fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .comment__actions { display: flex; gap: var(--sp-16); }
 .comment .comment-form { margin-top: var(--sp-8); }
 
@@ -598,7 +599,7 @@ a.tag:hover { color: var(--site-fg); }
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
-  max-width: var(--site-measure);
+  max-width: var(--site-form);
   padding: calc(var(--site-card-pad) - var(--site-trim-top)) var(--site-card-pad) calc(var(--site-card-pad) - var(--site-trim-bottom));
   border: var(--hairline) solid var(--site-line);
   border-radius: var(--r-control);

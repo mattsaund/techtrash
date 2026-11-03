@@ -475,7 +475,7 @@
 
   /* --- sizes ------------------------------------------------ */
   --site-wrap:     1204px;  /* a panel at its widest, msaunders.dev's */
-  --site-measure:  640px;   /* the longest line of a post, about 75 characters */
+  --site-form:     640px;   /* the comment form's box, at its widest: a name and a comment don't need a whole panel */
   --site-card-min: 336px;   /* a blog's card, at its narrowest: three across a whole panel, as msaunders.dev lays its out */
   --site-cover:    16 / 9;  /* a blog's first picture, on its card */
   --site-tile:     160px;   /* a picture in Pictures, at its narrowest */
