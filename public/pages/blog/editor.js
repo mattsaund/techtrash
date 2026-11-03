@@ -21,6 +21,9 @@
 //     the first thing in the paragraph whose words go beside it (words typed
 //     in front of it would put it below them), and choosing Left or Right puts
 //     the cursor right after it, to type beside it.
+//   - The lines after a picture on the left or the right go beside it, as far
+//     down as it goes. Enter on an empty line beside it puts that line under
+//     it (a class the post keeps), so Enter, Enter gets out from beside it.
 //   - Undo and Redo are its own (createHistory): the browser's only know the
 //     changes the browser made, and this editor makes some of its own.
 //   - The browser's own looks go as soon as it leaves them (joining a paragraph
@@ -78,6 +81,7 @@ const LINES = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "UL", "OL", "PRE
 const PLAYERS = "YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud, Apple Music, or a link to a video or sound file";
 const LEAST_PICTURE = 32;   // how small a picture can be dragged, in pixels
 const LEAST_PLAYER = 240;   // ...and a player, which is no use any smaller
+const UNDER = "under-pic";  // a line that starts under the pictures beside the lines before it
 
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const BLOCK_TAG = /<(?:p|h[1-6]|ul|ol|li|pre|blockquote|table|hr|figure|div)\b/i;
@@ -313,6 +317,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
       settleLines();
       dropBlankLines();
       endLine();
+      settleUnder();
       history.soon();
     }
     area.classList.toggle("is-empty", empty());
@@ -629,7 +634,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     const next = line.nextElementSibling;
     const alone = line.matches("p") && wordless(line) && [...line.querySelectorAll("img")].every(beside);
     const cursorThere = line.contains(getSelection().anchorNode);
-    if (alone && next?.matches("p") && !wordless(next) && (carry || !cursorThere)) {
+    // (not into a line that's under it: that's where it was asked to be)
+    if (alone && next?.matches("p") && !next.classList.contains(UNDER) && !wordless(next) && (carry || !cursorThere)) {
       next.prepend(...line.querySelectorAll("img"));
       line.remove();
     }
@@ -731,6 +737,45 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     if (!area.lastElementChild || isThing(area.lastElementChild)) area.append(el("p", {}, el("br")));
   }
 
+  // --- under a picture ------------------------------------------------------------------
+
+  // A picture on the left or the right has the lines after it beside it, as
+  // far down as it goes. Enter on an empty line beside one puts that line
+  // under it (UNDER, which the post keeps: site.css clears it of pictures),
+  // so pressing Enter till the cursor's under the picture works as it always
+  // has, though empty lines don't stay. This is the empty line the cursor's
+  // on, if it's beside a picture or already put under one.
+  function emptyLineBy() {
+    const selection = getSelection();
+    if (!selection.rangeCount || !selection.isCollapsed || !area.contains(selection.anchorNode)) return null;
+    const node = selection.anchorNode === area ? area.childNodes[selection.anchorOffset] : selection.anchorNode;
+    const line = lineOf(node);
+    if (!line?.matches?.("p") || !blankLine(line)) return null;
+    if (line.classList.contains(UNDER)) return line;
+    const top = line.getBoundingClientRect().top;
+    for (const img of area.querySelectorAll("img.pic--left, img.pic--right")) {
+      if (!(img.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING) || getComputedStyle(img).float === "none") continue;
+      if (top < img.getBoundingClientRect().bottom - 1) return line;
+    }
+    return null;
+  }
+
+  // Only the first line under the pictures needs it (Enter copies it onto
+  // the line it makes, and the lines after are under them anyway).
+  function settleUnder() {
+    let floating = false;
+    for (const line of area.children) {
+      if (line.classList.contains(UNDER)) {
+        if (floating) floating = false;
+        else {
+          line.classList.remove(UNDER);
+          if (!line.className) line.removeAttribute("class");
+        }
+      }
+      if (line.querySelector("img.pic--left, img.pic--right")) floating = true;
+    }
+  }
+
   // --- things: dividers, players, pictures on lines of their own ------------------------
 
   // A thing the cursor can't be in, only beside: a divider, a player, or a
@@ -781,6 +826,20 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   }
 
   area.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !composing) {
+      const line = emptyLineBy();
+      if (line) {
+        // beside a picture: the line goes under it; already under it: an
+        // empty line more would only go again
+        e.preventDefault();
+        if (!line.classList.contains(UNDER)) {
+          line.classList.add(UNDER);
+          line.scrollIntoView({ block: "nearest" });
+          changed();
+        }
+        return;
+      }
+    }
     if (e.key === "Backspace" || e.key === "Delete") {
       const back = e.key === "Backspace";
       const found = thingBy(back);

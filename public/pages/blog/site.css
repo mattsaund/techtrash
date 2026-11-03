@@ -392,8 +392,11 @@ a.tag:hover { color: var(--site-fg); }
 /* Small, until it's given a width of its own (dragged in the editor):
    then that, up to the column's. */
 .prose .pic--left:not([width]), .prose .pic--right:not([width]), .prose .pic--center:not([width]) { max-width: var(--site-float); }
-.prose .pic--left { float: left; margin: 0 var(--sp-16) var(--sp-8) 0; }
-.prose .pic--right { float: right; margin: 0 0 var(--sp-8) var(--sp-16); }
+/* (under a picture, a paragraph's space: the words that wrap under it, and a
+   line put under it, start where the next paragraph would) */
+.prose .pic--left { float: left; margin: 0 var(--sp-16) var(--sp-16) 0; }
+.prose .pic--right { float: right; margin: 0 0 var(--sp-16) var(--sp-16); }
+.prose .under-pic { clear: both; }
 .prose .pic--center { margin-left: auto; margin-right: auto; }
 .prose span[class*="hue-"] { color: var(--hue); }
 .prose .align-center { text-align: center; }

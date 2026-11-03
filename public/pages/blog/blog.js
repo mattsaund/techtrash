@@ -653,6 +653,7 @@ async function showEditor(postSlug = null) {
     made.addEventListener("click", click);
     return made;
   };
+  // (a new blog has no Delete draft: nothing, not "null", in its place)
   function drawButtons() {
     buttons.replaceChildren(...(isUp()
       ? [
@@ -672,7 +673,7 @@ async function showEditor(postSlug = null) {
           remembered.forget(key);
           location.assign(theBlog());
         }) : null,
-      ]));
+      ]).filter(Boolean));
   }
   drawButtons();
   addEventListener("keydown", (e) => {

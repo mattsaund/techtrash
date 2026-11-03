@@ -29,6 +29,8 @@ const ATTRS = ["href", "src", "alt", "title", "class", "start", "width", "data-w
 export const PICTURE_PLACES = ["pic--left", "pic--center", "pic--right"];
 const CLASSES = new Set([
   "hue-1", "hue-2", "hue-3", "hue-4", "hue-5", "hue-6", ...PICTURE_PLACES, "align-center", "align-right",
+  // a line that starts under the pictures beside the lines before it
+  "under-pic",
 ]);
 
 // Links go to the web, an email address, or somewhere on this site. Pictures
