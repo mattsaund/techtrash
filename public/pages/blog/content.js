@@ -9,6 +9,10 @@
 // player, and a link to a song or an album becomes a music player: see
 // playerFor for who. The post stores the link; the player is drawn as it's
 // shown, so a post never holds anything but its words and pictures.
+//
+// A picture or a player can have a width of its own, dragged in the editor:
+// a picture's is its width="" (in pixels), a player's is data-width="" on its
+// link's paragraph. Either is only ever as wide as the column it's in.
 
 import DOMPurify from "./vendor/purify.js";
 
@@ -18,7 +22,7 @@ const TAGS = [
   "p", "br", "h2", "h3", "h4", "strong", "b", "em", "i", "u", "s", "del", "code", "span", "a",
   "ul", "ol", "li", "blockquote", "pre", "hr", "img", "table", "thead", "tbody", "tr", "th", "td",
 ];
-const ATTRS = ["href", "src", "alt", "title", "class", "start"];
+const ATTRS = ["href", "src", "alt", "title", "class", "start", "width", "data-width"];
 
 // The only classes a post may use: words in one of the six hues, where a
 // picture sits, and a paragraph's alignment. site.css draws them.
@@ -37,10 +41,26 @@ purify.addHook("uponSanitizeAttribute", (node, data) => {
     if (!data.attrValue) data.keepAttr = false;
   }
   if (data.attrName === "src" && !SAFE_ADDRESS.test(data.attrValue.trim())) data.keepAttr = false;
+  // a width: a whole number of pixels, a picture's or a player's paragraph's, nothing else's
+  if (data.attrName === "width" && (node.nodeName !== "IMG" || !widthOf(data.attrValue))) data.keepAttr = false;
+  if (data.attrName === "data-width" && (node.nodeName !== "P" || !widthOf(data.attrValue))) data.keepAttr = false;
 });
 
-// (DOMPurify holds every attribute but a few to the addresses rule: a list's start isn't one.)
-const CONFIG = { ALLOWED_TAGS: TAGS, ALLOWED_ATTR: ATTRS, ALLOWED_URI_REGEXP: SAFE_ADDRESS, ADD_URI_SAFE_ATTR: ["start"] };
+// (DOMPurify holds every attribute but a few to the addresses rule: a list's
+// start isn't one, and nor is a width. No data- attribute but data-width.)
+const CONFIG = {
+  ALLOWED_TAGS: TAGS,
+  ALLOWED_ATTR: ATTRS,
+  ALLOWED_URI_REGEXP: SAFE_ADDRESS,
+  ADD_URI_SAFE_ATTR: ["start", "width", "data-width"],
+  ALLOW_DATA_ATTR: false,
+};
+
+// A width as a post keeps it: a whole number of pixels, or null.
+export function widthOf(value) {
+  const width = /^\s*\d{1,4}\s*$/.test(value ?? "") ? Number(value) : 0;
+  return width > 0 ? width : null;
+}
 
 // Cleaned, as a fragment of this page.
 function cleanFragment(html) {
@@ -65,7 +85,7 @@ export function clean(html) {
 // A post's body, ready to go on the page: cleaned, with its players.
 export function renderBody(html) {
   const body = cleanFragment(html);
-  embedPlayers(body, (player) => playerElement(player));
+  embedPlayers(body, (player, address, width) => sizePlayer(playerElement(player), width));
   for (const img of body.querySelectorAll("img")) img.loading = "lazy";
   // a wide table scrolls on its own, rather than the page
   for (const table of body.querySelectorAll("table")) {
@@ -79,8 +99,8 @@ export function renderBody(html) {
 
 // --- players ---------------------------------------------------------------------
 
-// { player, address } if a paragraph is nothing but a link something plays:
-// a bare address, linked or not.
+// { player, address, width } if a paragraph is nothing but a link something
+// plays: a bare address, linked or not. width is the player's own, or null.
 export function playerIn(p) {
   const text = p.textContent.trim();
   if (!/^https?:\/\/\S+$/.test(text)) return null;
@@ -89,14 +109,14 @@ export function playerIn(p) {
   if (link && link.textContent.trim() !== text) return null;
   const address = link?.getAttribute("href") ?? text;
   const player = playerFor(address);
-  return player && { player, address };
+  return player && { player, address, width: widthOf(p.getAttribute("data-width")) };
 }
 
-// Swaps each paragraph that's a player's link for make(player, address).
+// Swaps each paragraph that's a player's link for make(player, address, width).
 export function embedPlayers(root, make) {
   for (const p of root.querySelectorAll("p")) {
     const found = playerIn(p);
-    if (found) p.replaceWith(make(found.player, found.address));
+    if (found) p.replaceWith(make(found.player, found.address, found.width));
   }
 }
 
@@ -189,6 +209,19 @@ export function playerFor(address) {
   return null;
 }
 
+// A player at a width of its own (null: the column's), kept on it as
+// data-width, as its paragraph keeps it. site.css holds it to the column.
+export function sizePlayer(box, width) {
+  if (width) {
+    box.style.width = `${width}px`;
+    box.dataset.width = width;
+  } else {
+    box.style.removeProperty("width");
+    delete box.dataset.width;
+  }
+  return box;
+}
+
 // The player itself.
 export function playerElement(player) {
   const box = document.createElement("figure");
@@ -227,10 +260,12 @@ export async function loadMarkdown() {
   marked = markedModule.marked;
   turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-", emDelimiter: "*", hr: "---" });
   turndown.use(gfm);
-  // What Markdown has no way to say (a hue, where a picture sits, a line's
-  // alignment, underline) stays the HTML it is, which Markdown allows.
+  // What Markdown has no way to say (a hue, where a picture sits, how wide a
+  // picture or a player is, a line's alignment, underline) stays the HTML it
+  // is, which Markdown allows.
   turndown.addRule("classes", {
-    filter: (node) => ["SPAN", "IMG", "P", "H2", "H3", "H4"].includes(node.nodeName) && Boolean(node.getAttribute("class")),
+    filter: (node) => ["SPAN", "IMG", "P", "H2", "H3", "H4"].includes(node.nodeName)
+      && (Boolean(node.getAttribute("class")) || node.hasAttribute("width") || node.hasAttribute("data-width")),
     replacement: (content, node) => (["SPAN", "IMG"].includes(node.nodeName) ? node.outerHTML : `\n\n${node.outerHTML}\n\n`),
   });
   turndown.addRule("underline", { filter: ["u"], replacement: (content) => `<u>${content}</u>` });

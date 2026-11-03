@@ -17,10 +17,14 @@
 //     on, but not its looks: it's cleaned the way a post is.
 //   - A picture or a player moves up or down a line with its Up and Down
 //     buttons (click a picture for them; a player has them under it).
+//   - A picture or a player gets bigger or smaller by its corners: click it
+//     (a player by its bar, under it) and drag one. It keeps its shape (a
+//     song's player only gets wider), and never gets wider than the column.
+//     Reset size puts it back to its own size (a player: the column's).
 //   - It writes three ways: Rich text (all of the above), Markdown, or HTML,
 //     switched at the top. What's written carries over from one to the next:
-//     whatever Markdown can't say (a hue, where a picture sits) stays as HTML
-//     in it. Pictures and players go in from any of the three.
+//     whatever Markdown can't say (a hue, where a picture sits, how wide it
+//     is) stays as HTML in it. Pictures and players go in from any of the three.
 //
 // createEditor(html, { onChange, onTitle, short }) gives back
 //   { element, html(), empty(), focus() }
@@ -29,6 +33,7 @@
 
 import {
   clean, embedPlayers, fromMarkdown, htmlToMarkdown, loadMarkdown, markdownToHtml, PICTURE_PLACES, playerElement, playerFor, playerIn,
+  sizePlayer,
 } from "./content.js";
 import { api, el, plural, readyPicture } from "./util.js";
 
@@ -36,6 +41,8 @@ import { api, el, plural, readyPicture } from "./util.js";
 const HUES = ["red", "orange", "yellow", "green", "blue", "violet"];
 const BLOCKS = new Set(["P", "H2", "H3", "H4", "PRE", "BLOCKQUOTE", "LI"]);
 const PLAYERS = "YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud, Apple Music, or a link to a video or sound file";
+const LEAST_PICTURE = 32;   // how small a picture can be dragged, in pixels
+const LEAST_PLAYER = 240;   // ...and a player, which is no use any smaller
 
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const BLOCK_TAG = /<(?:p|h[1-6]|ul|ol|li|pre|blockquote|table|hr|figure|div)\b/i;
@@ -272,11 +279,18 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   // --- players --------------------------------------------------------------------
 
   // A player in the box: the real one, to see it's the right video, with the
-  // link it came from and a button to take it out. The post keeps the link.
-  function playerBlock(player, address) {
-    const box = playerElement(player);
+  // link it came from and a button to take it out. The post keeps the link
+  // (and the player's width, if it has one of its own). Clicking its bar
+  // picks it, to drag it bigger or smaller by its corners.
+  function playerBlock(player, address, width = null) {
+    const box = sizePlayer(playerElement(player), width);
     box.contentEditable = "false";
     box.dataset.address = address;
+    const reset = el("button", { class: "tool", type: "button", textContent: "Reset size", title: "As wide as the column" });
+    reset.addEventListener("click", () => {
+      sizePlayer(box, null);
+      changed();
+    });
     const remove = el("button", { class: "tool", type: "button", textContent: "Remove" });
     remove.addEventListener("click", () => {
       box.remove();
@@ -286,7 +300,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     const down = el("button", { class: "tool", type: "button", textContent: "Down", title: "Down a line" });
     up.addEventListener("click", () => move(box, true));
     down.addEventListener("click", () => move(box, false));
-    box.append(el("figcaption", { class: "embed__bar" }, el("span", { class: "embed__address", textContent: address }), up, down, remove));
+    box.append(el("figcaption", { class: "embed__bar", title: "Click to pick it, then drag a corner to size it" },
+      el("span", { class: "embed__address", textContent: address }), up, down, reset, remove));
     return box;
   }
 
@@ -306,7 +321,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     const before = lineOf(here()?.startContainer)?.previousElementSibling;
     const found = before?.matches("p") && playerIn(before);
     if (found) {
-      before.replaceWith(playerBlock(found.player, found.address));
+      before.replaceWith(playerBlock(found.player, found.address, found.width));
       changed();
     }
   });
@@ -353,7 +368,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
         return tell(error.message);
       }
     }
-    tell(mode === "rich" ? "Click a picture to say what's in it, or where it sits." : "");
+    tell(mode === "rich" ? "Click a picture to say what's in it or where it sits, and drag its corners to size it." : "");
   }
 
   picturePicker.addEventListener("change", () => {
@@ -361,11 +376,12 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     picturePicker.value = "";
   });
 
-  // Click a picture: say what's in it (for people who can't see it), and where it sits.
+  // Click a picture: say what's in it (for people who can't see it), where it
+  // sits, and how big it is. A player's picked too (by its bar), for its size.
   let picked = null;
   const alt = el("input", { class: "editor__field", placeholder: "What's in it? (read out to people who can't see it)", "aria-label": "What's in the picture" });
   alt.addEventListener("input", () => {
-    if (picked) picked.alt = alt.value;
+    if (picked?.matches("img")) picked.alt = alt.value;
     onChange();
   });
   // (inside a form, like a topic's, Enter here would send the whole form)
@@ -382,6 +398,12 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     });
     return [button, place];
   });
+  const resetPicture = el("button", { class: "tool", type: "button", textContent: "Reset size", title: "Its own size (no wider than the column)" });
+  resetPicture.addEventListener("click", () => {
+    picked.removeAttribute("width");
+    picked.removeAttribute("height");
+    changed();
+  });
   const removePicture = el("button", { class: "tool", type: "button", textContent: "Remove" });
   removePicture.addEventListener("click", () => {
     picked.remove();
@@ -395,22 +417,95 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
   pictureRow.append(
     el("span", { class: "editor__label", textContent: "Picture" }), alt,
     el("div", { class: "tools__group" }, places.map(([button]) => button)),
+    resetPicture,
     el("div", { class: "tools__group" }, pictureUp, pictureDown),
     removePicture);
 
-  function pick(img) {
+  function pick(item) {
     picked?.classList.remove("is-picked");
-    picked = img && area.contains(img) ? img : null;
-    pictureRow.hidden = !picked;
+    picked = item && area.contains(item) ? item : null;
+    const picture = picked?.matches("img") ? picked : null;
+    pictureRow.hidden = !picture;
+    follow();
     if (!picked) return;
     picked.classList.add("is-picked");
-    alt.value = picked.alt;
+    if (!picture) return;
+    alt.value = picture.alt;
     for (const [button, place] of places) {
-      button.setAttribute("aria-pressed", String(place ? picked.classList.contains(place) : !PICTURE_PLACES.some((p) => picked.classList.contains(p))));
+      button.setAttribute("aria-pressed", String(place ? picture.classList.contains(place) : !PICTURE_PLACES.some((p) => picture.classList.contains(p))));
     }
   }
-  area.addEventListener("click", (e) => pick(e.target.closest("img")));
+  area.addEventListener("click", (e) => pick(e.target.closest("img, .embed")));
   area.addEventListener("keydown", () => pick(null));
+
+  // --- sizes ----------------------------------------------------------------------
+
+  // The picked picture's or player's corners, over the box: drag one to make
+  // it bigger or smaller. A picture's width goes in its width="", a player's
+  // in its data-width (sizePlayer), and the post keeps either.
+  const corners = ["nw", "ne", "sw", "se"].map((corner) => el("span", { class: `resizer__handle resizer__handle--${corner}`, "data-corner": corner }));
+  const resizer = el("div", { class: "resizer", hidden: true, "aria-hidden": "true" }, corners);
+  element.append(resizer);
+
+  // They follow it while it's picked, wherever the words around it move it.
+  let following = 0;
+  function follow() {
+    cancelAnimationFrame(following);
+    if (!picked?.isConnected || mode !== "rich") {
+      resizer.hidden = true;
+      return;
+    }
+    const box = element.getBoundingClientRect();
+    const at = picked.getBoundingClientRect();
+    resizer.hidden = false;
+    resizer.style.left = `${at.left - box.left - element.clientLeft}px`;
+    resizer.style.top = `${at.top - box.top - element.clientTop}px`;
+    resizer.style.width = `${at.width}px`;
+    resizer.style.height = `${at.height}px`;
+    following = requestAnimationFrame(follow);
+  }
+
+  // How wide the column is: the most anything in it can be.
+  const column = () => {
+    const look = getComputedStyle(area);
+    return area.clientWidth - parseFloat(look.paddingLeft) - parseFloat(look.paddingRight);
+  };
+
+  // A corner, dragged: away from the middle is bigger. Across sets the size;
+  // up or down does too, for something that keeps its shape (a picture, a
+  // video), whichever goes further. The pointer stays with the corner, over
+  // a player's video too.
+  resizer.addEventListener("pointerdown", (e) => {
+    const corner = e.target.dataset?.corner;
+    if (!corner || !picked) return;
+    e.preventDefault();
+    const item = picked;
+    const handle = e.target;
+    handle.setPointerCapture(e.pointerId);
+    const start = item.getBoundingClientRect();
+    const isPicture = item.matches("img");
+    const keepsShape = isPicture || item.matches(".embed--video, .embed--tall, .embed--file");
+    const most = column();
+    const least = Math.min(isPicture ? LEAST_PICTURE : LEAST_PLAYER, most);
+    const outX = corner.endsWith("e") ? 1 : -1;
+    const outY = corner.startsWith("s") ? 1 : -1;
+    const moved = (move) => {
+      const across = outX * (move.clientX - e.clientX);
+      const down = keepsShape ? outY * (move.clientY - e.clientY) * (start.width / start.height) : 0;
+      const width = Math.round(Math.min(most, Math.max(least, start.width + (Math.abs(across) >= Math.abs(down) ? across : down))));
+      if (isPicture) item.setAttribute("width", width);
+      else sizePlayer(item, width);
+    };
+    const done = () => {
+      handle.removeEventListener("pointermove", moved);
+      handle.removeEventListener("pointerup", done);
+      handle.removeEventListener("pointercancel", done);
+      changed();
+    };
+    handle.addEventListener("pointermove", moved);
+    handle.addEventListener("pointerup", done);
+    handle.addEventListener("pointercancel", done);
+  });
 
   // --- Markdown -------------------------------------------------------------------
 
@@ -630,9 +725,9 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
     if (mode === "html") return clean(tidyHtml(source.value));
     const copy = inert().importNode(area, true);
     for (const box of copy.querySelectorAll("[data-address]")) {
-      box.replaceWith(el("p", {}, el("a", { href: box.dataset.address, textContent: box.dataset.address })));
+      box.replaceWith(el("p", { "data-width": box.dataset.width }, el("a", { href: box.dataset.address, textContent: box.dataset.address })));
     }
-    for (const img of copy.querySelectorAll(".is-picked")) img.classList.remove("is-picked");
+    for (const node of copy.querySelectorAll(".is-picked")) node.classList.remove("is-picked");
     return clean(tidy(copy).innerHTML);
   }
 

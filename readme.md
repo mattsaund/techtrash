@@ -372,8 +372,8 @@ bulletin**, **Edit about me**, **Edit tagline**.
   It writes three ways, switched at its top: **Rich text** (what you see is
   what the blog looks like), **Markdown**, or **HTML**, and what's written
   carries over from one to the next (whatever Markdown has no way to say, a
-  hue or where a picture sits, stays as HTML in it). In Rich text: bold,
-  italic, underline, strikethrough, code, headings, quotes, code blocks,
+  hue, where a picture sits or how wide it is, stays as HTML in it). In Rich
+  text: bold, italic, underline, strikethrough, code, headings, quotes, code blocks,
   lists, alignment, the six hues, links and dividers, with undo. **Pictures**
   go anywhere, mid-text, as many as you like (several at once from the
   picture button, a paste or a drop), in any of the three ways, and are
@@ -381,9 +381,14 @@ bulletin**, **Edit about me**, **Edit tagline**.
   middle or right with the words around it, or move it **Up** or **Down** a
   line. **A video's or a song's link** on its own line (the **video** button,
   or paste it on an empty line) becomes its player, with its own **Up**,
-  **Down** and **Remove**: YouTube, Vimeo, Dailymotion, Twitch, Streamable,
-  Loom, TikTok, Spotify, SoundCloud, Apple Music, or a link to a video or
-  sound file. **A Markdown file** comes in from the `.md` button or dropped on
+  **Down**, **Reset size** and **Remove**: YouTube, Vimeo, Dailymotion,
+  Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud, Apple Music, or a
+  link to a video or sound file. **Sizes:** click a picture (or a player's
+  bar, under it) and drag any of its corners to make it bigger or smaller. It
+  keeps its shape (a song's player only gets wider) and never gets wider than
+  the column, so on a phone it fits; **Reset size** puts it back. The post
+  keeps a picture's width as its `width`, and a player's as `data-width` on
+  its link's line. **A Markdown file** comes in from the `.md` button or dropped on
   the box, and its `# Title` becomes the blog's title. Anything pasted from
   another page keeps its formatting but not its looks. Ctrl+K makes a link.
   Under the box, its **flags**: type one and press Enter (or a comma), and the
