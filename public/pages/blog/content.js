@@ -263,7 +263,8 @@ export async function loadMarkdown() {
     import("./vendor/marked.js"), import("./vendor/turndown.js"), import("./vendor/turndown-plugin-gfm.js"),
   ]);
   marked = markedModule.marked;
-  turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-", emDelimiter: "*", hr: "---" });
+  // (a line break's just the line's end: Markdown here keeps a line's end, see markdownToHtml)
+  turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-", emDelimiter: "*", hr: "---", br: "" });
   turndown.use(gfm);
   // What Markdown has no way to say (a hue, where a picture sits, how wide a
   // picture or a player is, a line's alignment, underline) stays the HTML it
@@ -289,8 +290,10 @@ export async function loadMarkdown() {
 
 export const htmlToMarkdown = (html) => turndown.turndown(html);
 
-// The post's title is its only top heading, so a Markdown "#" heading goes down one.
-export const markdownToHtml = (text) => marked.parse(text, { gfm: true, async: false })
+// The post's title is its only top heading, so a Markdown "#" heading goes
+// down one. A line's end is a line's end (as Obsidian has it): the editor
+// writes Markdown a line to a row, and what's on a row of its own stays on one.
+export const markdownToHtml = (text) => marked.parse(text, { gfm: true, breaks: true, async: false })
   .replace(/<(\/?)h1\b/g, "<$1h2")
   .replace(/<(\/?)h[56]\b/g, "<$1h4");
 

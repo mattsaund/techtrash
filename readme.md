@@ -46,6 +46,8 @@ public/pages/blog/blog.js    Its pages: the front page (Home, the Blog,
                              Pictures, About me), a blog, and the admin's
                              editor page
 public/pages/blog/editor.js  The admin's editor
+public/pages/blog/live-markdown.js  Its Markdown, written live (as Obsidian does)
+public/pages/blog/history.js  Its own Undo and Redo
 public/pages/blog/content.js What a blog is made of: cleaning it, its players,
                              Markdown
 public/pages/blog/comments.js  A blog's comments and their threads
@@ -374,7 +376,14 @@ bulletin**, **Edit about me**, **Edit tagline**.
   carries over from one to the next (whatever Markdown has no way to say, a
   hue, where a picture sits or how wide it is, stays as HTML in it). In Rich
   text: bold, italic, underline, strikethrough, code, headings, quotes, code blocks,
-  lists, alignment, the six hues, links and dividers, with undo. **Pictures**
+  lists, alignment, the six hues, links and dividers, with **Undo** and
+  **Redo** of the editor's own (`history.js`): a snapshot after each change or
+  burst of typing, so they always step back through what was really on
+  screen (the browser's own would undo the wrong things, since the editor
+  makes changes of its own). Whatever looks the browser leaves when words
+  are joined or moved (a paragraph joined to a heading keeps the paragraph's
+  size in a hidden span) go straight away, so what's shown is what's saved.
+  **Pictures**
   go anywhere, mid-text, as many as you like (several at once from the
   picture button, a paste or a drop), in any of the three ways, and are
   uploaded as they go in; click one to describe it, sit it small on the left,
@@ -396,6 +405,16 @@ bulletin**, **Edit about me**, **Edit tagline**.
   its link's line. **A Markdown file** comes in from the `.md` button or dropped on
   the box, and its `# Title` becomes the blog's title. Anything pasted from
   another page keeps its formatting but not its looks. Ctrl+K makes a link.
+  **Markdown is written live** (`live-markdown.js`), the way Obsidian shows
+  it: the line the cursor's on is its Markdown, every character of it, and
+  every other line is drawn the way it'll look, with its marks out of sight
+  (a heading big, bold words bold, a link a link, a picture as the picture, a
+  video's link as its player). Pictures and players are picked and sized the
+  same way as in Rich text, and their size and place go into their line (a
+  sized or placed picture becomes an `<img>` there). Enter carries a list or a
+  quote on (Enter on an empty item ends it, with an empty line after it),
+  Tab steps an item in, Ctrl+B and Ctrl+I make words bold or italic, and Undo
+  and Redo are its own too. A line's end is a line break, as in Obsidian.
   **The space between paragraphs** is always the same: an empty line (cutting
   a whole paragraph leaves one behind, two Enters make one) goes as soon as
   the cursor's off it and something changes, none is ever saved, and any a

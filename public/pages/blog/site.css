@@ -504,6 +504,58 @@ a.tag:hover { color: var(--site-fg); }
   resize: vertical;
 }
 .editor__source:focus-visible { outline: 0; }
+/* Markdown, written live (live-markdown.js): a line to a row, the
+   Markdown itself on the line the cursor's on, and every other line
+   drawn the way it'll look, with its marks out of sight. */
+.md-live {
+  position: relative;
+  min-height: var(--site-editor);
+  padding: var(--sp-16);
+  outline: 0;
+  color: var(--site-fg-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.md-live.is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--site-fg-3);
+  pointer-events: none;
+}
+.md-line { min-height: var(--lh-site-body); }
+.md-line:not(.is-active) :is(.md-mark, .md-url, .md-source) { display: none; }
+.md-line.is-active .md-widget { display: none; }
+.md-mark, .md-tag, .md-fence { color: var(--site-fg-3); }
+.md-h2, .md-h3, .md-h4 { color: var(--site-fg); font-weight: 500; }
+.md-h2 { font-size: var(--fs-site-sub); line-height: var(--lh-site-sub); }
+.md-h3 { font-size: var(--fs-site-label); line-height: var(--lh-site-label); }
+.md-strong { color: var(--site-fg); font-weight: 700; }
+.md-em { font-style: italic; }
+.md-strike { text-decoration: line-through; }
+.md-u { text-decoration: underline; }
+.md-hue { color: var(--hue); }
+.md-link { color: var(--hue); text-decoration: underline; text-underline-offset: var(--sp-4); }
+.md-bullet { color: var(--hue); }
+.md-code {
+  padding: 0 var(--sp-4);
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+  color: var(--site-fg);
+}
+.md-codeline, .md-fence { padding: 0 var(--sp-8); background: var(--site-field); color: var(--site-fg); }
+.md-quote { padding-left: var(--sp-16); border-left: var(--hairline) solid var(--hue); font-style: italic; }
+.md-rule { display: inline-block; width: 100%; vertical-align: middle; border-top: var(--hairline) solid var(--site-line-2); }
+.md-widget img {
+  display: inline-block;
+  vertical-align: top;
+  border: var(--hairline) solid var(--site-line);
+  cursor: pointer;
+}
+.md-live img.is-picked,
+.md-live .embed.is-picked { outline: var(--sp-2) solid var(--hue); }
+.md-live .embed { white-space: normal; user-select: none; }
+.md-live .embed__bar { cursor: pointer; }
 .editor__area--short { min-height: var(--site-editor-short); }
 .editor__area.is-empty::before {
   content: attr(data-placeholder);
