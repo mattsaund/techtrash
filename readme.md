@@ -396,6 +396,10 @@ bulletin**, **Edit about me**, **Edit tagline**.
   its link's line. **A Markdown file** comes in from the `.md` button or dropped on
   the box, and its `# Title` becomes the blog's title. Anything pasted from
   another page keeps its formatting but not its looks. Ctrl+K makes a link.
+  **The space between paragraphs** is always the same: an empty line (cutting
+  a whole paragraph leaves one behind, two Enters make one) goes as soon as
+  the cursor's off it and something changes, none is ever saved, and any a
+  blog already has isn't shown.
   Under the box, its **flags**: type one and press Enter (or a comma), and the
   ones other blogs wear are a click away under it; click one to take it off.
   And **Comments on**, or off.
@@ -410,9 +414,10 @@ bulletin**, **Edit about me**, **Edit tagline**.
 - **Changing** a blog that's up is **Edit blog** on its page, any time: the
   editor again with everything in it (title, words, pictures, players, flags,
   the comments setting), then **Save changes** (Ctrl+S saves and stays). Its
-  page says when it last changed. **Move to drafts** takes it down without
-  losing anything, its comments included; published again, it keeps the day
-  it first went up. **Delete blog** (two clicks) takes it, its comments, and
+  page says when it last changed. **Move to drafts** (two clicks, on its page
+  or beside **Save changes** in the editor, where it saves the changes too)
+  takes it down without losing anything, its comments included; published
+  again, it keeps the day it first went up. **Delete blog** (two clicks) takes it, its comments, and
   any picture nothing else shows. The bulletin, the tagline, Home's words and
   About me are changed in place, the same way.
 - **Comments** are anyone's, with a name, on a blog or in reply to another

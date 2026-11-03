@@ -653,7 +653,12 @@ async function showEditor(postSlug = null) {
   };
   function drawButtons() {
     buttons.replaceChildren(...(isUp()
-      ? [button("Save changes", "hue-4", () => save({ stay: false })), cancel]
+      ? [
+        button("Save changes", "hue-4", () => save({ stay: false })),
+        // back to being a draft, the changes and all, and the editor stays open
+        twoClick("Move to drafts", "Click again to take it down", () => save({ draft: true, stay: true }), "button hue-2"),
+        cancel,
+      ]
       : [
         button("Publish", "hue-4", () => save({ draft: false, stay: false })),
         button("Save draft", "hue-5", () => save({ draft: true, stay: true })),

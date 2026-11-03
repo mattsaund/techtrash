@@ -62,12 +62,21 @@ export function widthOf(value) {
   return width > 0 ? width : null;
 }
 
+// A paragraph with nothing in it: no words (spaces, no-break spaces and the
+// editor's invisible ones aren't words) and no picture. Moving words about
+// leaves them behind, and Enter makes them.
+export const blankLine = (node) => node?.nodeType === Node.ELEMENT_NODE && node.matches("p")
+  && !node.textContent.replace(/[\s\u00a0\u200b]/g, "") && !node.querySelector("img");
+
 // Cleaned, as a fragment of this page.
 function cleanFragment(html) {
   const body = purify.sanitize(html, { ...CONFIG, RETURN_DOM_FRAGMENT: true });
   for (const img of body.querySelectorAll("img:not([src])")) img.remove();
   // a span that doesn't color anything is only in the way
   for (const span of body.querySelectorAll("span:not([class])")) span.replaceWith(...span.childNodes);
+  // an empty line: the space between paragraphs is the site's own, the same
+  // everywhere, and an empty one would double it
+  for (const p of body.querySelectorAll("p")) if (blankLine(p)) p.remove();
   return body;
 }
 
@@ -75,10 +84,6 @@ function cleanFragment(html) {
 export function clean(html) {
   const box = document.createElement("div");
   box.append(cleanFragment(html));
-  // empty lines at the very start and end of a post
-  const empty = (node) => node?.nodeType === Node.ELEMENT_NODE && node.matches("p") && !node.textContent.trim() && !node.querySelector("img");
-  while (empty(box.firstElementChild) && box.firstElementChild === box.firstChild) box.firstChild.remove();
-  while (empty(box.lastElementChild) && box.lastElementChild === box.lastChild) box.lastChild.remove();
   return box.innerHTML.trim();
 }
 

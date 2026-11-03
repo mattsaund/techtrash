@@ -21,6 +21,9 @@
 //     the first thing in the paragraph whose words go beside it (words typed
 //     in front of it would put it below them), and choosing Left or Right puts
 //     the cursor right after it, to type beside it.
+//   - The space between paragraphs is always the same: an empty line (cutting
+//     a whole paragraph leaves one, two Enters make one) goes as soon as the
+//     cursor's off it and something changes, and none is ever saved.
 //   - A picture or a player gets bigger or smaller by its corners: click it
 //     (a player by its bar, under it) and drag one. It keeps its shape (a
 //     song's player only gets wider), and never gets wider than the column.
@@ -36,8 +39,8 @@
 // Markdown file's title, and short makes the box short, for a line or two.
 
 import {
-  clean, embedPlayers, fromMarkdown, htmlToMarkdown, loadMarkdown, markdownToHtml, PICTURE_PLACES, playerElement, playerFor, playerIn,
-  sizePlayer,
+  blankLine, clean, embedPlayers, fromMarkdown, htmlToMarkdown, loadMarkdown, markdownToHtml, PICTURE_PLACES, playerElement, playerFor,
+  playerIn, sizePlayer,
 } from "./content.js";
 import { api, el, plural, readyPicture } from "./util.js";
 
@@ -486,7 +489,19 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, s
 
   area.addEventListener("input", () => {
     for (const img of area.querySelectorAll("img.pic--left, img.pic--right")) keepBeside(img);
+    dropBlankLines();
   });
+
+  // An empty line goes, unless the cursor's on it (to type on), so the space
+  // between paragraphs is always the same here, as it is on the page. (Cutting
+  // a whole paragraph leaves one behind; two Enters make one; clean() drops any
+  // left when it's saved.)
+  function dropBlankLines() {
+    const cursor = getSelection().anchorNode;
+    for (const line of [...area.children]) {
+      if (area.children.length > 1 && blankLine(line) && !line.contains(cursor)) line.remove();
+    }
+  }
 
   // --- sizes ----------------------------------------------------------------------
 
