@@ -10,11 +10,13 @@
     "binding": "ASSETS"
   },
   "d1_databases": [
-    // the blog's flags, topics, posts and comments; Cloudflare creates it on the first deploy
+    // the blog: its posts, flags, comments and the site's own words (and the
+    // first blog's topics, kept but unused); Cloudflare creates it on the first deploy
     { "binding": "DB" }
   ],
   "kv_namespaces": [
-    // the blog's pictures; Cloudflare creates it on the first deploy
+    // the blog's pictures, and its sounds; Cloudflare creates it on the first
+    // deploy. (Its name stays PICTURES: it's how the Worker finds the same store.)
     { "binding": "PICTURES" }
   ],
   "durable_objects": {
@@ -37,5 +39,5 @@
     { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
   ]
   // The admin's user name and password are secrets, not settings: ADMIN_USERNAME
-  // and ADMIN_PASSWORD. See "The admin" in readme.md.
+  // and ADMIN_PASSWORD (README.md, "Deploying", and server/admin.js).
 }

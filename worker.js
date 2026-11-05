@@ -6,8 +6,10 @@
 //   /api/desktop          the shared desktop           server/desktop.js
 //   /api/me, /api/logon,  who's logged on, and the     server/admin.js
 //   /api/logoff           admin account
-//   /api/blog/...,        the blog, and its pictures   server/blog.js
-//   /blog/img/<name>
+//   /api/blog/...,        the blog, its pictures and   server/blog.js
+//   /blog/img/<name>,     its sounds
+//   /blog/sound/<name>
+//   /rss.xml              the blog, for feed readers   server/feed.js
 //   anything else         XP's blue screen, as a 404   public/404.html
 //
 // Anything that changes something has to come from the site's own pages, and
@@ -16,6 +18,7 @@
 
 import { adminOnly, isAdmin, logoff, logon } from "./server/admin.js";
 import * as blog from "./server/blog.js";
+import { feed } from "./server/feed.js";
 import { apiError, fresh, fromThisSite } from "./server/http.js";
 
 export { Desktop } from "./server/desktop.js";
@@ -30,6 +33,7 @@ const BLOG = {
   "GET flags": blog.listFlags,
   "GET pictures": blog.listPictures,
   "POST pictures": blog.uploadPicture,
+  "POST sounds": blog.uploadSound,
   "POST comments": blog.createComment,   // anyone's, see server/blog.js
   "DELETE comment": blog.deleteComment,
   "GET page": blog.getPage,
@@ -74,6 +78,11 @@ async function route(request, env) {
     const name = pathname.slice("/blog/img/".length);
     if (blog.PICTURE_NAME.test(name)) return blog.servePicture(name, env);
   }
+  if (reading && pathname.startsWith("/blog/sound/")) {
+    const name = pathname.slice("/blog/sound/".length);
+    if (blog.SOUND_NAME.test(name)) return blog.serveSound(name, request, env);
+  }
+  if (reading && pathname === "/rss.xml") return feed(request, env);
 
   if (pathname.startsWith("/api/")) return apiError(404, "Not found.");
   const page = await env.ASSETS.fetch(new URL("/404", request.url));

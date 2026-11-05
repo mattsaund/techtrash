@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>techtrash</title>
   <link rel="icon" href="/img/icons/xp/internet-shortcut.png">
+  <!-- The blog, for feed readers (server/feed.js). -->
+  <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
   <script>
     // Before anything paints: a visitor arrives logged on, straight into the
     // blog. Only a tab that has logged off comes back to the Welcome screen
@@ -33,10 +35,11 @@
         </header>
         <div class="window__body">
           <p>The desktop needs JavaScript, but every page works without it:</p>
-          <!-- Same list, same order, as js/apps.js. -->
+          <!-- The same apps as js/apps.js (the blog first: it's the site). -->
           <ul>
             <li><a href="/pages/blog/">Techtrash.org blog</a></li>
             <li><a href="/programs/files/">File Browser</a></li>
+            <li><a href="/programs/recycle-bin/">Recycle Bin</a></li>
             <li><a href="/files/credits.txt">credits.txt</a></li>
           </ul>
         </div>
@@ -132,6 +135,28 @@
       <feComposite in="tint" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
     </filter>
   </svg>
+
+  <!-- XP's message box (js/message.js), over the whole desktop until it's
+       answered. -->
+  <template id="message-template">
+    <div class="message-layer">
+      <section class="window message" role="alertdialog" aria-modal="true" aria-labelledby="message-title" aria-describedby="message-text">
+        <header class="title-bar">
+          <h2 class="title-bar__text" id="message-title"></h2>
+          <div class="title-bar__controls">
+            <button class="caption caption--close" aria-label="Close"></button>
+          </div>
+        </header>
+        <div class="message__body">
+          <img class="message__icon" alt="">
+          <p class="message__text" id="message-text"></p>
+        </div>
+        <div class="message__foot">
+          <button class="button button--default" data-ok>OK</button>
+        </div>
+      </section>
+    </div>
+  </template>
 
   <template id="window-template">
     <section class="window">

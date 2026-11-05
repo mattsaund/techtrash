@@ -59,7 +59,7 @@ const PLANETS = [
   { place: "planet--6", hue: "hue-1", side: "left", across: 0.7, at: 0.12, rows: 51, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 18, lumpiness: 1.7, tilt: 0.70, roll: 0.90, speed: 0.16, direction: -1, seed: 1221 },
 ];
 
-const COSMOS = "/pages/blog/cosmos/planet.js";
+const COSMOS = "/pages/blog/sky/cosmos/planet.js";
 const STARS = 150;
 const STAR_GLYPHS = [".", ".", ".", ".", ".", "+", "*"];
 const STAR_SEED = 2026;   // the same sky on every visit

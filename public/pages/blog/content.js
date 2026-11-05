@@ -7,13 +7,16 @@
 //
 // A paragraph that's nothing but a link to a video becomes the video's own
 // player, and a link to a song or an album becomes a music player: see
-// playerFor for who. The post stores the link; the player is drawn as it's
-// shown, so a post never holds anything but its words and pictures.
+// playerFor for who. So does a sound uploaded in the editor (its link, with
+// its name as the link's words), in the site's own sound player (sound.js).
+// The post stores the link; the player is drawn as it's shown, so a post
+// never holds anything but its words and pictures.
 //
 // A picture or a player can have a width of its own, dragged in the editor:
 // a picture's is its width="" (in pixels), a player's is data-width="" on its
 // link's paragraph. Either is only ever as wide as the column it's in.
 
+import { soundPlayer } from "./sound.js";
 import DOMPurify from "./vendor/purify.js";
 
 const purify = DOMPurify(window);
@@ -110,7 +113,7 @@ export function clean(html) {
 // A post's body, ready to go on the page: cleaned, with its players.
 export function renderBody(html) {
   const body = cleanFragment(html);
-  embedPlayers(body, (player, address, width) => sizePlayer(playerElement(player), width));
+  embedPlayers(body, (player, address, width, title) => sizePlayer(playerElement(player, title), width));
   for (const img of body.querySelectorAll("img")) img.loading = "lazy";
   // a wide table scrolls on its own, rather than the page
   for (const table of body.querySelectorAll("table")) {
@@ -124,24 +127,47 @@ export function renderBody(html) {
 
 // --- players ---------------------------------------------------------------------
 
-// { player, address, width } if a paragraph is nothing but a link something
-// plays: a bare address, linked or not. width is the player's own, or null.
+// Where a sound uploaded in the editor is: /blog/sound/<its name>.
+export const SOUND_FILE = /^\/blog\/sound\/[\w-]+\.(?:mp3|m4a|aac|ogg|wav|flac)$/;
+
+// { player, address, width, title } if a paragraph is nothing but a link
+// something plays: a bare address, linked or not, or a sound uploaded here,
+// linked by its name. width is the player's own, or null; title is a sound's
+// name.
 export function playerIn(p) {
-  const text = p.textContent.trim();
-  if (!/^https?:\/\/\S+$/.test(text)) return null;
   if ([...p.children].some((child) => !child.matches("a, br"))) return null;
-  const link = p.querySelector("a");
+  const text = p.textContent.trim();
+  const links = p.querySelectorAll("a");
+  const width = widthOf(p.getAttribute("data-width"));
+  const sound = links.length === 1 && links[0].getAttribute("href");
+  if (sound && SOUND_FILE.test(sound) && links[0].textContent.trim() === text) {
+    return { player: playerFor(sound), address: sound, width, title: text && text !== sound ? text : soundTitle(sound) };
+  }
+  if (!/^https?:\/\/\S+$/.test(text)) return null;
+  const link = links[0];
   if (link && link.textContent.trim() !== text) return null;
   const address = link?.getAttribute("href") ?? text;
   const player = playerFor(address);
-  return player && { player, address, width: widthOf(p.getAttribute("data-width")) };
+  return player && { player, address, width, title: player.kind === "sound" ? soundTitle(address) : null };
 }
 
-// Swaps each paragraph that's a player's link for make(player, address, width).
+// A sound file's name, from its address: "One More Time" for
+// .../One%20More%20Time.mp3 (and an uploaded one's, less the bit that keeps
+// it its own: -3f9a1c).
+function soundTitle(address) {
+  let name = address.split(/[?#]/)[0].split("/").pop() ?? "";
+  try {
+    name = decodeURIComponent(name);
+  } catch {}
+  name = name.replace(/\.[^.]*$/, "");
+  return (SOUND_FILE.test(address) ? name.replace(/-[\da-f]{6}$/, "") : name).replace(/[-_]+/g, " ").trim() || "Sound";
+}
+
+// Swaps each paragraph that's a player's link for make(player, address, width, title).
 export function embedPlayers(root, make) {
   for (const p of root.querySelectorAll("p")) {
     const found = playerIn(p);
-    if (found) p.replaceWith(make(found.player, found.address, found.width));
+    if (found) p.replaceWith(make(found.player, found.address, found.width, found.title));
   }
 }
 
@@ -156,11 +182,12 @@ function seconds(value) {
 // What plays a link, or null:
 //   { name, kind, src }   kind is video (16:9), tall (9:16), song, list (an
 //                         album or a playlist), file (a video file) or sound
-//                         (a sound file)
+//                         (a sound file, in the site's own player)
 // Videos: YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok, and
 // any .mp4, .webm, .ogv, .mov or .m4v. Music: Spotify, SoundCloud, Apple
-// Music, and any .mp3, .m4a, .ogg, .oga, .wav or .flac.
+// Music, any .mp3, .m4a, .ogg, .oga, .wav or .flac, and a sound uploaded here.
 export function playerFor(address) {
+  if (SOUND_FILE.test(address)) return { name: "Sound", kind: "sound", src: address };
   let url;
   try {
     url = new URL(address);
@@ -247,14 +274,18 @@ export function sizePlayer(box, width) {
   return box;
 }
 
-// The player itself.
-export function playerElement(player) {
+// The player itself. title: a sound's name.
+export function playerElement(player, title = null) {
   const box = document.createElement("figure");
   box.className = `embed embed--${player.kind}`;
-  if (player.kind === "file" || player.kind === "sound") {
-    const media = document.createElement(player.kind === "file" ? "video" : "audio");
-    Object.assign(media, { src: player.src, controls: true, preload: "metadata" });
-    box.append(media);
+  if (player.kind === "sound") {
+    box.append(soundPlayer(player.src, title || soundTitle(player.src)));
+    return box;
+  }
+  if (player.kind === "file") {
+    const video = document.createElement("video");
+    Object.assign(video, { src: player.src, controls: true, preload: "metadata" });
+    box.append(video);
     return box;
   }
   const frame = document.createElement("iframe");
@@ -313,6 +344,12 @@ export async function loadMarkdown() {
   });
 }
 
+// A code fence in Markdown: a line of ``` or ~~~ opens one (fenceOpens gives
+// back its marks), and a line of the same marks, at least as many, closes it.
+// Nothing inside one is Markdown.
+export const fenceOpens = (line) => line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1] ?? null;
+export const fenceCloses = (line, fence) => /^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length;
+
 // An empty line in a post is an empty line more in its Markdown: one empty
 // line is only the space between two paragraphs, as in any Markdown, and each
 // one more is a line's space (see emptyLinesStay). Turndown has no way to
@@ -339,10 +376,9 @@ function emptyLinesStay(text) {
       for (let i = 1; i < empties; i++) out.push("&nbsp;", "");
     }
     empties = 0;
-    const opens = line.match(/^\s{0,3}(`{3,}|~{3,})/);
     if (fence) {
-      if (/^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length) fence = null;
-    } else if (opens) fence = opens[1];
+      if (fenceCloses(line, fence)) fence = null;
+    } else fence = fenceOpens(line);
     out.push(line);
   }
   return out.join("\n");
@@ -357,10 +393,9 @@ function dividersStayDividers(text) {
   let fence = null;
   const out = [];
   for (const line of text.split("\n")) {
-    const opens = line.match(/^\s{0,3}(`{3,}|~{3,})/);
     if (fence) {
-      if (/^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length) fence = null;
-    } else if (opens) fence = opens[1];
+      if (fenceCloses(line, fence)) fence = null;
+    } else if (fenceOpens(line)) fence = fenceOpens(line);
     else if (/^ {0,3}(?:=+|-{3,})[ \t]*$/.test(line) && out.length && out[out.length - 1].trim()) out.push("");
     out.push(line);
   }
@@ -381,7 +416,7 @@ export const markdownToHtml = (text) => marked.parse(dividersStayDividers(emptyL
 export async function fromMarkdown(text) {
   await loadMarkdown();
   let title = "";
-  text = text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  text = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   const front = text.match(/^---\n([\s\S]*?)\n---\n/);
   if (front) {
     title = front[1].match(/^title:\s*["']?(.*?)["']?\s*$/m)?.[1] ?? "";

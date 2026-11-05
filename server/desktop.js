@@ -16,7 +16,7 @@
 //                                        and sent to everyone as "place"
 
 import { DurableObject } from "cloudflare:workers";
-import { ON_DESKTOP } from "../public/js/apps.js";
+import { BIN, ON_DESKTOP } from "../public/js/apps.js";
 import { LAST_CELL, cellKey, nearestFree, startingCells } from "../public/js/grid.js";
 
 // The icons on the desktop (ON_DESKTOP in public/js/apps.js), in order. Things
@@ -57,6 +57,30 @@ export class Desktop extends DurableObject {
     }
     // an icon nobody has moved yet goes in XP's column down the left
     this.icons = startingCells(ICONS, saved);
+    // The first time the Recycle Bin is here (it came in November 2026), it
+    // goes in the top left corner, and the icons already down the left move
+    // down a row each to make room for it, as far as the first gap. After
+    // that it's wherever it's dragged, like any icon.
+    if (BIN && !saved.has(BIN.id)) this.inAtTheTop(BIN.id);
+  }
+
+  // id into the top left cell, pushing the icons under it in the left column
+  // down a row each, until one lands in a free cell. Saved, every one.
+  inAtTheTop(id) {
+    const byRow = new Map([...this.icons].filter(([other, [col]]) => other !== id && col === 0).map(([other, [, row]]) => [row, other]));
+    for (let row = 0, carried = id; carried && row <= LAST_CELL; row++) {
+      this.store(carried, [0, row]);
+      carried = byRow.get(row);
+    }
+  }
+
+  // An icon's cell, kept, and saved for the next time.
+  store(id, cell) {
+    this.icons.set(id, cell);
+    this.ctx.storage.sql.exec(
+      "INSERT INTO cells (id, col, row) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET col = excluded.col, row = excluded.row",
+      id, cell[0], cell[1],
+    );
   }
 
   // a tab connecting: send it the whole desktop, then it gets moves as they happen
@@ -106,11 +130,7 @@ export class Desktop extends DurableObject {
       const cell = taken.has(cellKey(want)) ? (nearestFree(want, taken) ?? want) : want;
       taken.add(cellKey(cell));
       placed[id] = cell;
-      this.icons.set(id, cell);
-      this.ctx.storage.sql.exec(
-        "INSERT INTO cells (id, col, row) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET col = excluded.col, row = excluded.row",
-        id, cell[0], cell[1],
-      );
+      this.store(id, cell);
     }
     return placed;
   }

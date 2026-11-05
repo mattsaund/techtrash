@@ -31,7 +31,7 @@ PLANETS
 
 cosmos.js
   Matthew Saunders.
-  MIT: /pages/blog/cosmos/LICENSE
+  MIT: /pages/blog/sky/cosmos/LICENSE
   github.com/mattsaund/cosmos.js
 
 

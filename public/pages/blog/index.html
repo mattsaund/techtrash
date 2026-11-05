@@ -6,10 +6,12 @@
   <!-- XP's Internet Explorer titled a window "<the page> - Microsoft
        Internet Explorer"; blog.js keeps it that way as the page changes. -->
   <title>Techtrash - Microsoft Internet Explorer</title>
+  <!-- The blog, for feed readers (server/feed.js). -->
+  <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
   <script src="/js/app.js"></script>
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/pages/blog/site.css">
-  <script type="module" src="/pages/blog/space.js"></script>
+  <script type="module" src="/pages/blog/sky/space.js"></script>
   <script type="module" src="/pages/blog/blog.js"></script>
 </head>
 <body>
@@ -23,10 +25,11 @@
   </main>
 
   <!-- The credits are a text file the desktop's Notepad opens (js/app.js
-       opens the window). -->
+       opens the window). The feed opens in a tab of its own. -->
   <footer class="foot wrap">
     <span><span class="copyleft" role="img" aria-label="Copyleft">©</span> Matthew Saunders</span>
     <a href="/programs/notepad/?file=credits.txt">credits</a>
+    <a href="/rss.xml" target="_blank">rss</a>
   </footer>
 
   <!-- The front page's top panel. -->

@@ -3,7 +3,7 @@
 // An app lives in a window on the desktop, so:
 // - Opened on its own (a search result, a shared link), it sends the visitor
 //   to the desktop with itself open at the same place:
-//   /pages/notepad/?file=credits.txt becomes /#notepad/?file=credits.txt,
+//   /programs/notepad/?file=credits.txt becomes /#notepad/?file=credits.txt,
 //   and /pages/blog/?blog/liftoff becomes
 //   /#blog/?blog/liftoff, which the desktop tidies into the site's
 //   own /#blog/liftoff.

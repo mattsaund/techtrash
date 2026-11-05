@@ -191,7 +191,7 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
 }
 
 /* --- document ---------------------------------------------- *
-   Reading text: posts, the journal, anything longer than a label.
+   Reading text: Notepad's, a program's, anything longer than a label.
    The one place --fs-body is the default. A document is paper,
    sunk into the window by a field's edge, like Notepad's or
    Internet Explorer's page. */
@@ -357,6 +357,22 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 .menu__item:disabled { color: var(--ink-disabled); background: none; }
 .menu__rule { margin: var(--sp-2) 0; border-top: var(--hairline) solid var(--face-shadow); }
 
+/* --- message box ------------------------------------------- *
+   <section class="window message"> with a title bar (its close
+   button only), .message__body (the icon, then what it says) and
+   .message__foot (OK, in the middle), as XP laid them out. Placed by
+   whoever shows it (css/desktop.css). */
+.message { max-width: 100%; }
+.message__body {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-12) var(--sp-4);
+}
+.message__icon { width: var(--icon-m); height: var(--icon-m); flex: none; }
+.message__text { max-width: var(--measure); }
+.message__foot { display: flex; justify-content: center; padding: var(--sp-8) var(--sp-12) var(--sp-12); }
+
 /* --- tooltip ----------------------------------------------- */
 .tip {
   padding: var(--sp-2) var(--sp-4);
@@ -405,6 +421,7 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 .icon:focus-visible .icon__label { -webkit-line-clamp: none; }
 .icon:focus-visible { outline: 0; }
 .icon.is-selected .icon__label,
+.icon.is-target .icon__label,
 .icon:focus-visible .icon__label {
   background: var(--select);
   text-shadow: none;

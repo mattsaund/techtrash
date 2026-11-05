@@ -1,12 +1,15 @@
 // techtrash.org : small helpers every part of the server uses.
 
+// JSON that's never cached (it changes whenever something's posted), and is
+// only ever JSON
+const JSON_HEADERS = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
+
 export function apiError(status, message) {
-  return Response.json({ error: message }, { status });
+  return Response.json({ error: message }, { status, headers: JSON_HEADERS });
 }
 
-// JSON that's never cached: it changes whenever something's posted
 export function fresh(body, status = 200) {
-  return Response.json(body, { status, headers: { "cache-control": "no-store" } });
+  return Response.json(body, { status, headers: JSON_HEADERS });
 }
 
 export const done = () => new Response(null, { status: 204 });

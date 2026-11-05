@@ -39,8 +39,10 @@ html, body { height: 100%; overflow: hidden; }
 }
 .desktop__icons .icon { position: absolute; touch-action: none; }
 /* XP's selected icon: the picture half and half with the selection
-   blue, through the filter at the foot of index.html. */
-.desktop__icons .icon.is-selected .icon__img { filter: url(#select-tint); }
+   blue, through the filter at the foot of index.html. The Recycle Bin
+   looks the same while icons are dragged over it. */
+.desktop__icons .icon.is-selected .icon__img,
+.desktop__icons .icon.is-target .icon__img { filter: url(#select-tint); }
 .select-tint__flood { flood-color: var(--select); }
 .filters { position: absolute; width: 0; height: 0; }
 
@@ -234,6 +236,18 @@ html, body { height: 100%; overflow: hidden; }
   justify-content: flex-end;
   padding: var(--sp-8) var(--sp-12);
   background: var(--logon-band);
+}
+
+/* --- a message --------------------------------------------- *
+   XP's message box (js/message.js) in the middle of the screen, over
+   everything but the Welcome screen, while it's up. */
+.message-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-16);
 }
 
 /* --- the Welcome screen ------------------------------------ *

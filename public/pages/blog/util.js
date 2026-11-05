@@ -34,14 +34,16 @@ export function textWithLinks(text) {
   return out;
 }
 
-// Asks the server. Answers what it says back, or throws what went wrong, in words.
-export async function api(url, { method = "GET", json, form } = {}) {
+// Asks the server. Answers what it says back, or throws what went wrong, in
+// words. json: sent as JSON; form: a FormData; body: sent as it is (a file).
+export async function api(url, { method = "GET", json, form, body } = {}) {
   const options = { method };
   if (json !== undefined) {
     options.headers = { "content-type": "application/json" };
     options.body = JSON.stringify(json);
   }
   if (form) options.body = form;
+  if (body) options.body = body;
   let response;
   try {
     response = await fetch(url, options);
@@ -49,9 +51,9 @@ export async function api(url, { method = "GET", json, form } = {}) {
     throw new Error("Can't reach techtrash.org right now.");
   }
   if (response.status === 204) return {};
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error ?? "That didn't work. Try again.");
-  return body;
+  const answer = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(answer.error ?? "That didn't work. Try again.");
+  return answer;
 }
 
 // A picture, shrunk and ready to upload, or an Error that says why not.
@@ -64,6 +66,14 @@ export async function readyPicture(file) {
   }
   if (picture.size > MAX_UPLOAD_BYTES) throw new Error("That picture is too big (10 MB at most).");
   return picture;
+}
+
+// A sound file, ready to upload (as it is), or an Error that says why not.
+// The server holds sounds to the same size (server/blog.js).
+const MAX_SOUND_BYTES = 20 * 1024 * 1024;
+export function readySound(file) {
+  if (file.size > MAX_SOUND_BYTES) throw new Error("That sound is too big (20 MB at most).");
+  return file;
 }
 
 // A section's name, in its hue: "Blog".

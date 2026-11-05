@@ -1,5 +1,5 @@
-// techtrash.org : shrinks a picture in the browser before it's posted (a
-// topic's picture): at most MAX_SIDE pixels on its longest side, re-saved as a
+// techtrash.org : shrinks a picture in the browser before it's uploaded (any
+// picture in what's written on the site): at most MAX_SIDE pixels on its longest side, re-saved as a
 // JPEG, or a PNG if it has see-through parts. That also strips phone metadata
 // like GPS location. GIFs are left alone so animations keep working.
 // (From tcc.place, where it does the same job.)

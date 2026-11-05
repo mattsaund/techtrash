@@ -65,6 +65,8 @@ export async function logon(request, env) {
   if (!success) return apiError(429, "Too many tries. Wait a minute, then try again.");
   if (!isSetUp(env)) return apiError(503, "The admin account isn't set up yet.");
 
+  // (a user name and a password are a few bytes: anything much bigger isn't one)
+  if (Number(request.headers.get("content-length")) > 4096) return apiError(400, "The user name or password is incorrect.");
   const input = await request.json().catch(() => ({}));
   const username = typeof input.username === "string" ? input.username : "";
   const password = typeof input.password === "string" ? input.password : "";

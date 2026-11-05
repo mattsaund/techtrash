@@ -47,6 +47,8 @@ ICONS = {
     "my-music.png": XPICONS + "MyMusic.png",
     "admin-key.png": XPICONS + "Key.png",                         # the admin's picture
     "go.png": XPICONS + "Go.png",                                 # the log on arrow
+    "recycle-bin.png": XPICONS + "RecycleBin(empty).png",         # the Recycle Bin, always empty
+    "error.png": XPICONS + "Critical.png",                        # an error message's red X
 }
 AS_IS = {
     "user-chess.png": WINXP + "user.png",                         # the user picture
@@ -61,8 +63,8 @@ def fetch(url):
 
 
 def shrink(image, size):
-    # Scaled with the colour premultiplied by its alpha, so the see-through
-    # edges don't pick up a dark fringe from the transparent pixels' colour.
+    # Scaled with the color premultiplied by its alpha, so the see-through
+    # edges don't pick up a dark fringe from the transparent pixels' color.
     return image.convert("RGBa").resize((size, size), Image.LANCZOS).convert("RGBA")
 
 

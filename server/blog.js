@@ -25,7 +25,10 @@
 //
 // Everything is in the D1 database DB; the tables are made the first time
 // they're needed. Pictures (any in words written in the editor) are in the KV
-// store PICTURES, under "blog/<name>", served at /blog/img/<name>.
+// store PICTURES, under "blog/<name>", served at /blog/img/<name>; so are
+// sounds, under "sound/<name>", served at /blog/sound/<name> (a part at a
+// time, as a player asks, so it can skip along). A picture or a sound goes
+// once nothing written on the site shows it anymore.
 //
 //   GET    /api/blog/posts[?limit=]      every published post, newest first, each with
 //                                        the start of its words, its first picture, its
@@ -42,6 +45,7 @@
 //   GET    /api/blog/pictures            every picture posted to the site, newest first,
 //                                        each with where it's from
 //   POST   /api/blog/pictures            admin: a form with a picture; says its address
+//   POST   /api/blog/sounds?name=        admin: a sound file, as the body; says its address
 //   POST   /api/blog/comments            anyone: { post, parent, name, body }
 //   DELETE /api/blog/comment?id=         admin: the comment's words go, its replies stay
 //   GET    /api/blog/page?name=          a page's body ("" until it's written, or once
@@ -53,9 +57,12 @@ import { apiError, clientKey, done, fresh } from "./http.js";
 
 const MAX_LENGTH = { title: 120, flag: 40, flags: 20, body: 500_000, name: 40, comment: 2000 };
 const MAX_PICTURE_BYTES = 10 * 1024 * 1024;
+const MAX_SOUND_BYTES = 20 * 1024 * 1024;   // under KV's 25 MiB for one thing
 const PICTURES = "blog/";
 const FIRST_PICTURES = "topics/";   // where the first blog kept a topic's picture
+const SOUNDS = "sound/";
 export const PICTURE_NAME = /^[\w-]+\.(?:png|jpg|gif|webp|avif)$/;
+export const SOUND_NAME = /^[\w-]+\.(?:mp3|m4a|aac|ogg|wav|flac)$/;
 
 // --- the tables ------------------------------------------------------------------
 
@@ -73,7 +80,7 @@ const POSTS = `(
 
 // Made the first time they're needed, once per Worker instance.
 let schemaReady;
-function ensureSchema(env) {
+export function ensureSchema(env) {
   schemaReady ??= (async () => {
     await env.DB.batch([
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS posts ${POSTS}`),
@@ -196,7 +203,7 @@ async function everySlugItsOwn(env) {
 function slugify(title, fallback) {
   const slug = title
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")   // the accents NFKD took off their letters
     .toLowerCase()
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
@@ -247,7 +254,7 @@ async function readForm(request) {
   return request.formData().catch(() => null);
 }
 
-// Identify the image from its first bytes rather than trusting the file name or the browser
+// What kind of picture it is, from its first bytes, not its name or what the browser says
 function detectImageType(bytes) {
   const ascii = (start, end) => String.fromCharCode(...bytes.subarray(start, end));
   if (bytes[0] === 0x89 && ascii(1, 4) === "PNG") return { ext: "png", type: "image/png" };
@@ -258,17 +265,31 @@ function detectImageType(bytes) {
   return null;
 }
 
-// "My Cat!.PNG" -> "My-Cat-3f9a1c.png". The random bit keeps pictures from replacing each other.
-function pictureName(original, ext) {
+// ...and what kind of sound
+function detectSoundType(bytes) {
+  const ascii = (start, end) => String.fromCharCode(...bytes.subarray(start, end));
+  // an MP3: its tags first, or straight into its first frame (sync bits, and a layer)
+  if (ascii(0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0 && (bytes[1] & 0x06) !== 0)) return { ext: "mp3", type: "audio/mpeg" };
+  // AAC on its own: the same sync bits, no layer
+  if (bytes[0] === 0xff && (bytes[1] & 0xf6) === 0xf0) return { ext: "aac", type: "audio/aac" };
+  if (ascii(4, 8) === "ftyp" && ["M4A ", "M4B ", "mp42", "mp41", "isom", "iso2", "dash"].includes(ascii(8, 12))) return { ext: "m4a", type: "audio/mp4" };
+  if (ascii(0, 4) === "OggS") return { ext: "ogg", type: "audio/ogg" };
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE") return { ext: "wav", type: "audio/wav" };
+  if (ascii(0, 4) === "fLaC") return { ext: "flac", type: "audio/flac" };
+  return null;
+}
+
+// "My Cat!.PNG" -> "My-Cat-3f9a1c.png". The random bit keeps files from replacing each other.
+function fileName(original, ext, fallback) {
   const base = original
     .replace(/\.[^.]*$/, "")
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\w-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
-  return `${base || "picture"}-${crypto.randomUUID().slice(0, 6)}.${ext}`;
+  return `${base || fallback}-${crypto.randomUUID().slice(0, 6)}.${ext}`;
 }
 
 // Stores a picture from a form's file field. Answers { name } or { error }.
@@ -277,7 +298,7 @@ async function storePicture(env, file) {
   if (bytes.length > MAX_PICTURE_BYTES) return { error: apiError(413, "That picture is too big (10 MB at most).") };
   const image = detectImageType(bytes);
   if (!image) return { error: apiError(415, "The picture has to be a png, jpg, gif, webp or avif.") };
-  const name = pictureName(file.name ?? "", image.ext);
+  const name = fileName(file.name ?? "", image.ext, "picture");
   try {
     await env.PICTURES.put(PICTURES + name, bytes, { metadata: { type: image.type } });
   } catch {
@@ -302,21 +323,44 @@ export async function servePicture(name, env) {
   });
 }
 
-async function deletePicture(env, name) {
-  if (!name) return;
-  await Promise.all([env.PICTURES.delete(PICTURES + name), env.PICTURES.delete(FIRST_PICTURES + name)]);
+// A sound, the part of it the player asks for (Range: bytes=...), so it can
+// start partway in, or all of it.
+export async function serveSound(name, request, env) {
+  const found = await env.PICTURES.getWithMetadata(SOUNDS + name, { type: "arrayBuffer" });
+  if (!found.value) return new Response("not found", { status: 404 });
+  const size = found.value.byteLength;
+  const headers = {
+    "content-type": found.metadata?.type ?? "application/octet-stream",
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=3600",
+    "x-content-type-options": "nosniff",
+  };
+  const asked = request.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);
+  if (!asked || (!asked[1] && !asked[2])) return new Response(found.value, { headers: { ...headers, "content-length": String(size) } });
+  // bytes=10- is from 10 to the end, bytes=-10 the last 10
+  const start = asked[1] ? Number(asked[1]) : Math.max(0, size - Number(asked[2]));
+  const end = asked[1] && asked[2] ? Math.min(Number(asked[2]), size - 1) : size - 1;
+  if (start > end) return new Response(null, { status: 416, headers: { ...headers, "content-range": `bytes */${size}` } });
+  return new Response(found.value.slice(start, end + 1), {
+    status: 206,
+    headers: { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": String(end - start + 1) },
+  });
 }
 
-// The pictures a post's (or a page's) body shows, by name.
-const picturesIn = (body) => [...(body ?? "").matchAll(/\/blog\/img\/([\w-]+\.(?:png|jpg|gif|webp|avif))/g)].map((m) => m[1]);
+// The pictures and sounds uploaded to the site that a post's (or a page's)
+// body shows, by address: /blog/img/<name>, /blog/sound/<name>.
+const filesIn = (body) => [...(body ?? "").matchAll(/\/blog\/(?:img\/[\w-]+\.(?:png|jpg|gif|webp|avif)|sound\/[\w-]+\.(?:mp3|m4a|aac|ogg|wav|flac))/g)].map((m) => m[0]);
 
-// Deletes the pictures nothing shows anymore: in no post (drafts too) or page.
-async function dropUnused(env, names) {
-  for (const name of new Set(names)) {
+// Deletes the files nothing shows anymore: in no post (drafts too) or page.
+async function dropUnused(env, addresses) {
+  for (const address of new Set(addresses)) {
     const used = await env.DB.prepare(
       "SELECT 1 FROM posts WHERE instr(body, ?1) > 0 UNION ALL SELECT 1 FROM pages WHERE instr(body, ?1) > 0 LIMIT 1",
-    ).bind(`/blog/img/${name}`).first();
-    if (!used) await deletePicture(env, name);
+    ).bind(address).first();
+    if (used) continue;
+    const [, folder, name] = address.match(/^\/blog\/(img|sound)\/(.+)$/);
+    if (folder === "img") await Promise.all([env.PICTURES.delete(PICTURES + name), env.PICTURES.delete(FIRST_PICTURES + name)]);
+    else await env.PICTURES.delete(SOUNDS + name);
   }
 }
 
@@ -324,8 +368,9 @@ const decodeEntities = (text) =>
   text.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " " })[name]);
 
 // The start of a post's words, as plain text, for a list of posts.
-function excerpt(html, length = 220) {
+export function excerpt(html, length = 220) {
   const text = decodeEntities(html
+    .replace(/<a\b[^>]*href="\/blog\/sound\/[^"]*"[^>]*>.*?<\/a>/gi, " ")   // a sound's name says nothing on its own
     .replace(/<\/?(?:p|h\d|li|ul|ol|blockquote|pre|br|hr|table|tr|td|th|img)\b[^>]*>/gi, " ")   // between lines
     .replace(/<[^>]*>/g, ""))   // inside a line
     .replace(/https?:\/\/\S+/g, "")   // a player's link says nothing on its own
@@ -349,7 +394,7 @@ function uploadedPicturesIn(html) {
 // { postId: [{ id, name, slug }, ...] } for the posts asked about. It reads
 // every post's flags (a short list) rather than name each post: D1 takes at
 // most 100 values in one query.
-async function flagsOf(env, postIds) {
+export async function flagsOf(env, postIds) {
   const byPost = Object.fromEntries(postIds.map((id) => [id, []]));
   if (postIds.length === 0) return byPost;
   const { results } = await env.DB.prepare(
@@ -498,8 +543,8 @@ export async function updatePost(request, env) {
     `UPDATE posts SET title = ?, slug = ?, body = ?, draft = ?, comments_open = ?, published = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
   ).bind(next.title, slug, next.body, next.draft, next.comments, published, ...(edited ? [Date.now()] : []), id).run();
   if (input.flags) await setFlags(env, id, input.flags);
-  const kept = new Set(picturesIn(next.body));
-  await dropUnused(env, picturesIn(before.body).filter((name) => !kept.has(name)));
+  const kept = new Set(filesIn(next.body));
+  await dropUnused(env, filesIn(before.body).filter((address) => !kept.has(address)));
   return fresh({ id, slug, draft: next.draft });
 }
 
@@ -513,7 +558,7 @@ export async function deletePost(request, env) {
     env.DB.prepare("DELETE FROM posts WHERE id = ?").bind(id),
     env.DB.prepare("DELETE FROM flags WHERE id NOT IN (SELECT flag_id FROM post_flags)"),
   ]);
-  await dropUnused(env, picturesIn(post?.body));
+  await dropUnused(env, filesIn(post?.body));
   return done();
 }
 
@@ -549,6 +594,29 @@ export async function uploadPicture(request, env) {
   const stored = await storePicture(env, form.get("picture"));
   if (stored.error) return stored.error;
   return fresh({ url: `/blog/img/${stored.name}` }, 201);
+}
+
+// --- sounds ----------------------------------------------------------------------
+
+// A sound for anywhere in a post: the file itself is the request's body (no
+// form to take apart, which costs a big file more than the free plan's time
+// allows), and its name is in the address (?name=). Says its address.
+export async function uploadSound(request, env) {
+  const tooBig = apiError(413, "That sound is too big (20 MB at most).");
+  if (Number(request.headers.get("content-length")) > MAX_SOUND_BYTES) return tooBig;
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length === 0) return apiError(400, "No sound came through. Try again.");
+  if (bytes.length > MAX_SOUND_BYTES) return tooBig;
+  const sound = detectSoundType(bytes);
+  if (!sound) return apiError(415, "The sound has to be an mp3, m4a, aac, ogg, wav or flac.");
+  const name = fileName(new URL(request.url).searchParams.get("name") ?? "", sound.ext, "sound");
+  try {
+    await env.PICTURES.put(SOUNDS + name, bytes, { metadata: { type: sound.type } });
+  } catch {
+    // most likely the free plan's 1,000 writes a day or 1 GB of storage has run out
+    return apiError(503, "There's no room for sounds right now. Try again tomorrow.");
+  }
+  return fresh({ url: `/blog/sound/${name}` }, 201);
 }
 
 // --- comments --------------------------------------------------------------------
@@ -615,7 +683,7 @@ export async function savePage(request, env) {
   await env.DB.prepare(
     "INSERT INTO pages (name, body, updated) VALUES (?, ?, ?) ON CONFLICT (name) DO UPDATE SET body = excluded.body, updated = excluded.updated",
   ).bind(name, body, Date.now()).run();
-  const kept = new Set(picturesIn(body));
-  await dropUnused(env, picturesIn(before?.body).filter((picture) => !kept.has(picture)));
+  const kept = new Set(filesIn(body));
+  await dropUnused(env, filesIn(before?.body).filter((address) => !kept.has(address)));
   return fresh({ name });
 }

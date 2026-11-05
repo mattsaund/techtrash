@@ -31,9 +31,9 @@
 // where they were dropped), and toMarkdown(html) makes a paste from another
 // page Markdown.
 
-import { PICTURE_PLACES, playerElement, playerFor, sizePlayer, widthOf } from "./content.js";
+import { fenceCloses, fenceOpens, PICTURE_PLACES, playerElement, playerFor, sizePlayer, SOUND_FILE, widthOf } from "../content.js";
 import { createHistory } from "./history.js";
-import { el } from "./util.js";
+import { el } from "../util.js";
 
 // a copy from this box, pasted back in: its own words, as they are
 const OWN = "application/x-techtrash-markdown";
@@ -142,21 +142,26 @@ function picture(source, at, { src, alt, width, place }) {
   return out;
 }
 
-// A line that's a player: a video's or a song's link on its own, or that link
-// at a width of its own, the way a post keeps it (<p data-width>).
+// A line that's a player: a video's or a song's link on its own, a sound
+// uploaded here (linked by its name: [One More Time](/blog/sound/...)), or
+// either at a width of its own, the way a post keeps it (<p data-width>).
+// title is a sound's name.
 function playerLine(line) {
   let address = line.match(/^\s*(https?:\/\/\S+)\s*$/)?.[1];
   let width = null;
-  if (!address && /^\s*<p data-width="\d{1,4}">\s*<a href="[^"]+">[^<]*<\/a>\s*<\/p>\s*$/.test(line)) {
+  let title = null;
+  const sound = line.match(/^\s*\[([^\]]*)\]\(\s*(\/blog\/sound\/[^)\s]+)\s*\)\s*$/);
+  if (sound && SOUND_FILE.test(sound[2])) [title, address] = [sound[1].trim() || null, sound[2]];
+  else if (!address && /^\s*<p data-width="\d{1,4}">\s*<a href="[^"]+">[^<]*<\/a>\s*<\/p>\s*$/.test(line)) {
     const p = parser.parseFromString(line, "text/html").querySelector("p");
-    address = p?.querySelector("a")?.getAttribute("href");
+    const link = p?.querySelector("a");
+    address = link?.getAttribute("href");
     width = widthOf(p?.getAttribute("data-width"));
+    if (address && SOUND_FILE.test(address) && link.textContent.trim() !== address) title = link.textContent.trim() || null;
   }
   const player = address && playerFor(address);
-  return player ? { player, address, width } : null;
+  return player ? { player, address, width, title } : null;
 }
-
-const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
 // One line drawn, given the code fence it's in (if it's in one). Gives back
 // the line, and the fence the next one's in.
@@ -167,13 +172,13 @@ function drawLine(line, fence, tools) {
   let after = fence;
   let m;
   if (fence) {
-    const closes = /^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length;
+    const closes = fenceCloses(line, fence);
     kind = closes ? "fence" : "codeline";
     if (closes) after = null;
     out.push(line);
-  } else if ((m = line.match(FENCE))) {
+  } else if (fenceOpens(line)) {
     kind = "fence";
-    after = m[1];
+    after = fenceOpens(line);
     out.push(line);
   } else if (!line.trim()) {
     kind = "blank";
@@ -229,9 +234,10 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
 
   // what a player's drawn as here: the player, and a bar to pick it by
   const tools = {
-    player({ player, address, width }) {
-      const frame = sizePlayer(playerElement(player), width);
+    player({ player, address, width, title }) {
+      const frame = sizePlayer(playerElement(player, title), width);
       frame.dataset.address = address;
+      if (title) frame.dataset.title = title;
       const reset = el("button", { class: "tool", type: "button", textContent: "Reset size", title: "As wide as the column" });
       const remove = el("button", { class: "tool", type: "button", textContent: "Remove" });
       reset.addEventListener("click", () => playerChanged(sizePlayer(frame, null)));
@@ -285,11 +291,11 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
   // <br> or a block inside it breaks it (not a <br> that only holds an empty
   // line open, last in its line).
   function linesOf(node) {
-    if (node.nodeType === Node.TEXT_NODE) return node.data.replace(/ /g, " ").split("\n");
+    if (node.nodeType === Node.TEXT_NODE) return node.data.replace(/\u00a0/g, " ").split("\n");
     const out = [""];
     const walk = (parent) => {
       for (const child of parent.childNodes) {
-        if (child.nodeType === Node.TEXT_NODE) out[out.length - 1] += child.data.replace(/ /g, " ");
+        if (child.nodeType === Node.TEXT_NODE) out[out.length - 1] += child.data.replace(/\u00a0/g, " ");
         else if (child.nodeType !== Node.ELEMENT_NODE || child.classList.contains("md-widget")) continue;
         else if (child.nodeName === "BR") {
           if (child.nextSibling && !(child.nextSibling.nodeType === Node.TEXT_NODE && !child.nextSibling.data && !child.nextSibling.nextSibling)) out.push("");
@@ -654,11 +660,13 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
       ? `<img src="${quote(src)}" alt="${quote(alt)}"${width ? ` width="${width}"` : ""}${place ? ` class="${place}"` : ""}>`
       : `![${alt.replace(/[[\]]/g, "")}](${src})`);
   }
-  // A player's line, from its width: its link alone, or at its width.
+  // A player's line, from its width: its link alone (a sound's, by its name),
+  // or at its width.
   function playerChanged(frame) {
-    const address = frame.dataset.address;
+    const { address, title } = frame.dataset;
     const width = widthOf(frame.dataset.width);
-    return rewrite(frame, width ? `<p data-width="${width}"><a href="${quote(address)}">${quote(address)}</a></p>` : address);
+    if (width) return rewrite(frame, `<p data-width="${width}"><a href="${quote(address)}">${quote(title ?? address)}</a></p>`);
+    return rewrite(frame, title ? `[${title.replace(/[[\]]/g, "")}](${address})` : address);
   }
   // Its line, up or down one.
   function moveLine(node, up) {

@@ -13,10 +13,15 @@
 // drag across the bare desktop draws a selection rectangle, dragging any
 // selected icon moves every selected one, and a double-click opens. A tap
 // opens straight away, and so does Enter.
+//
+// The Recycle Bin lights up as icons are dragged over it, as XP's did. Let
+// go there, and XP's error says they can't be thrown away (nothing on this
+// desktop can), and they go back where they were, for everyone.
 
-import { ON_DESKTOP } from "./apps.js";
-import { share } from "./shared.js";
+import { BIN, ON_DESKTOP } from "./apps.js";
 import { cellKey, nearestFree, startingCells } from "./grid.js";
+import { showMessage } from "./message.js";
+import { share } from "./shared.js";
 
 const css = getComputedStyle(document.documentElement);
 const num = (name) => parseInt(css.getPropertyValue(name), 10);
@@ -57,6 +62,8 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
     byId.set(app.id, icon);
     wire(icon);
   }
+
+  const bin = BIN ? byId.get(BIN.id) : null;
 
   // --- the grid ------------------------------------------------------------
 
@@ -208,6 +215,28 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
     arrange();
   }
 
+  // --- the Recycle Bin ------------------------------------------------------
+
+  // Is the pointer over the bin? (Not if the bin's one of the icons being dragged.)
+  function overBin(x, y) {
+    if (!bin || moving?.has(bin)) return false;
+    const r = bin.el.getBoundingClientRect();
+    return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+  }
+
+  // Dropped on the bin: everything dragged goes back to its cell (the server
+  // puts it back for everyone else), and XP's error says why, naming the
+  // icon that was under the pointer.
+  function refuse(grabbed) {
+    const back = {};
+    for (const icon of moving) back[icon.app.id] = icon.home;
+    moving = null;
+    bin.el.classList.remove("is-target");
+    line.drop(back);
+    arrange();
+    showMessage({ title: "Error Deleting File or Folder", text: `Cannot delete ${grabbed.app.title}: Permission Denied.` });
+  }
+
   function wire(icon) {
     const { el } = icon;
     let pointer = "mouse";
@@ -219,6 +248,7 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
       dragged = false;
       if (!e.ctrlKey && !e.metaKey && !selected.has(icon)) selectOnly(icon);
       let group = null;
+      let onBin = false;
 
       track(el, e, (move) => {
         const dx = Math.round(move.clientX - e.clientX);
@@ -236,10 +266,13 @@ export function setUpIcons({ layer, open, onBareDesktop }) {
           where[one.app.id] = toCells(one.el.offsetLeft, one.el.offsetTop);
         }
         line.move(where);
+        onBin = overBin(move.clientX, move.clientY);
+        bin?.el.classList.toggle("is-target", onBin);
       }, () => {
         if (!group) return;
         dragged = true;
-        drop(icon);
+        if (onBin) refuse(icon);
+        else drop(icon);
       });
     });
 

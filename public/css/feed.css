@@ -1,0 +1,66 @@
+/* ============================================================
+   techtrash.org : feed.css
+
+   The blog's feed, /rss.xml (server/feed.js), is for feed readers,
+   but a browser that opens it draws it with this: the website's
+   look, a line saying what it is, and each blog's title, day, flags
+   and start. The rest of it (addresses, each blog in full) is for
+   the reader, and out of sight. It's an XML page, with no <body>:
+   the elements here are the feed's own. Tokens only.
+   ============================================================ */
+
+@namespace content url("http://purl.org/rss/1.0/modules/content/");
+
+rss {
+  display: block;
+  min-height: 100%;
+  padding: var(--site-gap);
+  background: var(--site-bg);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-body) var(--font-site);
+}
+channel {
+  display: block;
+  max-width: var(--site-wrap);
+  margin: 0 auto;
+}
+channel::before {
+  content: "This is the Techtrash blog's feed. Put this page's address in a feed reader to follow the blog there.";
+  display: block;
+  margin-bottom: var(--site-gap);
+  padding: var(--sp-8) var(--sp-12);
+  border: var(--hairline) solid var(--site-line);
+  border-left-color: var(--site-hue-5);
+  background: var(--site-field);
+  color: var(--site-fg-2);
+}
+channel > title {
+  display: block;
+  font: 400 var(--fs-site-head)/var(--lh-site-head) var(--font-site);
+  letter-spacing: var(--ls-site-head);
+}
+channel > description {
+  display: block;
+  margin-bottom: var(--site-gap);
+  color: var(--site-fg-2);
+}
+
+/* for the reader, not for reading here */
+link, guid, language, lastBuildDate, image, content|encoded { display: none; }
+
+item {
+  display: block;
+  margin-bottom: var(--site-gap);
+  padding: calc(var(--site-pad) - var(--site-trim-top)) var(--site-pad) calc(var(--site-pad) - var(--site-trim-bottom));
+  border: var(--hairline) solid var(--site-line);
+  background: var(--site-panel);
+}
+item > title {
+  display: block;
+  color: var(--site-hue-4);
+  font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
+}
+item > pubDate { display: block; color: var(--site-fg-3); }
+item > category { margin-right: var(--sp-16); color: var(--site-hue-5); }
+item > category::before { content: "#"; }
+item > description { display: block; margin-top: var(--sp-8); color: var(--site-fg-2); }

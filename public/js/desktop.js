@@ -159,7 +159,7 @@ function create(app, rest, maximized) {
   };
   rename(app.title);
 
-  // The page inside sets the title (Notepad's is "journal.txt - Notepad"),
+  // The page inside sets the title (Notepad's is "credits.txt - Notepad"),
   // and the address follows it as it moves around inside its own app: from
   // the moment the page says it's here (js/app.js does, as soon as it's
   // read, not once every picture and player on it has loaded), or else from

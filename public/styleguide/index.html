@@ -309,6 +309,23 @@ Notepad is the mono face at body size. It wraps at the window's edge, not at the
       </div>
     </section>
 
+    <!-- a message (js/message.js puts these up over the desktop) -->
+    <section class="window message" id="message" aria-labelledby="message-title">
+      <header class="title-bar">
+        <h2 class="title-bar__text" id="message-title">Error Deleting File or Folder</h2>
+        <div class="title-bar__controls">
+          <button class="caption caption--close" aria-label="Close"></button>
+        </div>
+      </header>
+      <div class="message__body">
+        <img class="message__icon" src="/img/icons/xp/error.png" alt="">
+        <p class="message__text">Cannot delete Techtrash.org blog: Permission Denied.</p>
+      </div>
+      <div class="message__foot">
+        <button class="button button--default">OK</button>
+      </div>
+    </section>
+
   </main>
 
   <footer class="taskbar">

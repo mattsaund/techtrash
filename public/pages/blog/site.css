@@ -258,13 +258,6 @@ a:hover { color: var(--site-fg); }
 /* A blog's title, on its card. */
 .named { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
 
-/* The admin's New blog and drafts, over the Blog: each draft's
-   title, and the day it was started. */
-.admin-blog { display: flex; flex-direction: column; gap: var(--sp-16); }
-.drafts { display: flex; flex-direction: column; gap: var(--sp-16); }
-.draft-list { display: flex; flex-direction: column; gap: var(--sp-8); padding: 0; list-style: none; }
-.draft-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-16); }
-
 /* --- flags ------------------------------------------------- *
    "#space", in the flag's hue: a button to filter the Blog by, a
    link under a blog's title, words on its card. */
@@ -324,10 +317,46 @@ a.tag:hover { color: var(--site-fg); }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(50%, var(--site-tile)), 1fr));
 }
-.gallery__item { display: block; }
+.gallery__item { display: block; cursor: zoom-in; }
 .gallery__item img { width: 100%; aspect-ratio: 1; object-fit: cover; }
 
-/* A heading inside a panel: "Newest blogs", "Drafts". */
+/* --- the picture viewer -------------------------------------- *
+   A picture over the page (viewer.js), as big as the window has room
+   for, in a box like a panel, with its description, where it's from,
+   and its buttons under it. The page behind goes nearly black. */
+.viewer {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: var(--site-gap);
+  border: 0;
+  background: none;
+  color: var(--site-fg);
+}
+.viewer[open] { display: flex; align-items: center; justify-content: center; }
+.viewer::backdrop { background: var(--site-shade); }
+.viewer__box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: calc(var(--site-pad) - var(--site-trim-top)) var(--site-pad) var(--site-pad);
+  background: var(--site-bg);
+  border: var(--hairline) solid var(--site-line);
+}
+.viewer__picture {
+  align-self: center;
+  width: auto;
+  max-height: var(--site-viewer-picture);
+  border: var(--hairline) solid var(--site-line);
+}
+.viewer__caption { display: flex; flex-direction: column; gap: var(--sp-8); }
+
+/* A heading inside a panel: "Newest blogs". */
 .group__head {
   display: flex;
   flex-wrap: wrap;
@@ -389,6 +418,11 @@ a.tag:hover { color: var(--site-fg); }
 .prose pre code { padding: 0; border: 0; background: none; }
 .prose hr { margin: var(--sp-24) 0; border: 0; border-top: var(--hairline) solid var(--site-line-2); }
 .prose img { border: var(--hairline) solid var(--site-line); }
+/* A picture opens in the viewer (not in the editor, where a click picks
+   it), and Goto Image marks it for a moment once it's in view. */
+.prose:not(.editor__area) img { cursor: zoom-in; }
+.prose a img { cursor: pointer; }
+.prose img.is-found { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-4); }
 /* Small, until it's given a width of its own (dragged in the editor):
    then that, up to the column's. */
 .prose .pic--left:not([width]), .prose .pic--right:not([width]), .prose .pic--center:not([width]) { max-width: var(--site-float); }
@@ -410,12 +444,53 @@ a.tag:hover { color: var(--site-fg); }
 /* As wide as the column, or as wide as it was made in the editor
    (content.js sizePlayer), never wider than the column. */
 .embed { clear: both; max-width: 100%; margin-left: 0; margin-right: 0; border: var(--hairline) solid var(--site-line); background: var(--site-field); }
-.embed iframe, .embed video, .embed audio { display: block; width: 100%; border: 0; }
+.embed iframe, .embed video { display: block; width: 100%; border: 0; }
 .embed--video iframe, .embed--file video { aspect-ratio: var(--site-video); }
 .embed--tall:not([data-width]) { max-width: var(--site-video-tall-w); }
 .embed--tall iframe { aspect-ratio: var(--site-video-tall); }
 .embed--song iframe { height: var(--site-song); }
 .embed--list iframe { height: var(--site-album); }
+
+/* A sound's player (sound.js): Play, big, down its left; beside it its
+   name and how far in it is, and under them the bar to drag along it,
+   Mute and how loud. */
+.embed--sound { padding: var(--sp-8) var(--sp-12); }
+.sound {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "play title time" "play seek loud";
+  align-items: center;
+  gap: var(--sp-8) var(--sp-12);
+}
+/* Play (Pause while it plays) and Mute (Unmute while it's muted): plain
+   gray icons, white under the pointer. Each is its shape (a token) cut
+   out of the button's color, so the focus ring still goes round the
+   button itself. */
+.sound__button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--site-fg-2);
+  cursor: pointer;
+}
+.sound__button:hover { color: var(--site-fg); }
+.sound__button::before {
+  content: "";
+  display: block;
+  width: var(--site-glyph);
+  height: var(--site-glyph);
+  background: currentColor;
+  mask: var(--site-glyph-volume) center / contain no-repeat;
+}
+.sound__play { grid-area: play; }
+.sound__play::before { width: var(--site-glyph-big); height: var(--site-glyph-big); mask-image: var(--site-glyph-play); }
+.sound__play.is-playing::before { mask-image: var(--site-glyph-pause); }
+.sound__mute.is-muted::before { mask-image: var(--site-glyph-mute); }
+.sound__title { grid-area: title; overflow: hidden; color: var(--site-fg); text-overflow: ellipsis; white-space: nowrap; }
+.sound__time { grid-area: time; justify-self: end; white-space: nowrap; }
+.sound__seek { grid-area: seek; width: 100%; margin: 0; accent-color: var(--hue); }
+.sound__loud { grid-area: loud; display: flex; align-items: center; gap: var(--sp-8); }
+.sound__volume { width: var(--site-volume); margin: 0; accent-color: var(--hue); }
 
 /* --- the admin's editor -------------------------------------- *
    The buttons stay in reach at the top as a long blog
