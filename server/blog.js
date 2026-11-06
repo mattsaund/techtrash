@@ -27,8 +27,12 @@
 // they're needed. Pictures (any in words written in the editor) are in the KV
 // store PICTURES, under "blog/<name>", served at /blog/img/<name>; so are
 // sounds, under "sound/<name>", served at /blog/sound/<name> (a part at a
-// time, as a player asks, so it can skip along). A picture or a sound goes
-// once nothing written on the site shows it anymore.
+// time, as a player asks, so it can skip along). Anyone is served one once
+// it's in something that's up (a published blog, or one of the site's own
+// pages); until then, in a draft or in nothing yet, only the admin is, so a
+// draft's pictures and sounds stay as private as the draft, whoever guesses
+// their address. A picture or a sound goes once nothing written on the site
+// shows it anymore.
 //
 //   GET    /api/blog/posts[?limit=]      every published post, newest first, each with
 //                                        the start of its words, its first picture, its
@@ -310,14 +314,32 @@ async function storePicture(env, file) {
 
 const hasFile = (value) => value instanceof Blob && value.size > 0;
 
-export async function servePicture(name, env) {
+// Who may have an uploaded picture or sound, at its address: anyone, once
+// it's in a published blog or one of the site's own pages, and only the admin
+// before that (so they can see a draft's, and what they've only just put in).
+// Gives back how it may be cached, or null: not found, as far as anyone else
+// can tell, whether it's there or not.
+async function mayHave(request, env, address) {
+  if (await isAdmin(request, env)) return "private, max-age=3600";
+  await ensureSchema(env);
+  const shown = await env.DB.prepare(
+    "SELECT 1 FROM posts WHERE draft = 0 AND instr(body, ?1) > 0 UNION ALL SELECT 1 FROM pages WHERE instr(body, ?1) > 0 LIMIT 1",
+  ).bind(address).first();
+  return shown ? "public, max-age=3600" : null;
+}
+
+const notFound = () => new Response("not found", { status: 404 });
+
+export async function servePicture(name, request, env) {
+  const cache = await mayHave(request, env, `/blog/img/${name}`);
+  if (!cache) return notFound();
   let found = await env.PICTURES.getWithMetadata(PICTURES + name, { type: "stream" });
   if (!found.value) found = await env.PICTURES.getWithMetadata(FIRST_PICTURES + name, { type: "stream" });
-  if (!found.value) return new Response("not found", { status: 404 });
+  if (!found.value) return notFound();
   return new Response(found.value, {
     headers: {
       "content-type": found.metadata?.type ?? "application/octet-stream",
-      "cache-control": "public, max-age=3600",
+      "cache-control": cache,
       "x-content-type-options": "nosniff",
     },
   });
@@ -326,13 +348,15 @@ export async function servePicture(name, env) {
 // A sound, the part of it the player asks for (Range: bytes=...), so it can
 // start partway in, or all of it.
 export async function serveSound(name, request, env) {
+  const cache = await mayHave(request, env, `/blog/sound/${name}`);
+  if (!cache) return notFound();
   const found = await env.PICTURES.getWithMetadata(SOUNDS + name, { type: "arrayBuffer" });
-  if (!found.value) return new Response("not found", { status: 404 });
+  if (!found.value) return notFound();
   const size = found.value.byteLength;
   const headers = {
     "content-type": found.metadata?.type ?? "application/octet-stream",
     "accept-ranges": "bytes",
-    "cache-control": "public, max-age=3600",
+    "cache-control": cache,
     "x-content-type-options": "nosniff",
   };
   const asked = request.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);

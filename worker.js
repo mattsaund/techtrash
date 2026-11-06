@@ -76,7 +76,7 @@ async function route(request, env) {
   }
   if (reading && pathname.startsWith("/blog/img/")) {
     const name = pathname.slice("/blog/img/".length);
-    if (blog.PICTURE_NAME.test(name)) return blog.servePicture(name, env);
+    if (blog.PICTURE_NAME.test(name)) return blog.servePicture(name, request, env);
   }
   if (reading && pathname.startsWith("/blog/sound/")) {
     const name = pathname.slice("/blog/sound/".length);
