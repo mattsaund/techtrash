@@ -1,25 +1,23 @@
-// techtrash.org : the admin's page for writing a blog (?write, ?edit/<blog>).
+// The admin's page for writing a blog (?write, ?edit/<blog>). It has a title,
+// the editor (editor/editor.js), the blog's flags, a comments switch and the
+// save buttons. A new blog or a draft saves as a draft (Save draft or Ctrl+S)
+// and the page stays open, and Publish puts it up. A blog that's up saves its
+// changes, and Ctrl+S saves and stays open.
 //
-// A title, the editor (editor/editor.js), the blog's flags, whether its
-// comments are on, and the buttons to save it. A new blog, or a draft, saves
-// as a draft (Save draft, or Ctrl+S) to finish another time, and the page
-// stays open to go on with; Publish puts it up. A blog that's up saves its
-// changes (Ctrl+S saves and stays open).
-//
-// What's being written is kept in this browser as it's typed (localStorage,
-// under "techtrash:draft:new" or "techtrash:draft:post-<id>"), until it's
-// saved or thrown away: closing the window loses nothing. Those names have to
-// stay as they are, or what's kept under the old ones would be lost.
+// What's being written is kept in localStorage as it's typed, under
+// "techtrash:draft:new" or "techtrash:draft:post-<id>", until it's saved or
+// thrown away, so closing the window loses nothing. Don't rename those keys,
+// or anything kept under the old names would be lost.
 
 import { framed } from "./frame.js";
 import { moveTo, theBlog, titled, to } from "./site.js";
 import { api, backTo, el, hueOf, remembered, status, twoClick } from "./util.js";
 
-// The flags a blog has, in the editor: each one a button that takes it off,
-// then a box to name another (Enter or a comma puts it on; Backspace in the
-// empty box takes the last one off), and under them the flags other blogs
-// have, a click each. { element, value(), take() }: value() is the flags'
-// names, and take() puts on the one still being typed, if there is one.
+// The flag picker. Each flag on the blog is a button that takes it off,
+// followed by a field to add another (Enter or a comma adds it, Backspace in
+// the empty field takes the last one off). Flags other blogs use sit below,
+// one click each. Returns { element, value(), take() }. value() is the flag
+// names, and take() adds whatever is still being typed.
 function flagPicker(start, known, onChange) {
   const MAX = 20;
   const same = (a, b) => a.toLowerCase() === b.toLowerCase();
@@ -28,7 +26,7 @@ function flagPicker(start, known, onChange) {
   const field = el("input", { class: "flag-picker__field", maxlength: "40", placeholder: "Add a flag", "aria-label": "Add a flag" });
   const others = el("p", { class: "flag-picker__others" });
 
-  // the way it's spelled already, if a blog has it
+  // adds a flag, spelled the way another blog already has it if one does
   const put = (typed) => {
     const name = typed.replace(/\s+/g, " ").trim().slice(0, 40);
     if (!name || names.some((n) => same(n, name)) || names.length >= MAX) return false;
@@ -91,21 +89,23 @@ export async function showEditor(postSlug = null) {
     api("/api/blog/flags"),
     postSlug ? api(`/api/blog/post?slug=${encodeURIComponent(postSlug)}`) : null,
   ]);
-  let post = found;   // a new one's null until it's first saved
+  let post = found;   // null for a new one until it's first saved
   const keyOf = () => `techtrash:draft:${post ? `post-${post.id}` : "new"}`;
   let key = keyOf();
   const kept = remembered.get(key);
   const isUp = () => Boolean(post && !post.draft);
-  // Back (and Cancel): to a blog that's up, to the drafts for a draft, and
-  // to the Blog for one that's never been saved
+  // Where Back and Cancel go. A blog that's up goes to its page, a draft to
+  // the drafts, and one that's never been saved to the Blog.
   const leave = () => (isUp() ? to.post(post.slug) : post ? to.drafts : theBlog());
   titled(post ? `Editing ${post.title} - Techtrash` : "New blog - Techtrash");
 
   let dirty = Boolean(kept);
+  let edits = 0;   // every change counts, so a save can tell what came in while it was out
   let leaving = false;
   let keeping;
   const keep = () => {
     dirty = true;
+    edits++;
     clearTimeout(keeping);
     keeping = setTimeout(() => {
       if (leaving) return;
@@ -137,8 +137,8 @@ export async function showEditor(postSlug = null) {
     field?.focus();
   };
 
-  // draft: true or false to make it one or not, or left out to leave it as
-  // it is. stay: stay in the editor, rather than go to the blog's page.
+  // draft is true or false to make it a draft or not, or left out to leave it
+  // as it is. stay keeps the editor open instead of going to the blog's page.
   async function save({ draft, stay }) {
     if (saving) return;
     flags.take();
@@ -149,19 +149,22 @@ export async function showEditor(postSlug = null) {
     say("Saving...");
     const json = { title: title.value, body: editor.html(), flags: flags.value(), comments: comments.checked };
     if (draft !== undefined) json.draft = draft;
+    const before = edits;
     try {
       clearTimeout(keeping);
       const saved = post
         ? await api(`/api/blog/post?id=${post.id}`, { method: "PUT", json })
         : await api("/api/blog/posts", { method: "POST", json });
       remembered.forget(key);
-      dirty = false;
+      // Anything typed while it was saving isn't saved yet.
+      dirty = edits !== before;
       if (!stay) {
         leaving = true;
         return location.assign(to.post(saved.slug));
       }
       post = { ...post, id: saved.id, slug: saved.slug, draft: saved.draft, comments_open: json.comments ? 1 : 0 };
       key = keyOf();
+      if (dirty) keep();
       moveTo(to.edit(saved.slug));
       titled(`Editing ${title.value.trim()} - Techtrash`);
       back.querySelector("a").href = leave();
@@ -175,7 +178,7 @@ export async function showEditor(postSlug = null) {
     for (const button of buttons.querySelectorAll("button")) button.disabled = false;
   }
 
-  // Cancel leaves what isn't saved behind: a second click, if there's any.
+  // Cancel loses unsaved changes, so when there are some it takes two clicks.
   const cancel = el("button", { class: "button hue-1", type: "button", textContent: "Cancel" });
   let sure = false;
   cancel.addEventListener("click", () => {
@@ -195,12 +198,13 @@ export async function showEditor(postSlug = null) {
     made.addEventListener("click", click);
     return made;
   };
-  // (a new blog has no Delete draft: nothing, not "null", in its place)
+  // (a new blog has no Delete draft, so its null is filtered out rather than
+  // drawn as "null")
   function drawButtons() {
     buttons.replaceChildren(...(isUp()
       ? [
         button("Save changes", "hue-4", () => save({ stay: false })),
-        // back to being a draft, the changes and all, and the editor stays open
+        // back to a draft, changes and all, and the editor stays open
         twoClick("Move to drafts", "Click again to take it down", () => save({ draft: true, stay: true }), "button hue-2"),
         cancel,
       ]

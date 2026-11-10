@@ -1,9 +1,5 @@
-/* ============================================================
-   techtrash.org : the style guide page's own layout
-
-   Only what's needed to lay the specimen windows out on a page.
-   Same rule as everywhere else: tokens only.
-   ============================================================ */
+/* The style guide page's own layout, just what's needed to lay the
+   specimen windows out on a page. Tokens only, like everywhere else. */
 
 .guide {
   display: grid;
@@ -24,7 +20,7 @@
 .guide__table th,
 .guide__table td { padding: var(--sp-2) var(--sp-8) var(--sp-2) 0; text-align: left; vertical-align: middle; }
 .guide__table th { font-weight: 400; color: var(--ink-muted); }
-/* Every column but the last shrinks to fit; the last takes the rest. */
+/* Every column but the last shrinks to fit, and the last takes the rest. */
 .guide__table td:not(:last-child) { width: 1%; white-space: nowrap; }
 .guide__table td:last-child,
 .guide__table th:last-child { padding-right: 0; }

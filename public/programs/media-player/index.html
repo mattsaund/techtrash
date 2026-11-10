@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Windows Media Player</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <style>
+    /* Deep blue all over. The visualization's black screen fills the
+       middle, the playlist runs down the right, and the controls sit
+       along the bottom. */
+    body.player { background: var(--player-face); color: var(--player-ink); }
+    .player .menu-bar { color: var(--ink); }
+    .player__main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      gap: var(--sp-4);
+      padding: var(--sp-4) var(--sp-4) 0;
+    }
+    .player__now {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+    .player__screen {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border: var(--hairline) solid var(--player-edge);
+      background: var(--player-screen);
+    }
+    .player__title {
+      margin: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: 700;
+    }
+
+    .player__list {
+      flex: none;
+      width: var(--player-list-w);
+      display: flex;
+      flex-direction: column;
+      border: var(--hairline) solid var(--player-edge);
+      background: var(--player-list);
+    }
+    .player__list-name, .player__total {
+      margin: 0;
+      padding: var(--sp-4);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-size: var(--fs-ui);
+    }
+    .player__list-name { border-bottom: var(--hairline) solid var(--player-edge); font-weight: 700; }
+    .player__total { border-top: var(--hairline) solid var(--player-edge); color: var(--player-ink-dim); }
+    .player__tracks {
+      flex: 1;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      overflow: auto;
+      list-style: none;
+    }
+    .player__tracks:focus { outline: 0; }
+    .player__empty { padding: var(--sp-8) var(--sp-4); color: var(--player-ink-dim); }
+    .player__track {
+      display: flex;
+      gap: var(--sp-8);
+      padding: var(--sp-2) var(--sp-4);
+      border: var(--hairline) solid transparent;
+      white-space: nowrap;
+      cursor: default;
+    }
+    .player__track:hover { background: var(--player-row-hover); }
+    .player__track.is-now { background: var(--player-row-now); font-weight: 700; }
+    .player__tracks:focus-visible .player__track[aria-selected="true"],
+    .player__track[aria-selected="true"] { border-color: var(--player-ink-dim); border-style: dotted; }
+    .player__track-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .player__track-time { color: var(--player-ink-dim); }
+    .player__track.is-now .player__track-time { color: var(--player-ink); }
+
+    .player__controls {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+      margin-top: var(--sp-4);
+      padding: var(--sp-4) var(--sp-8) var(--sp-8);
+      border-top: var(--hairline) solid var(--player-edge);
+      background: var(--player-bar);
+    }
+    .player__row { display: flex; align-items: center; gap: var(--sp-4); }
+    .player__status, .player__time { font-size: var(--fs-ui); white-space: nowrap; }
+    .player__status {
+      flex: 1;
+      min-width: 0;
+      margin-left: var(--sp-8);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--player-ink-dim);
+    }
+
+    /* XP's round glass buttons, each with its glyph. */
+    .player__button {
+      flex: none;
+      width: var(--player-button);
+      height: var(--player-button);
+      padding: 0;
+      border: var(--hairline) solid var(--player-glass-edge);
+      border-radius: 50%;
+      background: var(--glyph) center / 55% no-repeat, var(--player-glass);
+    }
+    .player__button:hover { background: var(--glyph) center / 55% no-repeat, var(--player-glass-hot); }
+    .player__button:active { background: var(--glyph) center / 55% no-repeat, var(--player-glass-down); }
+    .player__button:disabled { opacity: 0.5; }
+    .player__button:focus-visible { outline: var(--hairline) dotted var(--player-ink); outline-offset: var(--sp-2); }
+    .player__button--play { width: var(--player-play); height: var(--player-play); margin-right: var(--sp-4); }
+    [data-act="play"] { --glyph: var(--glyph-play); }
+    .player.is-playing [data-act="play"] { --glyph: var(--glyph-pause); }
+    [data-act="stop"] { --glyph: var(--glyph-stop); }
+    [data-act="previous"] { --glyph: var(--glyph-previous); }
+    [data-act="next"] { --glyph: var(--glyph-next); }
+    [data-act="mute"] { --glyph: var(--glyph-speaker); margin-left: var(--sp-12); }
+    .player.is-muted [data-act="mute"] { --glyph: var(--glyph-muted); }
+
+    /* The seek bar and volume, filled up to the knob. Firefox does that with
+       ::-moz-range-progress, the rest with a gradient to --fill (set by
+       media-player.js). */
+    .player__slider {
+      --fill: 0%;
+      appearance: none;
+      height: var(--player-knob);
+      margin: 0;
+      background: transparent;
+    }
+    .player__seek { width: 100%; }
+    .player__volume { flex: none; width: var(--player-volume-w); }
+    .player__slider::-webkit-slider-runnable-track {
+      height: var(--player-groove);
+      border-radius: var(--player-groove);
+      background: linear-gradient(90deg, var(--player-fill) var(--fill), var(--player-track) var(--fill));
+    }
+    .player__slider::-moz-range-track { height: var(--player-groove); border-radius: var(--player-groove); background: var(--player-track); }
+    .player__slider::-moz-range-progress { height: var(--player-groove); border-radius: var(--player-groove); background: var(--player-fill); }
+    .player__slider::-webkit-slider-thumb {
+      appearance: none;
+      width: var(--player-knob);
+      height: var(--player-knob);
+      margin-top: calc((var(--player-groove) - var(--player-knob)) / 2);
+      border: var(--hairline) solid var(--player-glass-edge);
+      border-radius: 50%;
+      background: var(--player-thumb);
+    }
+    .player__slider::-moz-range-thumb {
+      width: var(--player-knob);
+      height: var(--player-knob);
+      box-sizing: border-box;
+      border: var(--hairline) solid var(--player-glass-edge);
+      border-radius: 50%;
+      background: var(--player-thumb);
+    }
+    .player__slider:focus { outline: 0; }
+    .player__slider:focus-visible::-webkit-slider-thumb { outline: var(--hairline) dotted var(--player-ink); }
+    .player__slider:focus-visible::-moz-range-thumb { outline: var(--hairline) dotted var(--player-ink); }
+    .player__slider:disabled { opacity: 0.5; }
+
+    .player.is-dropping .player__list { outline: var(--hairline) dashed var(--player-ink); }
+  </style>
+  <script type="module" src="media-player.js"></script>
+</head>
+<!--
+  Windows Media Player, for the music and sounds on the shared disk.
+  ?id=<id> plays a song and lists the rest of its folder, ?folder=<id> plays
+  everything in a folder, and with neither it lists My Music.
+  media-player.js does the rest.
+-->
+<body class="app player">
+  <nav class="menu-bar" aria-label="Menu"></nav>
+  <div class="player__main">
+    <div class="player__now">
+      <canvas class="player__screen" aria-label="Visualization"></canvas>
+      <p class="player__title">Windows Media Player</p>
+    </div>
+    <aside class="player__list" aria-label="Playlist">
+      <h2 class="player__list-name">My Music</h2>
+      <ol class="player__tracks" role="listbox" tabindex="0" aria-label="Songs"></ol>
+      <p class="player__total"></p>
+    </aside>
+  </div>
+  <div class="player__controls">
+    <input class="player__slider player__seek" type="range" min="0" max="0" step="any" value="0" aria-label="Seek" disabled>
+    <div class="player__row">
+      <button class="player__button player__button--play" type="button" data-act="play" title="Play (Ctrl+P)" aria-label="Play"></button>
+      <button class="player__button" type="button" data-act="stop" title="Stop (Ctrl+S)" aria-label="Stop"></button>
+      <button class="player__button" type="button" data-act="previous" title="Previous (Ctrl+B)" aria-label="Previous"></button>
+      <button class="player__button" type="button" data-act="next" title="Next (Ctrl+F)" aria-label="Next"></button>
+      <button class="player__button" type="button" data-act="mute" title="Mute (F8)" aria-label="Mute"></button>
+      <input class="player__slider player__volume" type="range" min="0" max="100" step="1" value="80" aria-label="Volume">
+      <span class="player__status" aria-live="polite">Ready</span>
+      <span class="player__time">00:00</span>
+    </div>
+  </div>
+</body>
+</html>

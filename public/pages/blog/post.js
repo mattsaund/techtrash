@@ -1,9 +1,7 @@
-// techtrash.org : a blog's own page.
-//
-// Its title, the day it went up, its flags, its words, and its comments
-// (comments.js). The admin also gets the buttons to change it, switch its
-// comments off or on, take it down to the drafts, or delete it; or, for a
-// draft (which only they can see), to finish it, put it up, or throw it away.
+// A blog's own page, with its title, date, flags, words and comments
+// (comments.js). The admin also gets buttons to edit it, switch comments on
+// or off, move it back to drafts or delete it. On a draft (which only they
+// can see) the buttons finish it, publish it or throw it away.
 
 import { commentsPanel } from "./comments.js";
 import { renderBody } from "./content.js";
@@ -14,7 +12,7 @@ import { api, backTo, date, el, hueOf, status, twoClick } from "./util.js";
 // The blog whose slug is postSlug.
 export const showPost = (postSlug) => framed("blog", async () => {
   const post = await api(`/api/blog/post?slug=${encodeURIComponent(postSlug)}`).catch(async (error) => {
-    // ?blog/<topic>, from when blogs were in topics: that topic's a flag now
+    // an old ?blog/<topic> address, and that topic is a flag now
     const { flags } = await api("/api/blog/flags").catch(() => ({ flags: [] }));
     if (flags.some((flag) => flag.slug === postSlug && flag.count > 0)) goTo(to.flags([postSlug]));
     throw error;

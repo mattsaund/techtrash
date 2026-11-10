@@ -1,20 +1,18 @@
-// techtrash.org : the sound player.
+// The sound player, for a sound file in a post (uploaded in the editor, or
+// linked on a line of its own). It has Play, the name and time, a seek bar,
+// Mute and a volume slider. Play turns into Pause while playing, and Mute
+// into Unmute while muted. The icons are plain gray, drawn by site.css from
+// tokens, and this only says which one shows. One sound plays at a time, and
+// the volume is remembered for the next one (and the next visit).
 //
-// A sound file in a post (a song uploaded in the editor, or a link to a sound
-// file on a line of its own) plays in this: Play, its name and how far in it
-// is, a bar to drag along it, and Mute and how loud. Play is Pause while it
-// plays, and Mute is Unmute while it's muted: plain gray icons, drawn by
-// site.css (their shapes are tokens), which these only say which of. Only one
-// plays at a time, and how loud is kept for the next one (and the next visit).
-//
-// soundPlayer(src, title) gives back the player, for content.js to put in a
+// soundPlayer(src, title) returns the player for content.js to put in a
 // post's player box.
 
 import { el, remembered } from "./util.js";
 
-const LOUDNESS = "techtrash:volume";   // how loud, kept in this browser
+const LOUDNESS = "techtrash:volume";   // the volume, kept in this browser
 
-// An icon's button says what it does: to a screen reader, and as its tooltip.
+// An icon button says what it does, to screen readers and as a tooltip.
 function says(button, words) {
   button.setAttribute("aria-label", words);
   button.title = words;
@@ -60,7 +58,7 @@ export function soundPlayer(src, title) {
     seek.value = String(audio.currentTime);
     showTime();
   });
-  // dragged along: there, as it's dragged
+  // seeks as the bar is dragged
   seek.addEventListener("input", () => {
     audio.currentTime = Number(seek.value);
     showTime();

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/explorer.css">
+  <style>
+    .run { padding: var(--sp-12); gap: var(--sp-12); }
+    .run__say { display: flex; gap: var(--sp-12); align-items: flex-start; }
+    .run__say img { width: var(--icon-m); height: var(--icon-m); flex: none; }
+    .run__open { display: flex; align-items: center; gap: var(--sp-8); }
+    .run__open input { flex: 1; min-width: 0; }
+    .run__foot { display: flex; justify-content: flex-end; gap: var(--sp-8); margin-top: auto; }
+  </style>
+  <script type="module" src="run.js"></script>
+</head>
+<!--
+  Run, from the start menu. It opens a program by name (notepad, mspaint,
+  calc, cmd...), a place or file on the shared disk, or a web address.
+  run.js does the rest.
+-->
+<body class="app run">
+  <div class="run__say">
+    <img src="/img/icons/xp/run.png" alt="">
+    <p>Type the name of a program, folder, document, or Internet resource, and Windows will open it for you.</p>
+  </div>
+  <form class="run__open" autocomplete="off">
+    <label for="open">Open:</label>
+    <input id="open" list="ran" spellcheck="false">
+    <datalist id="ran"></datalist>
+  </form>
+  <div class="run__foot">
+    <button class="button button--default" type="button" data-ok>OK</button>
+    <button class="button" type="button" data-cancel>Cancel</button>
+    <button class="button" type="button" data-browse>Browse...</button>
+  </div>
+</body>
+</html>

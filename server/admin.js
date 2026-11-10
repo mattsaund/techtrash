@@ -1,19 +1,15 @@
-// techtrash.org : the admin account.
+// The admin account. Every visitor is the "techtrash" user and can read
+// everything, but only the admin can post. The admin logs on from the Welcome
+// screen with a user name and password kept in the Worker's secrets
+// (ADMIN_USERNAME and ADMIN_PASSWORD), never in this repo. Set them with
+// `npx wrangler secret put ADMIN_USERNAME`, or in the Cloudflare dashboard
+// under the Worker's Settings > Variables and Secrets. Until both are set,
+// nobody can log on as admin.
 //
-// Everyone who visits is the "techtrash" user, and can read everything. Only
-// the admin can post. The admin logs on from the Welcome screen with a user
-// name and password that live in the Worker's secrets, never in this repo:
-//
-//   ADMIN_USERNAME   ADMIN_PASSWORD
-//
-// (set them with `npx wrangler secret put ADMIN_USERNAME`, or in the Cloudflare
-// dashboard under the Worker's Settings -> Variables and Secrets). Until both
-// are set, nobody can log on as admin.
-//
-// The right pair gets a cookie that says "admin" until it expires, signed with
-// a key made from the pair itself: changing either one logs every admin
-// session out. The cookie can't be read by the page's scripts, and is only
-// sent with requests from this site.
+// The right pair gets a cookie saying "admin" until it expires. It's signed
+// with a key made from the pair itself, so changing either one logs every
+// admin session out. Page scripts can't read the cookie, and it's only sent
+// with requests from this site.
 
 import { apiError, clientKey, done } from "./http.js";
 
@@ -65,7 +61,7 @@ export async function logon(request, env) {
   if (!success) return apiError(429, "Too many tries. Wait a minute, then try again.");
   if (!isSetUp(env)) return apiError(503, "The admin account isn't set up yet.");
 
-  // (a user name and a password are a few bytes: anything much bigger isn't one)
+  // A user name and password are a few bytes, so anything much bigger isn't one.
   if (Number(request.headers.get("content-length")) > 4096) return apiError(400, "The user name or password is incorrect.");
   const input = await request.json().catch(() => ({}));
   const username = typeof input.username === "string" ? input.username : "";
@@ -82,11 +78,26 @@ export async function logon(request, env) {
   });
 }
 
-// POST /api/logoff: the cookie goes, whoever's asking
+// POST /api/logoff. The cookie goes, whoever's asking.
 export function logoff(request) {
   const response = done();
   response.headers.set("set-cookie", cookie(request, "", 0));
   return response;
+}
+
+// A visitor's tag. It's their internet address scrambled with a key made
+// from the admin's secrets, so the same person always gets the same tag and
+// nobody without the secrets can work the address back out of it. The shared
+// disk (server/disk.js) keeps track of who did what by it.
+export async function visitorTag(request, env) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(`techtrash visitor\n${env.ADMIN_USERNAME ?? ""}\n${env.ADMIN_PASSWORD ?? ""}`),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return toHex(await crypto.subtle.sign("HMAC", key, encoder.encode(clientKey(request)))).slice(0, 16);
 }
 
 // Runs handler only for the admin.

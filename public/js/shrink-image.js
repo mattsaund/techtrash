@@ -1,12 +1,12 @@
-// techtrash.org : shrinks a picture in the browser before it's uploaded (any
-// picture in what's written on the site): at most MAX_SIDE pixels on its longest side, re-saved as a
-// JPEG, or a PNG if it has see-through parts. That also strips phone metadata
-// like GPS location. GIFs are left alone so animations keep working.
-// (From tcc.place, where it does the same job.)
+// Shrinks a picture in the browser before it's uploaded to the blog. It ends
+// up at most MAX_SIDE pixels on its longest side, re-saved as a JPEG, or a
+// PNG if it has see-through parts. Re-saving also strips phone metadata like
+// GPS location. GIFs are left alone so animations keep working. Borrowed
+// from tcc.place, where it does the same job.
 
 const MAX_SIDE = 1920;
 
-// the most the server takes for one picture
+// the most the server takes for one picture (server/blog.js)
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 function hasTransparency(context, width, height) {
@@ -34,6 +34,7 @@ export async function shrinkImage(file) {
   const type = hasTransparency(context, width, height) ? "image/png" : "image/jpeg";
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, 0.85));
   if (!blob) throw new Error("couldn't save the shrunk picture");
-  // a small picture that was already compact can come out bigger, so keep the original then
-  return scale === 1 && blob.size >= file.size ? file : blob;
+  // Always the re-saved one, even when it comes out a little bigger, since the
+  // original could still have the phone's location in it.
+  return blob;
 }

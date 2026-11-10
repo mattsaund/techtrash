@@ -11,9 +11,9 @@
 </head>
 <body>
   <!--
-    Every rule on the site, drawn with the kit itself. The values in
-    the tables are read out of css/tokens.css when the page loads, so
-    this page can't drift from the file it documents.
+    Every rule on the site, drawn with the kit itself. The table values
+    are read from css/tokens.css when the page loads, so this page can't
+    drift from the file it documents.
   -->
   <main class="guide">
 
@@ -217,7 +217,7 @@
           <img src="/img/icons/xp/folder.png" alt="" style="width: var(--icon-s); height: var(--icon-s)">
           <img src="/img/icons/xp/folder.png" alt="" style="width: var(--icon-m); height: var(--icon-m)">
           <img src="/img/icons/xp/folder.png" alt="" style="width: var(--icon-l); height: var(--icon-l)">
-          <span class="guide__note">16, 32, 48: the only icon sizes</span>
+          <span class="guide__note">16, 32, 48, and 24 on a toolbar: the only icon sizes</span>
         </div>
       </div>
     </section>
@@ -293,16 +293,18 @@ Notepad is the mono face at body size. It wraps at the window's edge, not at the
         </div>
       </header>
       <div class="window__body guide__body">
-        <p>Menus and tooltips are paper, with the only drop shadow on the site. Windows cast none.</p>
+        <p>Menus and tooltips are paper, and cast the kit's only drop shadow. Windows cast none.</p>
         <div class="guide__popups">
+          <!-- the same markup js/menu.js draws -->
           <ul class="menu">
-            <li><button class="menu__item">Undo</button></li>
+            <li><button class="menu__item is-default"><span class="menu__mark"></span><span class="menu__label">Open</span></button></li>
             <li class="menu__rule" role="separator"></li>
-            <li><button class="menu__item">Cut</button></li>
-            <li><button class="menu__item">Copy</button></li>
-            <li><button class="menu__item" disabled>Paste</button></li>
+            <li><button class="menu__item"><span class="menu__mark"></span><span class="menu__label">Cut</span><span class="menu__keys">Ctrl+X</span></button></li>
+            <li><button class="menu__item" disabled><span class="menu__mark"></span><span class="menu__label">Paste</span><span class="menu__keys">Ctrl+V</span></button></li>
             <li class="menu__rule" role="separator"></li>
-            <li><button class="menu__item">Select All</button></li>
+            <li><button class="menu__item is-active"><span class="menu__mark menu__mark--radio"></span><span class="menu__label">Icons</span></button></li>
+            <li><button class="menu__item"><span class="menu__mark menu__mark--check"></span><span class="menu__label">Word Wrap</span></button></li>
+            <li><button class="menu__item menu__item--sub"><span class="menu__mark"></span><span class="menu__label">New</span></button></li>
           </ul>
           <div class="tip" role="tooltip">Click here to begin.</div>
         </div>

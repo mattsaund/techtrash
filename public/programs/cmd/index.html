@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Command Prompt</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <style>
+    /* Light gray on black in the mono font, with lines kept as printed. */
+    .console {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: var(--sp-2) var(--sp-4);
+      background: var(--console-paper);
+      color: var(--console-ink);
+      font: 400 var(--fs-body)/var(--lh-console) var(--font-mono);
+      cursor: text;
+    }
+    .console::selection, .console *::selection { background: var(--console-ink); color: var(--console-paper); }
+    .console__out { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .console__line { display: flex; }
+    .console__prompt { white-space: pre; }
+    .console__in {
+      flex: 1;
+      min-width: 0;
+      height: auto;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      caret-color: var(--console-ink);
+      font: inherit;
+    }
+    .console__in:focus-visible { outline: 0; }
+  </style>
+  <script type="module" src="cmd.js"></script>
+</head>
+<!--
+  The Command Prompt. Its C: drive is the shared disk (js/paths.js).
+  cmd.js does the rest.
+-->
+<body class="app">
+  <main class="console" aria-label="Command Prompt">
+    <pre class="console__out" aria-live="polite"></pre>
+    <div class="console__line">
+      <span class="console__prompt"></span>
+      <input class="console__in" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Command">
+    </div>
+  </main>
+</body>
+</html>

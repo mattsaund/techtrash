@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notepad++</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <style>
+    .npp__main { flex: 1; min-height: 0; display: flex; }
+    .npp__tree {
+      flex: none;
+      display: flex;
+      flex-direction: column;
+      width: var(--npp-tree-w);
+      border-right: var(--hairline) solid var(--face-shadow);
+      background: var(--paper);
+    }
+    .npp__tree[hidden] { display: none; }
+    .npp__head { padding: var(--sp-2) var(--sp-4); background: var(--face); border-bottom: var(--hairline) solid var(--face-shadow); }
+    .npp__files { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: var(--sp-2); list-style: none; user-select: none; }
+    .npp__entry {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+      width: 100%;
+      padding: 0 var(--sp-2) 0 calc(var(--depth) * var(--sp-12));
+      border: 0;
+      background: none;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .npp__entry img { width: var(--icon-s); height: var(--icon-s); flex: none; }
+    .npp__entry[aria-current="true"] span { background: var(--select); color: var(--select-ink); }
+
+    .npp__editor { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .npp__tabs { display: flex; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2) 0; overflow: hidden; background: var(--face); border-bottom: var(--hairline) solid var(--face-shadow); }
+    .npp__tab {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+      flex: none;
+      margin-bottom: calc(-1 * var(--hairline));
+      padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-8);
+      border: var(--hairline) solid var(--face-shadow);
+      background: var(--face);
+      white-space: nowrap;
+    }
+    .npp__tab[aria-selected="true"] { background: var(--npp-paper); border-bottom-color: var(--npp-paper); box-shadow: inset 0 var(--sp-2) var(--npp-tab-hot); }
+    .npp__tab img { width: var(--icon-s); height: var(--icon-s); filter: grayscale(1); opacity: var(--cut-fade); }
+    .npp__tab.is-changed img { filter: none; opacity: 1; }
+    .npp__close { padding: 0 var(--sp-2); border: 0; background: none; color: var(--ink-muted); }
+    .npp__close:hover { color: var(--ink); }
+
+    .npp__find { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-4); background: var(--face); border-bottom: var(--hairline) solid var(--face-shadow); }
+    .npp__find[hidden] { display: none; }
+
+    /* Line numbers down the left. The textarea sits over a colored copy of
+       its text, with its own text transparent, and the two scroll together. */
+    .npp__code { flex: 1; min-height: 0; display: flex; background: var(--npp-paper); }
+    .npp__margin, .npp__shown, .npp__text { font: 400 var(--fs-body)/var(--lh-mono) var(--font-mono); tab-size: 4; }
+    .npp__margin {
+      flex: none;
+      width: var(--npp-margin-w);
+      overflow: hidden;
+      padding: var(--sp-2) var(--sp-4) 0 0;
+      background: var(--npp-margin);
+      color: var(--npp-margin-ink);
+      text-align: right;
+      user-select: none;
+    }
+    .npp__margin > div { white-space: pre; }
+    .npp__area { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+    .npp__shown, .npp__text {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: var(--sp-2) var(--sp-4);
+      white-space: pre;
+      overflow-wrap: normal;
+    }
+    .npp__shown { overflow: hidden; color: var(--ink); pointer-events: none; }
+    .npp__shown code { display: block; font: inherit; }
+    .npp__current { position: absolute; left: 0; right: 0; height: var(--lh-mono); background: var(--npp-line); pointer-events: none; }
+    .npp__text {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: none;
+      color: transparent;
+      caret-color: var(--ink);
+      resize: none;
+      overflow: auto;
+    }
+    .npp__text:focus-visible { outline: 0; border: 0; }
+    .npp__text::selection { background: var(--npp-picked); color: transparent; }
+
+    .t-keyword { color: var(--npp-keyword); font-weight: 700; }
+    .t-number { color: var(--npp-number); }
+    .t-string { color: var(--npp-string); }
+    .t-comment { color: var(--npp-comment); }
+    .t-operator { color: var(--npp-operator); font-weight: 700; }
+    .t-tag { color: var(--npp-tag); }
+    .t-attr { color: var(--npp-attr); }
+    .t-value { color: var(--npp-value); }
+    .npp .status-bar { padding: var(--sp-2); }
+    .npp .status-bar__field { white-space: pre; }
+  </style>
+  <script type="module" src="notepad-plus.js"></script>
+</head>
+<!--
+  Notepad++, an easter egg. It shows the site's own code, the very files the
+  browser is running, and anyone can change them. Nothing saves, so closing
+  it puts everything back. notepad-plus.js does the rest.
+-->
+<body class="app npp">
+  <nav class="menu-bar" aria-label="Menu"></nav>
+  <div class="toolbar" role="toolbar" aria-label="Tools">
+    <button class="tool" type="button" title="Folder as Workspace" data-act="tree"><img src="/img/icons/xp/open.png" alt="Folder as Workspace"></button>
+    <button class="tool" type="button" title="Save (Ctrl+S)" data-act="save"><img src="/img/icons/xp/save.png" alt="Save"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Cut (Ctrl+X)" data-act="cut"><img src="/img/icons/xp/cut.png" alt="Cut"></button>
+    <button class="tool" type="button" title="Copy (Ctrl+C)" data-act="copy"><img src="/img/icons/xp/copy.png" alt="Copy"></button>
+    <button class="tool" type="button" title="Paste (Ctrl+V)" data-act="paste"><img src="/img/icons/xp/paste.png" alt="Paste"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Undo (Ctrl+Z)" data-act="undo"><img src="/img/icons/xp/undo.png" alt="Undo"></button>
+    <button class="tool" type="button" title="Redo (Ctrl+Y)" data-act="redo"><img src="/img/icons/xp/redo.png" alt="Redo"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Find (Ctrl+F)" data-act="find"><img src="/img/icons/xp/search.png" alt="Find"></button>
+  </div>
+  <div class="npp__main">
+    <aside class="npp__tree" aria-label="Folder as Workspace">
+      <div class="npp__head">Folder as Workspace</div>
+      <ul class="npp__files"></ul>
+    </aside>
+    <section class="npp__editor">
+      <div class="npp__tabs" role="tablist" aria-label="Open files"></div>
+      <form class="npp__find" hidden>
+        <label for="find">Find:</label>
+        <input id="find" spellcheck="false" autocomplete="off">
+        <button class="button" type="submit">Find Next</button>
+        <button class="button" type="button" data-act="unfind">Close</button>
+        <span data-found></span>
+      </form>
+      <div class="npp__code">
+        <div class="npp__margin" aria-hidden="true"><div></div></div>
+        <div class="npp__area">
+          <div class="npp__current"></div>
+          <pre class="npp__shown" aria-hidden="true"><code></code></pre>
+          <textarea class="npp__text" spellcheck="false" wrap="off" autocapitalize="off" autocomplete="off" aria-label="Code"></textarea>
+        </div>
+      </div>
+    </section>
+  </div>
+  <footer class="status-bar">
+    <span class="status-bar__field" data-kind></span>
+    <span class="status-bar__field" data-length></span>
+    <span class="status-bar__field" data-where></span>
+    <span class="status-bar__field status-bar__field--size">Unix (LF)</span>
+    <span class="status-bar__field status-bar__field--size">UTF-8</span>
+  </footer>
+</body>
+</html>

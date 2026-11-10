@@ -1,33 +1,37 @@
-// techtrash.org : the server.
+// The server. Cloudflare answers any request that matches a file in public/
+// before this code runs, and everything else comes here.
 //
-// Cloudflare serves everything in public/ before this code runs: a request that
-// matches a file is answered straight away. What's left comes here:
-//
-//   /api/desktop          the shared desktop           server/desktop.js
+//   /api/desktop,         the shared desktop (its      server/desktop.js,
+//   /api/disk/...         icons, disk and admin)       server/disk.js
 //   /api/me, /api/logon,  who's logged on, and the     server/admin.js
 //   /api/logoff           admin account
+//   /api/time             the server's clock, for Date and Time Properties
+//                         and the Command Prompt's ping
 //   /api/blog/...,        the blog, its pictures and   server/blog.js
 //   /blog/img/<name>,     its sounds
 //   /blog/sound/<name>
 //   /rss.xml              the blog, for feed readers   server/feed.js
 //   anything else         XP's blue screen, as a 404   public/404.html
+//                         (a JSON one under /api/)
 //
-// Anything that changes something has to come from the site's own pages, and
-// everything that posts, changes or deletes is the admin's alone, except a
-// comment, which is anyone's.
+// Anything that changes something has to come from the site's own pages.
+// Posting, changing or deleting on the blog is the admin's alone, except for
+// comments, which are anyone's. The shared desktop is everyone's, though the
+// admin can lock it and keep people out (server/disk.js).
 
-import { adminOnly, isAdmin, logoff, logon } from "./server/admin.js";
+import { adminOnly, isAdmin, logoff, logon, visitorTag } from "./server/admin.js";
 import * as blog from "./server/blog.js";
 import { feed } from "./server/feed.js";
-import { apiError, fresh, fromThisSite } from "./server/http.js";
+import { apiError, clientKey, fresh, fromThisSite } from "./server/http.js";
 
 export { Desktop } from "./server/desktop.js";
 
-// "<method> <what>" for /api/blog/<what>. Reading is anyone's; the rest is the admin's.
+// "<method> <what>" for /api/blog/<what>. Reading is anyone's, and the rest
+// is the admin's, except comments.
 const BLOG = {
-  "GET posts": blog.listPosts,     // (its drafts: the admin's, checked there)
+  "GET posts": blog.listPosts,     // drafts are the admin's, checked there
   "POST posts": blog.createPost,
-  "GET post": blog.getPost,        // (a draft: the admin's, checked there)
+  "GET post": blog.getPost,        // a draft is the admin's, checked there
   "PUT post": blog.updatePost,
   "DELETE post": blog.deletePost,
   "GET flags": blog.listFlags,
@@ -40,13 +44,38 @@ const BLOG = {
   "PUT page": blog.savePage,
 };
 
+// The most anyone can send the shared disk in one go. That's a 4 MB picture,
+// or a 20 MB song from the admin, plus a little.
+const MAX_UPLOAD = 4 * 1024 * 1024 + 64 * 1024;
+const MAX_ADMIN_UPLOAD = 20 * 1024 * 1024 + 64 * 1024;
+
+// Passes a request on to the shared desktop, with two headers saying who's
+// asking (server/desktop.js). Any the request brought itself are thrown out
+// first. Changes are limited to 60 a minute per person (DISK_LIMITER).
+async function toDesktop(request, env, reading) {
+  const admin = await isAdmin(request, env);
+  if (!reading) {
+    const most = admin ? MAX_ADMIN_UPLOAD : MAX_UPLOAD;
+    if (Number(request.headers.get("content-length")) > most) return apiError(413, `That's too big to save here (${admin ? 20 : 4} MB at most).`);
+    const { success } = await env.DISK_LIMITER.limit({ key: clientKey(request) });
+    if (!success) return apiError(429, "That's a lot of changes at once. Wait a minute, then try again.");
+  }
+  const headers = new Headers(request.headers);
+  headers.delete("x-techtrash-admin");
+  headers.delete("x-techtrash-visitor");
+  if (admin) headers.set("x-techtrash-admin", "1");
+  headers.set("x-techtrash-visitor", await visitorTag(request, env));
+  return env.DESKTOP.get(env.DESKTOP.idFromName("desktop")).fetch(new Request(request, { headers }));
+}
+
 export default {
   async fetch(request, env) {
     try {
       return await route(request, env);
     } catch (error) {
-      // In the Worker's logs (the dashboard's Observability, or `npx wrangler tail`),
-      // and said plainly to the page rather than as Cloudflare's error page.
+      // The error goes in the Worker's logs (the dashboard's Observability
+      // tab, or `npx wrangler tail`). An API call gets a plain message
+      // instead of Cloudflare's error page.
       console.error(request.method, new URL(request.url).pathname, error);
       if (new URL(request.url).pathname.startsWith("/api/")) {
         return apiError(500, "Something broke on the server. Try again, and if it keeps happening, check the Worker's logs.");
@@ -61,12 +90,15 @@ async function route(request, env) {
   const method = request.method;
   const reading = method === "GET" || method === "HEAD";
 
-  if (pathname === "/api/desktop") return env.DESKTOP.get(env.DESKTOP.idFromName("desktop")).fetch(request);
-  if (pathname.startsWith("/api/") && !reading && !fromThisSite(request)) {
+  // (the desktop's WebSocket opens with a GET, so it's checked too)
+  const upgrade = request.headers.get("upgrade") === "websocket";
+  if (pathname.startsWith("/api/") && (!reading || upgrade) && !fromThisSite(request)) {
     return apiError(403, "That has to come from techtrash.org itself.");
   }
+  if (pathname === "/api/desktop" || pathname.startsWith("/api/disk/")) return toDesktop(request, env, reading);
 
   if (pathname === "/api/me" && reading) return fresh({ admin: await isAdmin(request, env) });
+  if (pathname === "/api/time" && reading) return fresh({ now: Date.now() });
   if (pathname === "/api/logon" && method === "POST") return logon(request, env);
   if (pathname === "/api/logoff" && method === "POST") return logoff(request);
 

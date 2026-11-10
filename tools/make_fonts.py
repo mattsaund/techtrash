@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-make_fonts.py : builds the three web fonts in public/fonts/ from their sources.
+Builds the Tahoma and DejaVu Sans Mono web fonts in public/fonts/.
 
     tahoma-latin.woff2             Wine's Tahoma, subset to Latin
     tahoma-bold-latin.woff2        Wine's Tahoma Bold, emboldened (below)
     dejavu-sans-mono-latin.woff2   DejaVu Sans Mono, subset to Latin
 
-Wine's Tahoma Bold carries the bold widths and spacing, but its outlines
-are the regular ones: Wine gets the bold look from bitmaps embedded for
-small sizes, which a browser never uses. So a browser draws it thin and
-spaced out. This script thickens each outline the way XP's own fake bold
-did, by laying a copy over itself shifted to the right and merging the
-two, which doubles every vertical stem and leaves horizontals alone.
-STEM is how far, in font units: 180 of 2048 is about one pixel at 11px,
-so an 11px stem goes from one pixel to two.
+Wine's Tahoma Bold has the bold widths and spacing but the regular
+outlines. Wine gets the bold look from bitmaps embedded for small sizes,
+which a browser never uses, so a browser draws it thin and spaced out. This
+thickens each outline the way XP's own fake bold did, by laying a copy over
+itself shifted to the right and merging the two. That doubles every
+vertical stem and leaves horizontals alone. STEM is the shift in font
+units. At 180 of 2048 it's about one pixel at 11px, so an 11px stem goes
+from one pixel to two.
 
 Needs fonttools, brotli and skia-pathops. In a throwaway virtualenv:
 
@@ -22,7 +22,7 @@ Needs fonttools, brotli and skia-pathops. In a throwaway virtualenv:
     /tmp/fontenv/bin/python tools/make_fonts.py
 
 The sources come from Debian/Ubuntu's fonts-wine and fonts-dejavu-core
-packages; the paths are below if yours differ.
+packages. The paths are below if yours differ.
 """
 from pathlib import Path
 
@@ -51,12 +51,12 @@ LATIN = (
     + [0x2074, 0x20AC, 0x2122, 0x2190, 0x2191, 0x2192, 0x2193, 0x2212, 0x2215, 0xFEFF, 0xFFFD]
 )
 
-# Embedded bitmaps and FontForge's own tables: nothing a browser draws.
+# Embedded bitmaps and FontForge's own tables, none of which a browser draws.
 DROP = ["EBDT", "EBLC", "BDF ", "FFTM", "VDMX"]
 
 
 def embolden(font):
-    """Merge every outline with a copy of itself STEM units to the right."""
+    """Merges every outline with a copy of itself STEM units to the right."""
     glyphs = font.getGlyphSet()
     glyf = font["glyf"]
     order = font.getGlyphOrder()

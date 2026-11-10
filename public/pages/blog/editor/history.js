@@ -1,18 +1,16 @@
-// techtrash.org : Undo and Redo, of the editor's own.
+// The editor's own Undo and Redo. The browser's Undo only knows the changes
+// the browser made, but the editor makes some of its own (a picture kept first
+// in its paragraph, an empty line tidied away, a dragged size, a Markdown line
+// drawn again), so the browser's Undo gets it wrong (lines come back, a
+// picture vanishes). editor.js and live-markdown.js each keep one of these.
 //
-// A snapshot of what's written, and where the cursor was, after each change
-// (or each burst of typing: a pause of PAUSE ends one). The browser's own Undo
-// only knows about the changes the browser made, and the editor makes some of
-// its own (a picture kept first in its paragraph, an empty line tidied away, a
-// size dragged, a line of Markdown drawn again), so the browser's undoes the
-// wrong things: lines come back, a picture goes. editor.js's box and
-// live-markdown.js's each keep one.
+// It snapshots the content and the cursor after each change, or after each
+// burst of typing (a pause of PAUSE ends one).
 //
-// createHistory(read, write)
-//   read()        { content, caret } as things are now
-//   write(state)  puts a snapshot back
-// gives back { reset(), soon(), now(), undo(), redo() }: soon() after a change,
-// now() to take the snapshot straight away.
+// createHistory(read, write) returns
+//   { reset(), soon(), now(), undo(), redo() }
+// read() gives { content, caret } as things are now and write(state) puts a
+// snapshot back. Call soon() after a change, or now() to snapshot right away.
 
 const PAUSE = 400;
 const MOST_UNDOS = 200;

@@ -1,36 +1,32 @@
-// techtrash.org : the website. Start here.
+// The website. Start here.
 //
-// The website is one page, index.html, and this works out which of the site's
-// pages its address asks for, and draws it. The address reads like a path
-// after the "?" (the desktop shows it as the site's own address:
-// #blog/liftoff, #flag/space):
-//   (nothing)          the front page: the headline, and under it Home: the
-//                      bulletin, its words, the newest blogs beside
-//   ?blog              the headline, and under it the Blog: every blog, the
-//                      newest first, to sort and to filter by flag
-//   ?flag/<flag>/...   the Blog, with only the blogs that have those flags
-//   ?pictures          the headline, and under it every picture on the site
-//   ?about             the headline, and under it About me
-//   ?drafts            the admin: their drafts
-//   ?blog/<blog>       one blog, and its comments
-//   ?write             the admin: a new blog
-//   ?edit/<blog>       the admin: changing a blog, or finishing a draft
-// where <blog> and <flag> are their slugs (server/blog.js). The addresses
-// from when blogs were in topics (?blog/<topic>/<post>, ?post=3) find their
-// way to the new ones.
+// It's one page, index.html, and this draws whichever page the address asks
+// for. The address reads like a path after the "?", and the desktop shows it
+// as the site's own address (#blog/liftoff, #flag/space).
 //
-// Each kind of page is a module of its own:
-//   front.js      the front page's panels: Home, Blog, Pictures, About me,
-//                 and the admin's Drafts
-//   post.js       a blog (comments.js, its comments)
-//   write.js      the admin's editor page (the editor itself is editor/)
-// Any picture in what's written opens in the picture viewer (viewer.js).
-// and they share site.js (addresses, the admin, the window's title),
-// frame.js (the headline over every page) and own-words.js (the tagline,
-// Home's words, the bulletin and About me, written in place).
+//   (nothing)          Home, with the bulletin and the newest blogs
+//   ?blog              the Blog, every blog, to sort and filter by flag
+//   ?flag/<flag>/...   the Blog, only the blogs with those flags
+//   ?pictures          every picture on the site
+//   ?about             About me
+//   ?drafts            the admin's drafts
+//   ?blog/<blog>       one blog and its comments
+//   ?write             the admin, writing a new blog
+//   ?edit/<blog>       the admin, changing a blog or finishing a draft
 //
-// Each blog has one of the six hues (from its number) and keeps it: its card
-// and its page wear it. So does each flag, wherever it shows.
+// <blog> and <flag> are slugs (server/blog.js). Addresses from back when
+// blogs were in topics (?blog/<topic>/<post>, ?post=3) still find their way.
+//
+// Each kind of page is its own module. front.js draws the front page's
+// panels and the admin's Drafts, post.js a blog (comments.js its comments)
+// and write.js the admin's editor page (the editor itself is editor/). They
+// share site.js (addresses, the admin, the window title), frame.js (the
+// headline on every page) and own-words.js (the tagline, Home's words, the
+// bulletin and About me, edited in place). Any picture in what's written
+// opens in viewer.js.
+//
+// Each blog gets one of the six hues from its number and keeps it, on its
+// card and its page. So does each flag.
 
 import { framed } from "./frame.js";
 import { showDrafts, showFront } from "./front.js";
@@ -42,17 +38,17 @@ import { showPictureFromAddress, watchPictures } from "./viewer.js";
 // The admin's editor page, loaded only for them.
 const showEditor = async (postSlug) => (await import("./write.js")).showEditor(postSlug);
 
-// ?post=3, from the first blog: the address that blog has now. A topic's or
-// a flag's number (?topic=2, ?flag=1) is the Blog: those are gone.
+// ?post=3 from the first blog goes to that post's address now. Numbered
+// topics and flags (?topic=2, ?flag=1) are gone, so those go to the Blog.
 async function numbered(old) {
   if (!old.get("post")) return to.blog;
   const post = await api(`/api/blog/post?id=${Number(old.get("post"))}`);
   return old.has("edit") ? to.edit(post.slug) : to.post(post.slug);
 }
 
-// ?blog/<topic>/<post>, from when blogs were in topics: the same blog (its
-// slug may have had -2 put on it since, if another topic had one by the same
-// name), or else the topic's flag, or else the Blog.
+// ?blog/<topic>/<post> from when blogs were in topics. Goes to the same blog
+// (its slug may have gotten a -2 since, if another topic had a post by the
+// same name), or else the topic's flag, or else the Blog.
 async function fromTopic(topicSlug, postSlug) {
   const { posts } = await api("/api/blog/posts");
   const inTopic = (post) => post.flags.some((flag) => flag.slug === topicSlug);
@@ -74,7 +70,7 @@ try {
     if (location.hash.startsWith("#comment")) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
   }
   else if (first === "flag") await showFront("blog");
-  // (a visitor with the admin's address gets the page itself)
+  // (anyone else on an admin address gets the public page instead)
   else if (first === "drafts") await (admin ? showDrafts() : goTo(to.blog));
   else if (first === "write") await (admin ? showEditor() : goTo(to.blog));
   else if (first === "edit" && rest.length) await (admin ? showEditor(rest.at(-1)) : goTo(to.post(rest.at(-1))));

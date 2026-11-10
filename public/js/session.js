@@ -1,33 +1,36 @@
-// techtrash.org : logging on and off, and who's logged on.
+// Logging on and off, and who's logged on.
 //
-// A visitor arrives logged on as "techtrash": the blog is the site, and nothing
-// stands between them and it. The Welcome screen is for after Log Off or
-// Switch User, and a tab that's logged off stays that way through a reload.
-// The little script at the top of index.html decides which before anything
-// paints, by putting .is-logged-off on <html>; this does everything after.
+// A visitor arrives already logged on as "techtrash", so nothing stands
+// between them and the blog. The Welcome screen only comes after Log Off or
+// Switch User, and a tab that logged off stays that way through a reload.
+// The little script at the top of index.html puts .is-logged-off on <html>
+// before anything paints, and this does everything after.
 //
-// The Welcome screen has two users:
+// The Welcome screen has two users.
 //   techtrash  everyone. One click logs on.
-//   admin      me. Asks for a user name and password, which the server checks
-//              (server/admin.js); the right pair can post on the blog. The
-//              server remembers the admin with a cookie, so a reload or a new
-//              tab is still the admin until Log Off or Switch User.
+//   admin      me. The server checks the user name and password
+//              (server/admin.js), and the admin can post on the blog. A
+//              cookie keeps the admin logged on through a reload or a new
+//              tab, until Log Off or Switch User.
 //
-// Log Off in the start menu asks first, with the desktop gone gray behind the
-// question, as XP's did:
+// Log Off in the start menu asks first, with the desktop gone gray behind
+// the question, like XP.
 //   Switch User  back to the Welcome screen, windows left open
-//   Log Off      every window closed, "Saving your settings...", and back to
-//                the Welcome screen
+//   Log Off      every window closed, "Saving your settings...", then back
+//                to the Welcome screen
 // Either one ends an admin session.
 
 const css = getComputedStyle(document.documentElement);
 const WAIT = parseInt(css.getPropertyValue("--wait"), 10);
-const KEY = "techtrash:logged-off";   // in sessionStorage: this tab has logged off
+// Set in sessionStorage while this tab is logged off. index.html reads it too.
+const KEY = "techtrash:logged-off";
 
 const PROMPT = "To begin, click your user name";
 
-// onUser(user) runs whenever the user changes after the page has loaded, so
-// open windows can catch up with what the new user may do.
+// onUser(user, { changed }) runs whenever we learn who's logged on, both when
+// the server confirms an admin session from before and every time someone
+// logs on. changed is true when it's a different user than before (after the
+// page loaded), so open windows can catch up with what they're allowed to do.
 export function setUpSession({ closeAll, onUser }) {
   const root = document.documentElement;
   const logon = document.querySelector(".logon");
@@ -37,8 +40,8 @@ export function setUpSession({ closeAll, onUser }) {
   const form = logon.querySelector(".logon__form");
   const dialog = document.querySelector(".logoff");
   const startHead = document.querySelector(".start-menu__head");
-  // Everything behind the Welcome screen or the dialog: out of reach of the
-  // keyboard and the pointer while either is up.
+  // Everything behind the Welcome screen or the Log Off dialog, made inert
+  // while either is up.
   const behind = [".desktop", ".taskbar", "#start-menu"].map((s) => document.querySelector(s));
   let current = "techtrash";
 
@@ -52,14 +55,14 @@ export function setUpSession({ closeAll, onUser }) {
   const reach = (el, on) => { el.inert = !on; };
   const status = (user, text) => { tile(user).querySelector(".logon__status").textContent = text; };
 
-  // The start menu shows who's logged on: their picture and name, the same
-  // as on their Welcome screen tile.
+  // The start menu shows who's logged on, with the same picture and name as
+  // their Welcome screen tile.
   function becomeUser(user, tell = true) {
     const changed = user !== current;
     current = user;
     startHead.querySelector(".start-menu__tile").src = tile(user).querySelector(".logon__picture").src;
     startHead.querySelector("span").textContent = tile(user).querySelector(".logon__name").textContent;
-    if (changed && tell) onUser(user);
+    onUser(user, { changed: changed && tell });
   }
 
   function showWelcome() {
@@ -81,7 +84,7 @@ export function setUpSession({ closeAll, onUser }) {
     reach(logon, false);
   }
 
-  // --- logging on ------------------------------------------------------------
+  // --- logging on ----------------------------------------------------------
 
   function logOnAs(user) {
     logon.classList.add("is-logging-on");
@@ -107,7 +110,7 @@ export function setUpSession({ closeAll, onUser }) {
     logOnAs("techtrash");
   });
 
-  // XP's password box: it opens under the user's name.
+  // XP's password box, which opens under the user's name.
   tile("admin").addEventListener("click", () => {
     if (logon.classList.contains("is-logging-on")) return;
     form.hidden = false;
@@ -142,7 +145,7 @@ export function setUpSession({ closeAll, onUser }) {
     logOnAs("admin");
   });
 
-  // --- logging off -----------------------------------------------------------
+  // --- logging off ---------------------------------------------------------
 
   // Leaving as the admin ends the admin session on the server too.
   function leave() {
@@ -195,14 +198,15 @@ export function setUpSession({ closeAll, onUser }) {
     }, WAIT);
   });
 
-  // --- the first paint ---------------------------------------------------------
+  // --- the first paint -----------------------------------------------------
 
   prompt.textContent = PROMPT;
   if (root.classList.contains("is-logged-off")) showWelcome();
   else reach(logon, false);
 
   // An admin session from before (a reload, another tab) is still the admin.
-  // The windows already asked for themselves, so there's nothing to tell.
+  // The windows already asked the server themselves, so there's no need to
+  // tell them.
   fetch("/api/me")
     .then((response) => (response.ok ? response.json() : {}))
     .then(({ admin }) => {

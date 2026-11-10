@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Nothing loads from anywhere but this site. Otherwise JS Paint could
+       reach out (its About box checks for news, and it can load a picture
+       from an address or send one to Imgur). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; font-src 'self'">
+  <title>untitled - Paint</title>
+  <script src="/js/app.js"></script>
+  <!-- JS Paint's files live in jspaint/ (tools/make_paint.py copies them
+       there), and this base lets them find each other. -->
+  <base href="/programs/paint/jspaint/">
+  <link rel="icon" href="/img/icons/xp/paint.png">
+  <meta name="viewport" content="width=device-width, user-scalable=no">
+
+  <link href="styles/normalize.css" rel="stylesheet">
+  <link href="styles/layout.css" class="flippable-layout-stylesheet" rel="stylesheet">
+  <link href="styles/print.css" rel="stylesheet" media="print">
+  <link href="lib/os-gui/build/layout.css" class="flippable-layout-stylesheet" rel="stylesheet">
+  <link href="lib/98.css/98.custom-build.css" class="flippable-layout-stylesheet not-for-modern" rel="stylesheet">
+
+  <script src="src/error-handling-basic.js"></script>
+  <script type="module" src="src/theme.js"></script>
+</head>
+<!--
+  Paint. It's JS Paint (jspaint/, MS Paint remade for the web by Isaiah
+  Odhner, MIT) in a window, saving and opening on the shared disk (paint.js).
+  JS Paint draws everything into this page itself. The scripts and their
+  order follow JS Paint's own index.html, minus the parts that aren't copied
+  (tools/make_paint.py lists them).
+-->
+<body>
+  <script src="lib/jquery-3.4.1.min.js"></script>
+  <script src="lib/gif.js/gif.js"></script>
+  <script src="lib/pako-2.0.3.min.js"></script>
+  <script src="lib/UPNG.js"></script>
+  <script src="lib/UTIF.js"></script>
+  <script src="lib/bmp.js"></script>
+  <script src="lib/anypalette-0.6.0.js"></script>
+  <script src="lib/FileSaver.js"></script>
+  <script src="lib/font-detective.js"></script>
+  <script src="lib/libtess.min.js"></script>
+  <script src="lib/os-gui/parse-theme.js"></script>
+  <script src="lib/os-gui/$Window.js"></script>
+  <script src="lib/os-gui/MenuBar.js"></script>
+  <script src="lib/imagetracer_v1.2.5.js"></script>
+
+  <!-- Not deferred, so JS Paint's text is ready before the rest of it. -->
+  <script src="src/app-localization.js"></script>
+
+  <script type="module" src="src/msgbox.js"></script>
+  <script type="module" src="src/functions.js"></script>
+  <script type="module" src="src/helpers.js"></script>
+  <script type="module" src="src/storage.js"></script>
+  <script type="module" src="src/$Component.js"></script>
+  <script type="module" src="src/$ToolWindow.js"></script>
+  <script type="module" src="src/error-handling-enhanced.js"></script>
+  <script type="module" src="src/$ToolBox.js"></script>
+  <script type="module" src="src/$ColorBox.js"></script>
+  <script type="module" src="src/$FontBox.js"></script>
+  <script type="module" src="src/Handles.js"></script>
+  <script type="module" src="src/OnCanvasObject.js"></script>
+  <script type="module" src="src/OnCanvasSelection.js"></script>
+  <script type="module" src="src/OnCanvasTextBox.js"></script>
+  <script type="module" src="src/OnCanvasHelperLayer.js"></script>
+  <script type="module" src="src/image-manipulation.js"></script>
+  <script type="module" src="src/tool-options.js"></script>
+  <script type="module" src="src/tools.js"></script>
+  <script type="module" src="src/color-data.js"></script>
+  <script type="module" src="src/edit-colors.js"></script>
+  <script type="module" src="src/file-format-data.js"></script>
+  <script type="module" src="src/manage-storage.js"></script>
+  <script type="module" src="src/imgur.js"></script>
+  <script type="module" src="src/help.js"></script>
+  <script type="module" src="src/simulate-random-gestures.js"></script>
+  <script type="module" src="src/menus.js"></script>
+  <script type="module" src="src/speech-recognition.js"></script>
+  <script defer src="src/app-state.js"></script>
+  <!-- The shared disk, hooked in before JS Paint starts. -->
+  <script type="module" src="/programs/paint/paint.js"></script>
+  <script type="module" src="src/app.js"></script>
+  <script type="module" src="src/konami.js"></script>
+  <script type="module" src="src/vaporwave-fun.js"></script>
+
+  <!-- JS Paint's filters for its grayed-out buttons. -->
+  <svg style="position: absolute; pointer-events: none; bottom: 100%;" aria-hidden="true">
+    <defs>
+      <filter id="disabled-inset-filter" x="0" y="0" width="1px" height="1px">
+        <feColorMatrix in="SourceGraphic" type="matrix" values="
+          1 0 0 0 0
+          0 1 0 0 0
+          0 0 1 0 0
+          -1000 -1000 -1000 1 0
+        " result="black-parts-isolated" />
+        <feFlood result="shadow-color" flood-color="var(--ButtonShadow)" />
+        <feFlood result="hilight-color" flood-color="var(--ButtonHilight)" />
+        <feOffset in="black-parts-isolated" dx="1" dy="1" result="offset" />
+        <feComposite in="hilight-color" in2="offset" operator="in" result="hilight-colored-offset" />
+        <feComposite in="shadow-color" in2="black-parts-isolated" operator="in" result="shadow-colored" />
+        <feMerge>
+          <feMergeNode in="hilight-colored-offset" />
+          <feMergeNode in="shadow-colored" />
+        </feMerge>
+      </filter>
+      <filter id="disabled-inset-filter-2" x="0" y="0" width="1px" height="1px">
+        <feColorMatrix in="SourceGraphic" type="matrix" values="
+          1 0 0 0 0
+          0 1 0 0 0
+          0 0 1 0 0
+          -1 -1 -0 1 0
+        " result="black-and-blue-parts-isolated" />
+        <feFlood result="shadow-color" flood-color="var(--ButtonShadow)" />
+        <feFlood result="hilight-color" flood-color="var(--ButtonHilight)" />
+        <feOffset in="black-and-blue-parts-isolated" dx="1" dy="1" result="offset" />
+        <feComposite in="hilight-color" in2="offset" operator="in" result="hilight-colored-offset" />
+        <feComposite in="shadow-color" in2="black-and-blue-parts-isolated" operator="in" result="shadow-colored" />
+        <feMerge>
+          <feMergeNode in="hilight-colored-offset" />
+          <feMergeNode in="shadow-colored" />
+        </feMerge>
+      </filter>
+    </defs>
+  </svg>
+</body>
+</html>

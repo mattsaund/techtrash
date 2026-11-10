@@ -1,12 +1,10 @@
 /* ============================================================
-   techtrash.org : feed.css
-
-   The blog's feed, /rss.xml (server/feed.js), is for feed readers,
-   but a browser that opens it draws it with this: the website's
-   look, a line saying what it is, and each blog's title, day, flags
-   and start. The rest of it (addresses, each blog in full) is for
-   the reader, and out of sight. It's an XML page, with no <body>:
-   the elements here are the feed's own. Tokens only.
+   The blog's feed, /rss.xml (server/feed.js), as a browser shows
+   it. It gets the website's look, a line saying what it is, and
+   each blog's title, date, flags and opening words. The rest
+   (addresses, each blog in full) is for feed readers and stays
+   hidden. It's XML with no <body>, so the elements here are the
+   feed's own. Tokens only.
    ============================================================ */
 
 @namespace content url("http://purl.org/rss/1.0/modules/content/");
@@ -45,7 +43,7 @@ channel > description {
   color: var(--site-fg-2);
 }
 
-/* for the reader, not for reading here */
+/* for feed readers, not for reading here */
 link, guid, language, lastBuildDate, image, content|encoded { display: none; }
 
 item {

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard</title>
+  <script src="/js/app.js"></script>
+  <link rel="icon" href="/img/icons/xp/admin-tools.png">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/explorer.css">
+  <style>
+    .admin { padding: var(--sp-8); }
+    .admin__panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-8); overflow: auto; }
+    .admin__panel fieldset { display: flex; flex-direction: column; gap: var(--sp-8); }
+    .admin__bar { display: flex; align-items: center; gap: var(--sp-8); }
+    .admin__bar input { flex: 1; min-width: 0; }
+    .admin__note { color: var(--ink-muted); }
+  </style>
+  <script type="module" src="admin.js"></script>
+</head>
+<!--
+  The Admin Dashboard. Everything on the shared desktop, everything anyone
+  has done, the lock, and who's kept out. The server refuses anyone but the
+  admin (server/desktop.js). admin.js does the rest.
+-->
+<body class="app admin">
+  <div class="tabs" role="tablist">
+    <button class="tab" type="button" role="tab" aria-selected="true" data-tab="desktop">Desktop</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="everything">Everything</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="activity">Activity</button>
+    <button class="tab" type="button" role="tab" aria-selected="false" data-tab="visitors">Visitors</button>
+  </div>
+
+  <section class="tab-panel admin__panel" role="tabpanel" data-panel="desktop">
+    <fieldset>
+      <legend>Lock</legend>
+      <label class="check"><input type="checkbox" data-lock> Lock the desktop</label>
+      <p class="admin__note">While it's locked, only you can change anything on it. Everyone else can still look, open things and move windows around, but not save, rename, move, throw away or set the wallpaper. They see a padlock by the clock.</p>
+    </fieldset>
+    <fieldset>
+      <legend>The disk</legend>
+      <p data-usage></p>
+      <div class="button-row">
+        <button class="button" type="button" data-open-bin>Open the Recycle Bin</button>
+        <button class="button" type="button" data-empty>Empty the Recycle Bin</button>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="tab-panel admin__panel" role="tabpanel" data-panel="everything" hidden>
+    <label class="admin__bar">Find: <input type="search" data-find placeholder="A name, a place, or who made it"></label>
+    <div class="table-box"><table class="table" data-table="everything"></table></div>
+    <div class="button-row">
+      <button class="button" type="button" data-act="open">Open</button>
+      <button class="button" type="button" data-act="restore">Restore</button>
+      <button class="button" type="button" data-act="delete">Delete for good</button>
+      <button class="button" type="button" data-act="block">Keep its maker out</button>
+    </div>
+  </section>
+
+  <section class="tab-panel admin__panel" role="tabpanel" data-panel="activity" hidden>
+    <div class="table-box"><table class="table" data-table="activity"></table></div>
+    <div class="button-row">
+      <button class="button" type="button" data-refresh>Refresh</button>
+      <button class="button" type="button" data-more>Load more</button>
+      <button class="button" type="button" data-act="block-who">Keep this visitor out</button>
+    </div>
+  </section>
+
+  <section class="tab-panel admin__panel" role="tabpanel" data-panel="visitors" hidden>
+    <p class="admin__note">A visitor is a tag: their internet address, scrambled, so the same person always has the same one and nobody can work out the address from it. Visitors kept out can still look, but can't change anything.</p>
+    <div class="table-box"><table class="table" data-table="visitors"></table></div>
+    <form class="admin__bar" data-keep-out>
+      <label for="visitor">Visitor:</label>
+      <input id="visitor" autocomplete="off" spellcheck="false" placeholder="Their tag, from Everything or Activity">
+      <button class="button">Keep out</button>
+    </form>
+    <div class="button-row">
+      <button class="button" type="button" data-act="let-in">Let back in</button>
+    </div>
+  </section>
+</body>
+</html>

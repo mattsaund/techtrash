@@ -1,22 +1,19 @@
-// techtrash.org : a post's comments.
+// A post's comments. Anyone can comment or reply, so comments form threads.
+// Replies nest MAX_DEPTH deep. Past that they line up under the last one,
+// each saying who it answers.
 //
-// Anyone can comment on a post, or reply to a comment, so every comment can
-// start a little thread. Replies nest MAX_DEPTH deep; past that they line up
-// under the last one, each saying who it answers.
+// Switching comments off keeps what's there and stops new ones. The admin
+// can delete any comment. Its words go, but the replies under it stay put.
 //
-// When the admin switches a post's comments off, what's there stays, and
-// nothing new can be added. The admin can delete any comment: its words go,
-// and the replies under it stay where they were.
-//
-// A comment is plain text, and is drawn as text (its links made clickable),
-// never as HTML.
+// A comment is plain text and is drawn as text (links made clickable), never
+// as HTML.
 
 import { api, date, el, label, remembered, status, textWithLinks, twoClick } from "./util.js";
 
 const MAX_DEPTH = 4;
 const NAME = "techtrash:name";
 
-// Every comment, as threads: the ones that answer the post, each with its replies.
+// The comments as threads, the top-level ones each with its replies.
 function threads(comments) {
   const byId = new Map(comments.map((comment) => [comment.id, { ...comment, replies: [] }]));
   const top = [];
@@ -24,17 +21,17 @@ function threads(comments) {
   return top;
 }
 
-// A deleted comment only stays, as a gap, if something under it still has words.
+// A deleted comment only shows (as a gap) if a reply under it still has words.
 const shows = (comment) => !comment.deleted || comment.replies.some(shows);
 
-// The comments panel for a post: { id, comments, comments_open }.
+// The comments panel for a post ({ id, comments, comments_open }).
 export function commentsPanel(post, { admin, hue }) {
   const panel = el("section", { class: `panel ${hue}`, id: "comments" });
   const live = post.comments.filter((comment) => !comment.deleted).length;
   const open = Boolean(post.comments_open);
-  let replying = null;   // the reply form that's open, if one is
+  let replying = null;   // the open reply form, if any
 
-  // After a change: the panel again, as the server has it now.
+  // Redraws the panel from the server after a change.
   async function redraw(showId) {
     const fresh = await api(`/api/blog/post?id=${post.id}`);
     const next = commentsPanel(fresh, { admin, hue });
@@ -122,8 +119,8 @@ export function commentsPanel(post, { admin, hue }) {
     return li;
   }
 
-  // One level of a thread. Deep enough, and the replies line up under the
-  // last one instead of going deeper.
+  // One level of a thread. At MAX_DEPTH the replies line up under the last
+  // one instead of nesting deeper.
   function thread(comments, depth) {
     const list = el("ul", { class: "thread" });
     const add = (comment, answering) => {

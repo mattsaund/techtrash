@@ -1,9 +1,8 @@
-// techtrash.org : the frame every page of the website is drawn in.
-//
-// The headline at the top of every page: "Techtrash", a letter in each hue
-// (its <template id="hero"> is in index.html), the tagline under it, and the
-// four buttons that pick the front page's panel (Home, Blog, Pictures, About
-// me), the one for where you are filled in. Under it, the page's own panels.
+// The frame every page of the website is drawn in. On top is the headline
+// ("Techtrash" with a letter in each hue, from <template id="hero"> in
+// index.html), the tagline, and the four buttons for the front page's panels
+// (Home, Blog, Pictures, About me) with the current one filled in. The page's
+// own panels go under it.
 
 import { ownWords } from "./own-words.js";
 import { drawWith } from "./site.js";
@@ -11,8 +10,8 @@ import { api } from "./util.js";
 
 const page = document.getElementById("page");
 
-// view: which of the four buttons is filled in (null for none). build()
-// makes the page's panels, while the tagline is on its way.
+// view is the button to fill in (null for none). build() makes the page's
+// panels while the tagline loads.
 export async function framed(view, build) {
   drawWith(() => framed(view, build));
   const [tagline, panels] = await Promise.all([api("/api/blog/page?name=tagline").catch(() => null), build()]);

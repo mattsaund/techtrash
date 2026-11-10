@@ -1,18 +1,16 @@
-// techtrash.org : the browser's own marks, made a post's.
-//
-// Editing in a browser leaves marks of its own in the HTML: <font color>,
-// style="...", align="", <div>, <b>. A post has its own way of saying each
-// (a hue's class, an alignment's class, <p>, <strong>), and DOMPurify throws
-// out anything else when the post is cleaned (content.js), so these turn the
-// one into the other first. The editor (editor.js) uses them on what's in its
-// box, on a paste, and on what it saves.
+// Turns the browser's editing marks into a post's. Editing in a browser
+// leaves its own markup in the HTML (<font color>, style="...", align="",
+// <div>, <b>). A post says each of those its own way (a hue class, an
+// alignment class, <p>, <strong>), and DOMPurify throws out anything else
+// when the post is cleaned (content.js), so these convert it first. editor.js
+// runs them on its box, on a paste and on what it saves.
 
-// The six hues, by the names tokens.css gives them (--site-hue-1 is red).
+// The six hues, named as in tokens.css (--site-hue-1 is red).
 export const HUES = ["red", "orange", "yellow", "green", "blue", "violet"];
 
 export const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-// A color as #rrggbb, however it's written, to match colors up.
+// Any color as #rrggbb, so colors can be compared.
 const paint = document.createElement("canvas").getContext("2d");
 function normalColor(color) {
   paint.fillStyle = "#000000";
@@ -20,21 +18,20 @@ function normalColor(color) {
   return paint.fillStyle;
 }
 
-// Which of the six hues (1 to 6) a color is, if it's one of them.
+// Which of the six hues (1 to 6) a color is, if any.
 let hueByColor;
 export function hueOfColor(color) {
   hueByColor ??= new Map(HUES.map((_, i) => [normalColor(cssVar(`--site-hue-${i + 1}`)), i + 1]));
   return hueByColor.get(normalColor(color));
 }
 
-// A document of its own that isn't shown, to work on HTML in: in this page's
-// document, a pasted <img onerror> would load, and run, before it was ever
-// cleaned.
+// A separate, unseen document to work on HTML in. In this page's document, a
+// pasted <img onerror> would load, and run, before it was ever cleaned.
 export const inert = () => document.implementation.createHTMLDocument("");
 
-// A line's alignment, however the browser wrote it (Chrome: style="text-align:
-// right"; Firefox: align="right"), as the class a post uses, and only that
-// one: the line it was carried on from (Enter carries it) may have another.
+// Sets a line's alignment class from however the browser wrote it (Chrome
+// writes style="text-align: right", Firefox align="right"). Any other
+// alignment class goes first, since Enter copies the previous line's class.
 export function lineUp(node) {
   const align = (node.style.textAlign || node.getAttribute("align") || "").toLowerCase();
   node.removeAttribute("align");
@@ -43,7 +40,7 @@ export function lineUp(node) {
   if (align === "center" || align === "right") node.classList.add(`align-${align}`);
 }
 
-// An element as another tag, keeping its class and what's in it.
+// Swaps an element for another tag, keeping its class and children.
 function rename(node, tag) {
   const renamed = node.ownerDocument.createElement(tag);
   if (node.className) renamed.className = node.className;
@@ -51,9 +48,10 @@ function rename(node, tag) {
   node.replaceWith(renamed);
 }
 
-// Every mark under root made a post's: colors as hues, alignments as
-// classes, any other style gone, a <div> a <p>, <b> <strong> and the rest
-// (and the headings a post doesn't have, the nearest it does). Gives back root.
+// Converts every browser mark under root to a post's. Colors become hues,
+// alignments become classes, other styles go, a <div> becomes a <p>, <b>
+// becomes <strong> and so on, and headings a post doesn't have become the
+// nearest one it does. Returns root.
 export function tidy(root) {
   const doc = root.ownerDocument;
   for (const node of root.querySelectorAll("[style], [align], font")) {
@@ -76,7 +74,7 @@ export function tidy(root) {
   for (const [from, to] of [["b", "strong"], ["i", "em"], ["strike", "s"], ["h1", "h2"], ["h5", "h4"], ["h6", "h4"]]) {
     for (const node of root.querySelectorAll(from)) rename(node, to);
   }
-  // insertHtml's invisible spaces
+  // drop the invisible spaces insertHtml adds
   const text = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node; (node = text.nextNode());) {
     if (node.data.includes("​")) node.data = node.data.replaceAll("​", "");
@@ -84,12 +82,12 @@ export function tidy(root) {
   return root;
 }
 
-// The browser's own looks in the box, as soon as it leaves them. Joining a
-// paragraph to a heading, say, wraps the paragraph's words in a span that
-// keeps their size and color: the line looks like a paragraph and spaces like
-// a heading, and is saved as a heading. Gone, it's shown as what it is. (An
-// alignment the buttons made becomes its class; a hue, its class.) A player's
-// own width stays.
+// Strips the browser's inline styles from the box as soon as it adds them.
+// Joining a paragraph to a heading, say, wraps the paragraph's words in a
+// span that keeps their old size and color, so the line looks like a
+// paragraph, spaces like a heading and is saved as a heading. Without the
+// styles it shows what it really is. Alignments and hues from the buttons
+// become their classes, and a player keeps its own width.
 export function dropStyles(root) {
   for (const node of root.querySelectorAll("[style], [align]")) {
     if (node.closest(".embed")) continue;
@@ -101,20 +99,20 @@ export function dropStyles(root) {
   }
 }
 
-// HTML, tidied, as HTML.
+// tidy() for a string of HTML.
 export function tidyHtml(html) {
   const doc = inert();
   doc.body.innerHTML = html;
   return tidy(doc.body).innerHTML;
 }
 
-// Puts HTML in where the cursor is. Given a lone <code> (or the like) and
-// nothing after it, Chrome swaps it for a <span> that only looks like one;
-// an invisible space after it stops that, and tidy() takes it out again.
+// Inserts HTML at the cursor. Given a lone inline element like <code> with
+// nothing after it, Chrome swaps it for a <span> styled to look the same. An
+// invisible space after it prevents that, and tidy() takes it out again.
 const BLOCK_TAG = /<(?:p|h[1-6]|ul|ol|li|pre|blockquote|table|hr|figure|div)\b/i;
 export function insertHtml(html) {
   document.execCommand("insertHTML", false, BLOCK_TAG.test(html) ? html : `${html}​`);
 }
 
-// Text, safe to put in HTML.
+// Escapes text for HTML.
 export const escape = (text) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);

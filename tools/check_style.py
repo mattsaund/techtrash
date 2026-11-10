@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-check_style.py : the style rules, enforced.
+Checks the style rules.
 
-public/css/tokens.css is the only file allowed to hold a raw value. This
-checks every other stylesheet, every <style> block and every style=""
-attribute in public/, and lists everything that breaks a rule:
+public/css/tokens.css is the only file allowed a raw value. This goes
+through every other stylesheet, <style> block and style="" attribute in
+public/ and lists everything that breaks a rule:
 
   - a color that isn't a token (#hex, rgb(), hsl(), a named color)
-  - a length that isn't a token (px, em, rem, vh, ...). Zero is fine,
-    and so are percentages and fr
+  - a length that isn't a token (px, em, rem, vh...). Zero is fine, and
+    so are percentages and fr
   - a font-family, or a font shorthand, that isn't a --font-* token
   - a line-height that isn't a --lh-* token
   - a font-weight other than 400, 500 or 700
   - a z-index that isn't a --z-* token
-  - a media query at any width but the breakpoint below, or at any
-    resolution but the planets' (--site-art-coarse)
-  - a var(--name) that nothing defines, which is almost always a typo
+  - a media query at any width but --breakpoint, or at any resolution but
+    the planets' (--site-art-coarse)
+  - a var(--name) nothing defines, which is almost always a typo
   - a color written into an HTML attribute (fill, stroke, bgcolor...)
 
 Run it before you push. No output and exit 0 means clean.
@@ -29,17 +29,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "public"
 TOKENS = SITE / "css" / "tokens.css"
-SKIP_DIRS = {"fonts"}
+SKIP_DIRS = {"fonts", "jspaint"}   # jspaint is JS Paint, copied as it is (tools/make_paint.py)
 
-# The one width a media query may name: --breakpoint in tokens.css. A media
-# query can't read a custom property, so CSS writes the number out and this
-# makes sure it's that number.
+# The one width a media query may name is --breakpoint in tokens.css. A media
+# query can't read a custom property, so the CSS writes the number out and
+# this makes sure it's that number.
 BREAKPOINTS = set(re.findall(r"--breakpoint:\s*([\d.]+px)", TOKENS.read_text()))
-# ...and the one resolution: the screens the website's planets need a stroke on.
+# The one resolution it may name is --site-art-coarse, for the screens the
+# website's planets need a stroke on.
 RESOLUTIONS = set(re.findall(r"--site-art-coarse:\s*([\d.]+dppx)", TOKENS.read_text()))
 RESOLUTION = re.compile(r"(?<![\w.#-])(?:\d+\.?\d*|\.\d+)(?:dppx|dpi|dpcm|x)\b", re.I)
-# XP is 400 and 700 (Tahoma has nothing between); the website is 400 and 500,
-# and 700 for bold words in a post.
+# XP uses 400 and 700 (Tahoma has nothing between). The website uses 400 and
+# 500, plus 700 for bold words in a post.
 WEIGHTS = {"400", "500", "700", "inherit"}
 
 HEX = re.compile(r"#[0-9a-f]{3,8}\b", re.I)
@@ -82,7 +83,7 @@ wheat white whitesmoke yellow yellowgreen
 
 
 def blank_comments(text):
-    """Comments out, line breaks kept, so line numbers still match the file."""
+    """Blanks out comments but keeps their line breaks, so line numbers still match."""
     return COMMENT.sub(lambda m: "\n" * m.group().count("\n"), text)
 
 
@@ -157,7 +158,7 @@ def main():
                 problems += [(rel, line, msg) for line, msg in check_css(text)]
             continue
 
-        # HTML: <style> blocks, style="" attributes, color attributes.
+        # In HTML, the <style> blocks, style="" attributes and color attributes.
         for m in re.finditer(r"<style[^>]*>(.*?)</style>", text, re.S | re.I):
             line = text.count("\n", 0, m.start(1)) + 1
             defined |= set(VAR_DEF.findall(blank_comments(m.group(1))))

@@ -1,13 +1,9 @@
-/* ============================================================
-   techtrash.org : desktop.css
+/* The desktop page only. Where the icons sit, how windows are placed
+   and resized, the start menu, Log Off and the Welcome screen. The
+   windows, icons and taskbar themselves are in xp.css. Tokens only.
 
-   The desktop page only: where the icons sit, how windows are
-   placed and resized, and the start menu. The windows, icons and
-   taskbar themselves are xp.css. Tokens only.
-
-   js/desktop.js sets each window's position, size and stacking
-   inline, and nothing else. Every look is a class here.
-   ============================================================ */
+   js/desktop.js sets each window's position, size and stacking inline,
+   and nothing else. Every look is a class here. */
 
 html, body { height: 100%; overflow: hidden; }
 
@@ -17,19 +13,27 @@ html, body { height: 100%; overflow: hidden; }
   position: fixed;
   inset: 0 0 var(--taskbar-h) 0;
   overflow: hidden;
-  /* Its own color, not the page's, so that graying the desktop out
-     behind the Log Off question grays the desktop too. */
-  background: var(--desktop);
+  /* Its own color, not the page's, so the gray-out behind the Log Off
+     question covers it too. The wallpaper is shared (js/desktop.js sets
+     it) and stretched to fill the screen like XP's Stretch, unless it's
+     centered or tiled. */
+  background-color: var(--wallpaper-color);
+  background-image: var(--wallpaper-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
-/* While a window is being moved or resized, the pages inside the
-   windows mustn't catch the pointer as it passes over them. */
+.desktop[data-wallpaper="center"] { background-size: auto; }
+.desktop[data-wallpaper="tile"] { background-size: auto; background-repeat: repeat; background-position: 0 0; }
+/* While a window is moved or resized, the pages inside windows mustn't
+   catch the pointer as it passes over them. */
 .desktop.is-busy { user-select: none; }
 .desktop.is-busy iframe { pointer-events: none; }
 
-/* --- icons ------------------------------------------------- *
-   The whole desktop, under the windows. js/icons.js places each
-   icon in it; a press on it that isn't on an icon starts the
-   selection rectangle. */
+/* --- icons -------------------------------------------------
+   The whole desktop, under the windows. js/icons.js places each icon
+   in it, and a press that misses every icon starts the selection
+   rectangle. */
 .desktop__icons {
   position: absolute;
   inset: 0;
@@ -38,13 +42,34 @@ html, body { height: 100%; overflow: hidden; }
   user-select: none;
 }
 .desktop__icons .icon { position: absolute; touch-action: none; }
-/* XP's selected icon: the picture half and half with the selection
-   blue, through the filter at the foot of index.html. The Recycle Bin
+/* XP's selected icon, tinted half and half with the selection blue by
+   the filter at the bottom of index.html. A folder or the Recycle Bin
    looks the same while icons are dragged over it. */
 .desktop__icons .icon.is-selected .icon__img,
 .desktop__icons .icon.is-target .icon__img { filter: url(#select-tint); }
-.select-tint__flood { flood-color: var(--select); }
-.filters { position: absolute; width: 0; height: 0; }
+
+/* Cut, until it's pasted somewhere. */
+.desktop__icons .icon.is-cut .icon__img { opacity: var(--cut-fade); }
+.desktop__icons .icon:focus { outline: 0; }
+
+/* XP's rename box in place of the label, black on white with the name
+   selected. */
+.icon__rename {
+  width: 100%;
+  min-height: var(--lh-ui);
+  padding: 0 var(--sp-2);
+  border: var(--hairline) solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  text-align: center;
+  text-shadow: none;
+  overflow: hidden;
+  resize: none;
+  overflow-wrap: anywhere;
+}
+.icon__rename:focus-visible { border-color: var(--ink); }
+.desktop__icons .icon.is-renaming { z-index: var(--z-window); }
 
 .marquee {
   position: absolute;
@@ -66,8 +91,8 @@ html, body { height: 100%; overflow: hidden; }
 }
 .desktop .title-bar { touch-action: none; }
 
-/* Maximized: square corners, no grips, and the maximize button
-   turns into restore. */
+/* Maximized windows get square corners and no grips, and the maximize
+   button turns into restore. */
 .window.is-maximized,
 .window.is-maximized .title-bar { border-radius: 0; }
 .window.is-maximized .window__grip { display: none; }
@@ -75,14 +100,20 @@ html, body { height: 100%; overflow: hidden; }
 .window.is-maximized .caption--max:hover  { background: var(--glyph-restore) center no-repeat, var(--caption-blue-hover); }
 .window.is-maximized .caption--max:active { background: var(--glyph-restore) center no-repeat, var(--caption-blue-down); }
 
+/* A fixed-size dialog like Display Properties can't be minimized,
+   maximized or resized, since XP's only had a close button. */
+.window.is-fixed .window__grip,
+.window.is-fixed .caption--min,
+.window.is-fixed .caption--max { display: none; }
+
 /* On a phone every window is already full screen, so there's
    nothing for maximize to do. */
 @media (max-width: 640px) {
   .desktop .caption--max { display: none; }
 }
 
-/* Resize grips: a strip along each edge and a square at each
-   corner, invisible, laid over the frame. */
+/* Resize grips. An invisible strip along each edge and a square at
+   each corner, laid over the frame. */
 .window__grip { --corner: calc(var(--grip) * 2); position: absolute; touch-action: none; }
 .window__grip[data-edge="n"]  { top: 0; left: var(--corner); right: var(--corner); height: var(--grip); cursor: ns-resize; }
 .window__grip[data-edge="s"]  { bottom: 0; left: var(--corner); right: var(--corner); height: var(--grip); cursor: ns-resize; }
@@ -93,9 +124,9 @@ html, body { height: 100%; overflow: hidden; }
 .window__grip[data-edge="ne"] { top: 0; right: 0; width: var(--corner); height: var(--corner); cursor: nesw-resize; }
 .window__grip[data-edge="sw"] { bottom: 0; left: 0; width: var(--corner); height: var(--corner); cursor: nesw-resize; }
 
-/* --- start menu -------------------------------------------- *
-   The user across the top, programs on the left (white), my pages
-   on the right (blue), and the footer. */
+/* --- start menu --------------------------------------------
+   The user across the top, programs on the left (white), my pages on
+   the right (blue), and the footer. */
 .start-menu {
   position: fixed;
   left: 0;
@@ -139,7 +170,28 @@ html, body { height: 100%; overflow: hidden; }
   overflow: auto;
 }
 .start-menu__list { margin: 0; padding: var(--sp-8) var(--sp-2); list-style: none; }
-.start-menu__programs { background: var(--paper); }
+.start-menu__left { display: flex; flex-direction: column; background: var(--paper); }
+.start-menu__programs { flex: 1; background: var(--paper); }
+
+/* All Programs, across the bottom of the left column with its green
+   arrow on the right, as in XP. */
+.start-menu__all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  margin: 0 var(--sp-8) var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
+  border: 0;
+  border-top: var(--hairline) solid var(--face-shadow);
+  background: none;
+  color: var(--ink);
+  font: 700 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+.start-menu__all img { width: var(--icon-s); height: var(--icon-s); }
+.start-menu__all:hover,
+.start-menu__all[aria-expanded="true"],
+.start-menu__all:focus-visible { outline: 0; background: var(--select); color: var(--select-ink); }
 .start-menu__places {
   background: var(--start-places);
   border-left: var(--hairline) solid var(--start-places-edge);
@@ -158,6 +210,11 @@ html, body { height: 100%; overflow: hidden; }
 .start-menu__item img { width: var(--icon-m); height: var(--icon-m); flex: none; }
 .start-menu__places .start-menu__item { font-weight: 700; color: var(--start-places-ink); }
 .start-menu__places .start-menu__item img { width: var(--icon-s); height: var(--icon-s); }
+.start-menu__rule {
+  margin: var(--sp-4) var(--sp-8);
+  border-top: var(--hairline) solid var(--start-places-edge);
+}
+.start-menu__programs .start-menu__rule { border-top-color: var(--face-shadow); }
 .start-menu__item:hover,
 .start-menu__item:focus-visible {
   outline: 0;
@@ -187,8 +244,8 @@ html, body { height: 100%; overflow: hidden; }
 .start-menu__button:hover { background: var(--start-menu-press); }
 .start-menu__button:focus-visible { outline-color: var(--ink-inverse); }
 
-/* --- log off ----------------------------------------------- *
-   The question, over the desktop gone gray. */
+/* --- log off -----------------------------------------------
+   The question, over the grayed-out desktop. */
 .is-asking .desktop,
 .is-asking .taskbar { filter: grayscale(1); }
 
@@ -238,23 +295,11 @@ html, body { height: 100%; overflow: hidden; }
   background: var(--logon-band);
 }
 
-/* --- a message --------------------------------------------- *
-   XP's message box (js/message.js) in the middle of the screen, over
-   everything but the Welcome screen, while it's up. */
-.message-layer {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: grid;
-  place-items: center;
-  padding: var(--sp-16);
-}
-
-/* --- the Welcome screen ------------------------------------ *
-   Dark bands top and bottom, each with its line; the site's name
-   and the prompt on the left, a divider, and the users on the
-   right. .is-busy is the "Saving your settings..." moment after
-   Log Off: just the name and the message, in the middle. */
+/* --- the Welcome screen ------------------------------------
+   Dark bands top and bottom, each with its line. The site's name and
+   the prompt on the left, a divider, and the users on the right.
+   .is-busy is the "Saving your settings..." moment after Log Off, with
+   just the name and the message in the middle. */
 .logon { display: none; }
 .is-logged-off .logon {
   position: fixed;
@@ -348,8 +393,8 @@ html, body { height: 100%; overflow: hidden; }
 }
 .logon__status { font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui); }
 
-/* The admin's user name and password, opened under the name as XP's
-   password box was, with XP's green arrow to log on. */
+/* The admin's user name and password, opening under the name like XP's
+   password box, with XP's green arrow to log on. */
 .logon__form {
   display: flex;
   align-items: center;
@@ -374,7 +419,7 @@ html, body { height: 100%; overflow: hidden; }
 .logon.is-busy .logon__divider,
 .logon.is-busy .logon__users { display: none; }
 
-/* A phone: the name and prompt above the users, no divider. */
+/* On a phone the name and prompt go above the users, with no divider. */
 @media (max-width: 640px) {
   .logon__main { grid-template-columns: 1fr; align-content: center; }
   .logon__intro { justify-self: center; text-align: center; }

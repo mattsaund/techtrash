@@ -1,0 +1,302 @@
+/* XP's Explorer. The File Browser (programs/files/) with its blue task
+   pane and folder views, and the Open, Save As and Move Items dialogs
+   every program shares (js/file-dialog.js). Load it after xp.css.
+   Tokens only. */
+
+/* --- the window --------------------------------------------
+   Menu bar, toolbar and address bar, then the task pane and the folder
+   side by side, then the status bar. */
+.explorer__main { flex: 1; min-height: 0; display: flex; }
+.explorer .status-bar { padding: var(--sp-2) var(--sp-2) var(--sp-2); }
+.status-bar__field--size { flex: none; width: var(--status-w); }
+
+/* --- the task pane -----------------------------------------
+   Blue, down the left. Boxes of tasks, each a white-to-blue heading
+   over a pale blue list of links. */
+.pane {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  width: var(--pane-w);
+  padding: var(--sp-12);
+  overflow: auto;
+  background: var(--pane);
+  user-select: none;
+}
+.pane__box { flex: none; }
+.pane__head {
+  padding: var(--sp-4) var(--sp-12);
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  background: var(--pane-head);
+  color: var(--pane-ink);
+  font: 700 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+}
+.pane__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12);
+  list-style: none;
+  background: var(--pane-box);
+  border: var(--hairline) solid var(--pane-edge);
+  border-top: 0;
+}
+.pane__task {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--pane-ink);
+  text-align: left;
+}
+.pane__task img { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.pane__task:hover { color: var(--pane-hover); text-decoration: underline; }
+.pane__details { display: flex; flex-direction: column; gap: var(--sp-4); overflow-wrap: anywhere; }
+.pane__thumb { max-width: 100%; border: var(--hairline) solid var(--face-shadow); }
+
+/* --- the folder --------------------------------------------
+   .view--thumbnails, --icons or --details, of .file items. Each is a
+   picture (an icon or a thumbnail) and a name, with the rest in columns
+   in Details. Picked is [aria-selected=true], drawn like XP with the
+   name in the selection blue and the icon tinted with it. */
+.view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-8);
+  overflow: auto;
+  background: var(--paper);
+  user-select: none;
+}
+.view:focus { outline: 0; }
+.view__empty { padding: var(--sp-8); color: var(--ink-muted); }
+
+.file { position: relative; color: var(--ink); }
+.file__picture { display: grid; place-items: center; flex: none; }
+.file__name { overflow-wrap: anywhere; }
+.file.is-cut .file__picture { opacity: var(--cut-fade); }
+.file[aria-selected="true"] .file__icon,
+.file.is-target .file__icon { filter: url(#select-tint); }
+.file[aria-selected="true"] .file__name,
+.file.is-target .file__name { background: var(--select); color: var(--select-ink); }
+.view:focus .file.is-lead .file__name { outline: var(--hairline) dotted var(--ink); outline-offset: calc(-1 * var(--hairline)); }
+.view:focus .file.is-lead[aria-selected="true"] .file__name { outline-color: var(--select-ink); }
+
+.view--icons .file,
+.view--thumbnails .file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-2);
+  text-align: center;
+}
+.view--icons .file { width: var(--icon-cell); }
+.view--icons .file__icon { width: var(--icon-m); height: var(--icon-m); }
+.view--icons .file__name,
+.view--thumbnails .file__name {
+  display: -webkit-box;
+  max-width: 100%;
+  padding: 0 var(--sp-2);
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.view--icons .file[aria-selected="true"] .file__name,
+.view--thumbnails .file[aria-selected="true"] .file__name { -webkit-line-clamp: none; }
+
+.view--thumbnails .file { width: var(--thumb-cell); }
+.view--thumbnails .file__picture {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: var(--hairline) solid var(--face-shadow);
+  background: var(--paper);
+}
+.view--thumbnails .file__thumb { max-width: 100%; max-height: 100%; }
+.view--thumbnails .file__icon { width: var(--icon-l); height: var(--icon-l); }
+.view--thumbnails .file[aria-selected="true"] .file__picture { border-color: var(--select); box-shadow: 0 0 0 var(--hairline) var(--select); }
+.view--thumbnails .file[aria-selected="true"] .file__thumb { filter: none; }
+
+.view--details { display: block; padding: 0; }
+.view--details .file {
+  display: grid;
+  grid-template-columns: var(--icon-s) minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr);
+  align-items: center;
+  column-gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-8);
+  white-space: nowrap;
+}
+.view--details .file__icon { width: var(--icon-s); height: var(--icon-s); }
+.view--details .file__name,
+.file__cell { overflow: hidden; text-overflow: ellipsis; }
+.file__cell--size { text-align: right; }
+.view--details .file[aria-selected="true"] { background: var(--select); color: var(--select-ink); }
+.view--details .file[aria-selected="true"] .file__icon { filter: none; }
+.file--head {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-icon);
+  padding: 0;
+  background: var(--face);
+  box-shadow: inset 0 calc(-1 * var(--hairline)) var(--face-shadow);
+}
+.view--details .file--head { padding: 0; }
+.file__column {
+  padding: var(--sp-2) var(--sp-8);
+  border: 0;
+  border-right: var(--hairline) solid var(--face-shadow);
+  background: var(--face);
+  color: var(--ink);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file__column:first-child { grid-column: span 2; }
+.file__column:hover:not(:disabled) { background: var(--paper); }
+.file__column:disabled { color: var(--ink); }
+
+/* XP's rename box, in place of the name. */
+.file__rename {
+  width: 100%;
+  min-height: var(--lh-ui);
+  padding: 0 var(--sp-2);
+  border: var(--hairline) solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  text-align: center;
+  overflow: hidden;
+  resize: none;
+  overflow-wrap: anywhere;
+}
+.file__rename:focus-visible { border-color: var(--ink); }
+.view--details .file__rename { text-align: left; }
+
+/* No room for the task pane on a phone. */
+@media (max-width: 640px) {
+  .pane { display: none; }
+}
+
+/* --- the dialogs -------------------------------------------
+   Open and Save As have the folder to look in across the top, the
+   places down the left, the folder's files, and the name and type at
+   the bottom. Move Items has a line saying what to do, every folder,
+   and the buttons. */
+.dialog { width: min(var(--dialog-w), 100%); max-height: 100%; }
+.dialog--file { height: min(var(--dialog-h), 100%); }
+.dialog--folder { width: min(var(--folder-w), 100%); height: min(var(--folder-h), 100%); }
+.dialog__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-8) var(--sp-12);
+}
+.dialog__row { display: flex; align-items: center; gap: var(--sp-4); }
+.dialog__row .tool { padding: var(--sp-2); }
+.dialog__row .tool img { width: var(--icon-s); height: var(--icon-s); }
+.dialog__look { flex: 1; min-width: 0; }
+.dialog__main { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); }
+.dialog__text { flex: none; }
+
+.places {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0;
+  overflow: auto;
+  background: var(--places);
+  border: var(--hairline) solid var(--field-edge);
+}
+.places__place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: var(--icon-cell);
+  padding: var(--sp-4) var(--sp-2);
+  border: 0;
+  background: none;
+  color: var(--ink-inverse);
+}
+.places__place img { width: var(--icon-m); height: var(--icon-m); }
+.places__place:hover { box-shadow: var(--tool-hover); }
+.places__place:focus-visible { outline-color: var(--ink-inverse); }
+
+.dialog__list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--sp-2) var(--sp-16);
+  padding: var(--sp-4);
+  overflow: auto;
+  background: var(--paper);
+  border: var(--hairline) solid var(--field-edge);
+  user-select: none;
+}
+.dialog__list:focus { outline: 0; }
+.dialog__tree { flex-wrap: nowrap; }
+.dialog__file {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: 100%;
+  white-space: nowrap;
+}
+.dialog__file img { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.dialog__file span { padding: 0 var(--sp-2); overflow: hidden; text-overflow: ellipsis; }
+.dialog__file[aria-selected="true"] span { background: var(--select); color: var(--select-ink); }
+.dialog__tree .dialog__file { padding-left: calc(var(--depth) * var(--sp-16)); }
+
+.dialog__fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.dialog__fields input,
+.dialog__fields select { width: 100%; }
+.dialog__buttons { display: flex; gap: var(--sp-8); }
+.dialog__gap { flex: 1; }
+
+/* --- a list, in columns ------------------------------------
+   XP's Details list view, for lists that aren't a folder (the Admin
+   Dashboard's). Face-colored headings over white rows, with the picked
+   row in the selection blue, inside a scrolling .table-box. */
+.table-box {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--paper);
+  border: var(--hairline) solid var(--field-edge);
+}
+.table { width: 100%; border-collapse: collapse; user-select: none; }
+.table th {
+  position: sticky;
+  top: 0;
+  padding: var(--sp-2) var(--sp-8);
+  background: var(--face);
+  border-right: var(--hairline) solid var(--face-shadow);
+  border-bottom: var(--hairline) solid var(--face-shadow);
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+}
+.table td { padding: var(--sp-2) var(--sp-8); white-space: nowrap; }
+.table tr[aria-selected="true"] td { background: var(--select); color: var(--select-ink); }
+.table__name { display: flex; align-items: center; gap: var(--sp-4); }
+.table__name img { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.table__empty { color: var(--ink-muted); }

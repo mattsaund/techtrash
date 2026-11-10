@@ -1,26 +1,24 @@
-// techtrash.org : the site's own words: the tagline, Home's words, the
-// bulletin, and About me.
-//
-// Each is shown where it goes, and the admin writes it there, in place: the
-// editor blogs are written in (editor/editor.js) takes the words' spot, with
-// Save and Cancel under it. Saving draws the page again. The server keeps
-// them as "pages" (server/blog.js).
+// The site's own words (the tagline, Home's words, the bulletin and About
+// me). The admin edits each one in place. The blog editor (editor/editor.js)
+// takes its spot with Save and Cancel under it, and saving redraws the page.
+// The server keeps them as "pages" (server/blog.js).
 
 import { renderBody } from "./content.js";
 import { admin, again } from "./site.js";
 import { api, el, status } from "./util.js";
 
-// Shows the admin's form in a spot, in place of what was there. Gives back
-// the way to put what was there back.
+// Puts the admin's form in a spot in place of what was there. Returns a
+// function that puts it back.
 export function swap(spot, form) {
   const was = [...spot.childNodes];
   spot.replaceChildren(form);
   return () => spot.replaceChildren(...was);
 }
 
-// The tagline, Home's words or About me: its words, or `fallback` until it's
-// written, and for the admin a button (`edit` says what it says) that opens
-// them in the editor, with any `more` buttons beside it. short: a line or two.
+// The tagline, Home's words or About me. Shows the words, or `fallback` until
+// they're written. The admin also gets a button (labeled `edit`) that opens
+// them in the editor, with any `more` buttons beside it. short means a line
+// or two.
 export function ownWords(text, { fallback = null, short = false, look = "", edit, more = [] }) {
   const spot = el("div", { class: `page-text ${look}` });
   const written = Boolean(text.body.trim());
@@ -44,12 +42,12 @@ export function ownWords(text, { fallback = null, short = false, look = "", edit
   return spot;
 }
 
-// The editor blogs are written in, with Save and Cancel, for one of the site's
-// own words. save({ body }) sends it and goes on; cancel() puts back what was
-// there. short: the box is short, for a line or two (the tagline).
+// The blog editor with Save and Cancel, for one of the site's own words.
+// save({ body }) sends it and moves on, cancel() puts back what was there.
+// short makes the box fit a line or two (the tagline).
 export async function writingForm({ body = "", short = false, saveText, save, cancel }) {
   const { createEditor } = await import("./editor/editor.js");
-  // (what goes wrong in it, a picture that won't upload, is said under Save)
+  // (problems in it, like a picture that won't upload, show under Save)
   const editor = createEditor(body, { short, onProblem: (text) => { message.textContent = text; } });
   const message = status();
   const saveButton = el("button", { class: "button hue-4", type: "button", textContent: saveText });

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Windows Picture and Fax Viewer</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <style>
+    /* The picture centered on a plain field, with XP's row of buttons under
+       it. A slide show turns the field black and hides the buttons. */
+    .viewer__stage {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      background: var(--paper);
+    }
+    .viewer__stage:focus { outline: 0; }
+    .viewer__picture { max-width: none; }
+    .viewer__stage.is-fit .viewer__picture { max-width: 100%; max-height: 100%; }
+    .viewer__empty { color: var(--ink-muted); }
+    .viewer__bar { justify-content: center; border-top: var(--hairline) solid var(--face-shadow); }
+    .viewer__bar .tool img { width: var(--icon-s); height: var(--icon-s); }
+    .viewer.is-show .viewer__stage { background: var(--ink); }
+    .viewer.is-show .viewer__bar { display: none; }
+  </style>
+  <script type="module" src="viewer.js"></script>
+</head>
+<!--
+  The Windows Picture and Fax Viewer, for a picture on the shared disk
+  (?id=<id>) and the others in its folder. viewer.js does the rest.
+-->
+<body class="app viewer">
+  <main class="viewer__stage is-fit" tabindex="0" aria-label="Picture">
+    <img class="viewer__picture" alt="" hidden>
+    <p class="viewer__empty" hidden>No picture to show.</p>
+  </main>
+  <div class="toolbar viewer__bar" role="toolbar" aria-label="Picture">
+    <button class="tool" type="button" title="Previous Image (Left Arrow)" data-act="previous"><img src="/img/icons/xp/back.png" alt="Previous Image"></button>
+    <button class="tool" type="button" title="Next Image (Right Arrow)" data-act="next"><img src="/img/icons/xp/forward.png" alt="Next Image"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Best Fit" data-act="fit">Best Fit</button>
+    <button class="tool" type="button" title="Actual Size" data-act="actual">Actual Size</button>
+    <button class="tool" type="button" title="Start Slide Show (F11)" data-act="show"><img src="/img/icons/xp/slideshow.png" alt="Start Slide Show"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Zoom In (+)" data-act="in"><img src="/img/icons/xp/zoom-in.png" alt="Zoom In"></button>
+    <button class="tool" type="button" title="Zoom Out (-)" data-act="out"><img src="/img/icons/xp/zoom-out.png" alt="Zoom Out"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Delete (Del)" data-act="delete"><img src="/img/icons/xp/delete.png" alt="Delete"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool" type="button" title="Edit (Ctrl+E)" data-act="edit"><img src="/img/icons/xp/paint.png" alt="Edit"></button>
+    <button class="tool" type="button" title="Set as Desktop Background" data-act="wallpaper"><img src="/img/icons/xp/display-properties.png" alt="Set as Desktop Background"></button>
+  </div>
+</body>
+</html>

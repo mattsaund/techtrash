@@ -1,17 +1,13 @@
-// techtrash.org : the picture viewer.
+// The picture viewer. A click on a picture in what's written (a blog, Home's
+// words, the bulletin, About me, the tagline) or in Pictures opens it over the
+// page, as big as fits, with its description from the editor under it.
+// Previous and Next (or the arrow keys) step through the pictures it was
+// opened among. Esc, Close or a click beside it closes it.
 //
-// A click on a picture in what's written (a blog, Home's words, the bulletin,
-// About me, the tagline), or on one in Pictures, opens it over the page, as
-// big as the window has room for, with what's in it (its description, from
-// the editor) under it. Goto Image goes to where the picture is, its place in
-// its blog or page: on the page you're on, the viewer closes and the page
-// brings the picture into view. Previous and Next (or the arrow keys) step
-// through the other pictures it was opened among. Esc, Close, or a click
-// beside it closes it.
-//
-// From Pictures, Goto Image is the picture's page with #picture-<its name> on
-// the end, and showPictureFromAddress() brings it into view once that page is
-// drawn.
+// Goto Image goes to the picture's place in its blog or page. If that's the
+// page you're on, the viewer just closes and scrolls to it. From Pictures,
+// it's the picture's page with #picture-<name> on the end, and
+// showPictureFromAddress() scrolls to it once that page is drawn.
 
 import { el } from "./util.js";
 
@@ -24,24 +20,24 @@ export function pictureHash(src) {
   return path.startsWith("/blog/img/") ? `#picture-${path.slice("/blog/img/".length)}` : "";
 }
 
-// The pictures in what's written on this page that open in the viewer: not
-// the editor's (a click there picks one), and not one that's a link.
+// The pictures on this page that open in the viewer. Not the editor's (a
+// click there picks one), and not ones inside a link.
 const viewable = () => [...document.querySelectorAll(".prose img")].filter((img) => !img.closest(".editor, a[href]"));
 
 // The hue of the panel a picture's in, for the viewer's buttons.
 const hueAround = (node) => [...(node.closest(".panel")?.classList ?? [])].find((name) => /^hue-[1-6]$/.test(name)) ?? "hue-5";
 
-// A picture on this page, brought into view and marked for a moment.
+// Scrolls a picture on this page into view and marks it for a moment.
 function bringIntoView(img) {
   img.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
   img.classList.add("is-found");
   setTimeout(() => img.classList.remove("is-found"), 2000);
 }
 
-// pictures: [{ src, alt, from, href, here }], each one's address, its
-// description, where it's from (words for under it, or null), where Goto
-// Image goes, and the picture itself if it's on this page. start: which one
-// shows first. hue: the viewer's.
+// pictures is [{ src, alt, from, href, here }]. from is where it's from
+// (words for under it, or null), href is where Goto Image goes, and here is
+// the <img> itself if it's on this page. start is the one to show first, and
+// hue is the viewer's.
 export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
   let at = start;
   const many = pictures.length > 1;
@@ -82,7 +78,7 @@ export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
     show();
   };
 
-  // (a picture on this page: no going anywhere, just to it)
+  // (a picture on this page needs no navigating, just a scroll)
   goto.addEventListener("click", (e) => {
     const here = pictures[at].here;
     if (!here || !plainClick(e)) return;
@@ -95,7 +91,7 @@ export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
     e.preventDefault();
     step(e.key === "ArrowLeft" ? -1 : 1);
   });
-  // the viewer fills the window: a click that lands on it, not on the box, is beside the picture
+  // the dialog fills the window, so a click on it (not the box) is beside the picture
   dialog.addEventListener("click", (e) => {
     if (e.target === dialog) dialog.close();
   });
@@ -120,9 +116,9 @@ export function watchPictures(root) {
   });
 }
 
-// #picture-<name> on the address (Goto Image, from Pictures): that picture,
-// brought into view once the page is drawn. The pictures above it are loaded
-// first (they're lazy otherwise), so it isn't pushed away as they come in.
+// #picture-<name> on the address (Goto Image from Pictures) scrolls to that
+// picture once the page is drawn. The lazy pictures above it load first, so
+// it isn't pushed away as they come in.
 export async function showPictureFromAddress() {
   if (!location.hash.startsWith("#picture-")) return;
   const all = viewable();

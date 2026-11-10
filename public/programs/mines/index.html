@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mines</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <style>
+    html:has(> body.mines), body.mines { height: auto; }
+    .mines__game { align-self: flex-start; display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-8); }
+    .mines__top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+    .mines__count {
+      min-width: var(--button-w);
+      text-align: center;
+      padding: var(--sp-2) var(--sp-8);
+      background: var(--paper);
+      border: var(--hairline) solid var(--field-edge);
+      font-variant-numeric: tabular-nums;
+    }
+    .mines__board {
+      align-self: center;
+      display: grid;
+      grid-template-columns: repeat(var(--columns), var(--mines-cell));
+      grid-auto-rows: var(--mines-cell);
+      border: var(--hairline) solid var(--field-edge);
+      background: var(--mines-open);
+      user-select: none;
+      touch-action: manipulation;
+    }
+    .tile {
+      padding: 0;
+      border: 0;
+      background: var(--mines-tile);
+      box-shadow: var(--mines-tile-edge);
+      font: 700 var(--fs-body)/var(--lh-ui) var(--font-ui);
+    }
+    .tile:hover:not(.is-open):not(.is-flag) { background: var(--mines-tile-hover); }
+    .tile:focus-visible { outline-offset: calc(-1 * var(--sp-4)); }
+    .tile.is-open {
+      background: var(--mines-open);
+      box-shadow: inset calc(-1 * var(--hairline)) calc(-1 * var(--hairline)) var(--mines-open-edge);
+    }
+    .tile.is-flag { background: var(--glyph-flag) center / var(--icon-s) no-repeat, var(--mines-tile); }
+    .tile.is-flag:hover { background: var(--glyph-flag) center / var(--icon-s) no-repeat, var(--mines-tile-hover); }
+    .tile.is-mine { background: var(--glyph-mine) center / var(--icon-s) no-repeat, var(--mines-open); }
+    .tile.is-boom { background: var(--glyph-mine) center / var(--icon-s) no-repeat, var(--mines-boom); }
+    .tile.is-wrong { background: var(--glyph-cross) center / var(--icon-s) no-repeat, var(--glyph-mine) center / var(--icon-s) no-repeat, var(--mines-open); }
+    .tile[data-n="1"] { color: var(--mines-1); }
+    .tile[data-n="2"] { color: var(--mines-2); }
+    .tile[data-n="3"] { color: var(--mines-3); }
+    .tile[data-n="4"] { color: var(--mines-4); }
+    .tile[data-n="5"] { color: var(--mines-5); }
+    .tile[data-n="6"] { color: var(--mines-6); }
+    .tile[data-n="7"] { color: var(--mines-7); }
+    .tile[data-n="8"] { color: var(--mines-8); }
+  </style>
+  <script type="module" src="mines.js"></script>
+</head>
+<!--
+  Mines, the game of finding mines in a field of tiles, with a look of its
+  own. mines.js does the rest.
+-->
+<body class="app mines">
+  <nav class="menu-bar" aria-label="Menu"></nav>
+  <div class="mines__game">
+    <div class="mines__top">
+      <span class="mines__count" title="Mines left" data-left></span>
+      <button class="button" type="button" data-new>New Game</button>
+      <span class="mines__count" title="Seconds" data-time></span>
+    </div>
+    <div class="mines__board" role="grid" aria-label="Field"></div>
+  </div>
+</body>
+</html>

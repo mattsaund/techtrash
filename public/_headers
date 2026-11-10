@@ -1,13 +1,13 @@
-# Cloudflare reads this file and doesn't serve it. Every file in public/ goes
-# out with these; what worker.js answers itself (the API, pictures, the feed,
-# the 404) sets its own.
+# Cloudflare reads this file instead of serving it. Every file in public/
+# goes out with these headers. What worker.js answers itself (the API,
+# pictures, the feed, the 404) sets its own.
 #
 #   nosniff             a file is only ever what its type says
-#   Referrer-Policy     links off the site say where from, not which page
-#   frame-ancestors     no other site can show these pages in a frame of its
-#   X-Frame-Options     own (the desktop shows its own windows, which is fine)
-#   Permissions-Policy  nothing here needs the camera, the microphone or where
-#                       you are, so nothing on it gets them
+#   Referrer-Policy     links off the site say which site, not which page
+#   frame-ancestors     no other site can show these pages in a frame (the
+#   X-Frame-Options     desktop framing its own windows is fine)
+#   Permissions-Policy  nothing here needs the camera, the microphone or
+#                       your location, so nothing gets them
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

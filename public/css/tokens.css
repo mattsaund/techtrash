@@ -1,38 +1,28 @@
-/* ============================================================
-   techtrash.org : tokens
+/* The site's design tokens. Every color, font, size, space, radius and
+   layer is named here, and this is the only file allowed to hold a raw
+   value. Every other stylesheet, <style> block and style="" attribute
+   uses var(--something), and tools/check_style.py fails on anything else.
 
-   The rules. Every color, font, size, space, radius and layer on
-   the site is named here, and this is the only file allowed to
-   hold a raw value. Every other stylesheet, <style> block and
-   style="" attribute says var(--something) and nothing else.
-   tools/check_style.py fails on anything that doesn't.
+   Need a value that isn't here? Add it here first, with a comment saying
+   what it's for. If it can't earn that comment, use one that exists.
 
-   Need a value that isn't here? Add it here first, with a line
-   saying what it's for, then use it. If it can't earn that line,
-   use one of the values that already exist.
+   The look is Windows XP's Luna blue at XP's own pixel sizes. XP's
+   numbers are used as is, and the few that got rounded say why. */
 
-   The look is Windows XP, Luna blue, at XP's own pixel sizes.
-   Wherever XP had a number it's used as-is; the few places it's
-   been rounded say so and why.
-   ============================================================ */
-
-/* --- fonts ------------------------------------------------- *
-   Tahoma, self-hosted, so every visitor gets it. The file is
-   Wine's Tahoma (LGPL, see fonts/LICENSES.md), which was drawn to
-   Tahoma's exact widths, so a line of text wraps in the same place
-   in both. That's why local("Tahoma") goes first: anyone who has
-   the real one (every Windows and Mac) uses it and downloads
+/* --- fonts -------------------------------------------------
+   Tahoma is self-hosted so every visitor gets it. The file is Wine's
+   Tahoma (LGPL, see fonts/LICENSES.md), drawn to Tahoma's exact widths
+   so text wraps in the same place in both. That's why local("Tahoma")
+   goes first. Anyone with the real one (every Windows and Mac) downloads
    nothing, and everyone else gets a stand-in that lays out the same.
 
-   The mono face is DejaVu Sans Mono, for Notepad and the command
-   prompt. No local() there: XP's Lucida Console is a different
-   design, so preferring it would make the page look different on
-   Windows than everywhere else.
+   The mono face is DejaVu Sans Mono, for Notepad and the Command
+   Prompt. It has no local() because XP's Lucida Console is a different
+   design, and preferring it would make Windows look different.
 
-   Latin subset only. Regular and bold, nothing else: Tahoma has
-   no italic, and the one italic on the site (the start button) is
-   the browser slanting the bold, which is what XP's looks like.
-   ============================================================ */
+   Latin subset, regular and bold only. Tahoma has no italic, so italic
+   text (like the start button) is the browser slanting the bold, which
+   is what XP's looks like. */
 @font-face {
   font-family: "XP Tahoma";
   src: local("Tahoma"), url("/fonts/tahoma-latin.woff2") format("woff2");
@@ -57,68 +47,62 @@
 
 :root {
   /* --- font families ----------------------------------------
-     Three roles. Everything is --font-ui unless it's a window
-     title (--font-title) or monospaced text (--font-mono).
-     Luna drew window titles in Trebuchet MS, which can't be
-     self-hosted, so titles are Tahoma Bold, as XP's classic theme
-     drew them. They have their own token so that's one line to
-     change. */
+     Everything is --font-ui except window titles (--font-title) and
+     monospaced text (--font-mono). Luna drew titles in Trebuchet MS,
+     which can't be self-hosted, so they're Tahoma Bold like XP's classic
+     theme. Their own token keeps that a one-line change. */
   --font-ui:    "XP Tahoma", Tahoma, Verdana, sans-serif;
   --font-title: var(--font-ui);
   --font-mono:  "XP Mono", monospace;
 
   /* --- type scale -------------------------------------------
-     Four sizes, and a fifth for the Welcome screen only. Every
-     size has one line height, always used with it. Two weights:
-     400 and 700.
+     Four sizes, plus one just for the Welcome screen. Each size always
+     goes with its own line height. Weights are 400 and 700.
 
-     ui      11/13  XP's own 8pt Tahoma. Chrome only: menus, buttons,
+     ui      11/13  XP's own 8pt Tahoma. Chrome only (menus, buttons,
                     fields, labels, status bars, the taskbar, icon
-                    labels. Never used for anything longer than a
-                    line or two that someone has to read.
-     body    13/20  Anything that's read: a document, Notepad's
-                    text, captions. Also window titles, in bold.
-     head    16/22  A heading inside a document.
-     big     20/26  A document's one headline, the start button, and
-                    the user's name on the Welcome screen.
-     display 36/44  The site's name on the Welcome screen, and
-                    nowhere else.
+                    labels), never for more than a line or two of text.
+     body    13/20  Anything read, like documents, Notepad and captions.
+                    Also window titles, in bold.
+     head    16/22  A heading in a document.
+     big     20/26  A document's headline, the start button, and the
+                    user's name on the Welcome screen.
+     display 36/44  The site's name on the Welcome screen, nowhere else.
 
-     The line heights are chosen so each text line centers on a
-     whole pixel in the fixed heights below: a 13px ui line
-     leaves 5 and 5 in a 23px button and 3 and 3 in a 21px field,
-     and a 20px body line leaves 5 and 5 in the 30px title bar. */
+     Each line height centers its text on a whole pixel in the fixed
+     heights below. A 13px ui line leaves 5 and 5 in a 23px button and
+     3 and 3 in a 21px field, and a 20px body line leaves 5 and 5 in the
+     30px title bar. */
   --fs-ui:   11px;  --lh-ui:   13px;
   --fs-body: 13px;  --lh-body: 20px;
   --fs-head: 16px;  --lh-head: 22px;
   --fs-big:  20px;  --lh-big:  26px;
   --fs-display: 36px;  --lh-display: 44px;
+  --lh-mono: 16px;    /* Notepad's lines, as tight as XP's Lucida Console */
+  --lh-console: normal;  /* the Command Prompt's, so TREE's lines join up */
 
   /* --- spacing ----------------------------------------------
-     The only values any margin, padding, gap or offset may use.
-     A 4px grid, with 2px as the half step for the tight spots
-     inside chrome (a label to its icon, a status bar's inset).
-     Space between things comes from here; the size of a control
-     comes from its size token below. */
+     The only values a margin, padding, gap or offset may use. A 4px
+     grid, with 2px as the half step for tight spots inside chrome (a
+     label to its icon, a status bar's inset). A control's own size comes
+     from its size token below, not from here. */
   --sp-2:  2px;
   --sp-4:  4px;
   --sp-8:  8px;
-  --sp-12: 12px;   /* dialog margin: XP's was 11 */
+  --sp-12: 12px;   /* dialog margin (XP's was 11) */
   --sp-16: 16px;
   --sp-24: 24px;
   --sp-32: 32px;
   --sp-48: 48px;
 
   /* --- sizes ------------------------------------------------
-     XP's own control sizes, which are what make it look like XP.
-     They're off the spacing grid on purpose: a 23px button is a
-     Windows button and a 24px one isn't. */
-  --hairline:    1px;    /* every border on the site. Anything thicker is a
-                            frame, drawn with shadows */
+     XP's own control sizes, which are what make it look like XP. They're
+     off the spacing grid on purpose. A 23px button is a Windows button
+     and a 24px one isn't. */
+  --hairline:    1px;    /* every border. Thicker frames are drawn with shadows */
   --frame:       3px;    /* a window's blue frame, left, right and bottom */
   --title-h:     30px;   /* title bar */
-  --caption:     22px;   /* minimize / maximize / close. XP's are 21: rounded
-                            up so they center in the 30px bar on a whole pixel */
+  --caption:     22px;   /* min, max, close. XP's are 21, but 22 centers on a pixel */
   --button-h:    23px;   /* push button, XP's 75 x 23 */
   --button-w:    75px;   /* push button minimum width */
   --field-h:     21px;   /* one-line text field, select */
@@ -128,26 +112,72 @@
   --task-w:      160px;  /* ... and its widest */
   --icon-s:      16px;   /* title bars, menus, the taskbar, the tray */
   --icon-m:      32px;   /* the desktop, and anywhere an icon stands alone */
-  --icon-l:      48px;   /* big pictures: the start menu's user, dialogs */
-  --start-flag:  20px;   /* the flag on the start button, tall: XP's own, and
-                            the one picture that isn't an icon size */
-  --icon-cell:   76px;   /* a desktop icon's width, label included, and the
-                            desktop grid's cell, both ways. XP's is 75: one
-                            more so a 32px icon centers on a whole pixel */
-  --window-w:    640px;  /* a window's size when it opens: XP's 640 x 480, */
-  --window-h:    480px;  /* less on a screen too small for it */
-  --window-min-w: 320px; /* no window is narrower: a phone's width */
+  --icon-l:      48px;   /* big pictures (the start menu's user, dialogs) */
+  --start-flag:  20px;   /* the start flag's height, XP's own. Not an icon size */
+  --icon-cell:   76px;   /* a desktop icon and its grid cell, both ways. XP's
+                            is 75, but 76 centers a 32px icon on a pixel */
+  --window-w:    640px;  /* a new window's size, XP's 640 x 480, */
+  --window-h:    480px;  /* or less on a screen too small for it */
+  --window-min-w: 320px; /* no window is narrower (a phone's width) */
   --window-min-h: 160px; /* ... or shorter */
-  --grip:        4px;    /* how far in from a window's edge a drag resizes it.
-                            Corners are twice that */
+  --grip:        4px;    /* how wide a window's resize edge is. Corners are double */
   --start-menu-w: 380px; /* the start menu, XP's width */
   --logoff-w:    312px;  /* the Log Off dialog, XP's width */
-  --logon-band-h: 80px;  /* the dark bands across the top and bottom of the
-                            Welcome screen */
+  --logon-band-h: 80px;  /* the Welcome screen's dark top and bottom bands */
   --logon-field-w: 144px; /* the admin's user name and password boxes */
-  --drag:        4px;    /* how far a press moves before it's a drag and not
-                            a click: XP's own 4 */
+  --drag:        4px;    /* how far a press moves before it's a drag, as in XP */
   --measure:     480px;  /* longest line of reading text, about 75 characters */
+  --icon-tool:   24px;   /* a toolbar button's picture (Back, Up, Folders) */
+  --menu-min-w:  128px;  /* a pop-up menu, at its narrowest */
+  --explorer-w:  800px;  /* the File Browser's window, as XP opened it, */
+  --explorer-h:  560px;  /* with room for the task pane */
+  --display-w:   404px;  /* Display Properties, XP's size, */
+  --display-h:   452px;  /* which can't be resized */
+  --dialog-w:    560px;  /* Open and Save As, XP's 563 x 419, rounded down */
+  --dialog-h:    400px;  /* to fit a window that opens at 640 x 480 */
+  --pane-w:      208px;  /* the File Browser's task pane, down its left side */
+  --thumb:       96px;   /* a picture's thumbnail, XP's own size */
+  --thumb-cell:  112px;  /* ... with room for its name under it */
+  --monitor-w:   184px;  /* Display Properties' little monitor, its screen, */
+  --monitor-h:   138px;  /* XP's own size */
+  --card-w:      72px;   /* a Solitaire card at its biggest. A narrow */
+  --card-h:      100px;  /* window shrinks it (solitaire.js) */
+  --card-fan:    20px;   /* how far apart face-up cards sit in a column */
+  --card-fan-down: 5px;  /* ...and face-down ones */
+  --card-scale:  1;      /* how much the cards shrink, set by solitaire.js */
+  --card-pip:    2.4em;  /* the suit in the middle of a card */
+  --card-index:  1.2em;  /* a corner's width, the same on every card so they line up */
+  --lh-card:     1.1;    /* a corner's two lines, its rank and suit */
+  --ls-card-ten: -0.1em; /* "10" squeezed a little to fit the corner */
+  --card-letter: 2em;    /* the letter in the middle of a jack, queen or king */
+  --r-card:      5px;
+  --npp-tree-w:  200px;  /* Notepad++'s Folder as Workspace panel */
+  --npp-margin-w: 48px;  /* ...and its margin of line numbers */
+  --mines-cell:  20px;   /* a tile in Mines */
+  --columns:     9;      /* tiles across Mines' field, set by mines.js */
+  --run-w:       348px;  /* Run, XP's size */
+  --run-h:       188px;
+  --calc-w:      268px;  /* the Calculator, XP's Standard view */
+  --calc-h:      252px;
+  --calc-key:    36px;   /* ...a key, XP's 36 x 28 */
+  --calc-key-h:  28px;
+  --solitaire-w: 640px;  /* Solitaire's window as it opens. Seven */
+  --solitaire-h: 520px;  /* columns, and room for them to grow down */
+  --datetime-w:  412px;  /* Date and Time Properties, XP's size, */
+  --datetime-h:  384px;  /* which can't be resized either */
+  --clock:       132px;  /* its clock face */
+  --spin-w:      96px;   /* a spin box's field (the time) */
+  --spin-button: 16px;   /* ...and its up and down buttons, how wide */
+  --folder-w:    320px;  /* Move Items, XP's Browse For Folder */
+  --folder-h:    360px;
+  --status-w:    120px;  /* a status bar's second field (the size) */
+  --player-list-w: 208px;  /* Windows Media Player's playlist, down its right side */
+  --player-play:   38px;   /* its round Play button */
+  --player-button: 26px;   /* the round buttons beside it */
+  --player-knob:   12px;   /* a slider's knob */
+  --player-groove: 4px;    /* ...and the groove it runs in */
+  --player-volume-w: 80px; /* the volume slider */
+  --depth:       0;      /* a folder's depth in a tree (js/file-dialog.js, Notepad++) */
 
   /* --- radii ------------------------------------------------
      Three, and square everywhere else. Fields, menus, the taskbar
@@ -157,17 +187,16 @@
   --r-start:   12px;   /* the start button's right end */
 
   /* --- layers -----------------------------------------------
-     The only z-index values. Windows stack upward from
-     --z-window; whatever raises a window to the front counts up
-     from there and stays below the taskbar. */
+     The only z-index values. Windows stack up from --z-window, and
+     raising one to the front counts up from there, always staying under
+     the taskbar. */
   --z-desktop: 0;
   --z-icon:    1;
   --z-window:  10;
   --z-taskbar: 1000;
   --z-menu:    1100;   /* start menu, context menus, dropdowns */
   --z-tip:     1200;   /* tooltips and balloons */
-  --z-dialog:  1500;   /* the Log Off dialog and XP's message box, over the
-                          whole desktop */
+  --z-dialog:  1500;   /* Log Off and message boxes, over the whole desktop */
   --z-logon:   2000;   /* the Welcome screen, over everything */
 
   /* --- time -------------------------------------------------
@@ -176,11 +205,10 @@
   --wait: 800ms;
 
   /* --- breakpoint -------------------------------------------
-     The one screen width anything changes at. At and under it the
-     screen is a phone: windows open maximized and stay put.
-     A custom property can't go in a media query, so CSS writes the
-     number out, and tools/check_style.py rejects any number but
-     this one. js/desktop.js reads it from here. */
+     The one screen width anything changes at. At or under it the screen
+     is a phone, and windows open maximized and stay put. A media query
+     can't use a custom property, so CSS writes the number out and
+     tools/check_style.py rejects any other. js/desktop.js reads this. */
   --breakpoint: 640px;
 
   /* ========================================================
@@ -190,20 +218,17 @@
 
   /* --- surfaces --------------------------------------------- */
   --desktop:     #004e98;   /* XP's desktop color, under any wallpaper */
-  --face:        #ece9d8;   /* XP's "3D face": window bodies, dialogs, menu
-                               bars, status bars */
+  --face:        #ece9d8;   /* XP's "3D face", for window bodies, dialogs and bars */
   --face-hi:     #ffffff;   /* raised edges */
   --face-shadow: #aca899;   /* sunken edges, menu borders, rules */
   --face-dark:   #716f64;   /* the darkest edge */
-  --paper:       #ffffff;   /* anything read or typed into: documents,
-                               fields, lists, menus */
+  --paper:       #ffffff;   /* anything read or typed into (documents, fields, menus) */
   --tip:         #ffffe1;   /* tooltips and balloons */
 
   /* --- text ------------------------------------------------- */
   --ink:          #000000;
-  --ink-muted:    #5c5a51;  /* dates, captions, secondary lines. A step darker
-                               than XP's own gray so it's readable on the face
-                               as well as on paper */
+  --ink-muted:    #5c5a51;  /* dates, captions, secondary lines. Darker than XP's
+                               gray so it reads on the face too */
   --ink-disabled: #aca899;  /* XP's GrayText. Disabled only, never for reading */
   --ink-inverse:  #ffffff;  /* on blue chrome, the selection, the desktop */
   --link:         #215dc6;  /* XP's task pane links */
@@ -237,7 +262,7 @@
   --title-ink-inactive:  #d8e4f8;
   --title-shadow:        1px 1px #0f1089;
 
-  /* --- caption buttons (minimize, maximize, close) ----------- */
+  /* --- caption buttons (minimize, maximize, close) ---------- */
   --caption-edge:      #ffffff;
   --caption-blue:      radial-gradient(circle at 90% 90%, #0054e9 0%, #2263d5 55%, #4479e4 70%, #a3bbec 90%, #ffffff 100%);
   --caption-blue-hover: radial-gradient(circle at 90% 90%, #1c6af5 0%, #3b7df0 55%, #6597f5 70%, #c3d6fb 90%, #ffffff 100%);
@@ -256,8 +281,8 @@
   --button-face:          linear-gradient(180deg, #ffffff 0%, #ecebe6 86%, #d6d0c5 100%);
   --button-face-down:     linear-gradient(180deg, #cdcac3 0%, #e3e3db 8%, #e5e5de 94%, #f2f2f1 100%);
   --button-face-disabled: #f5f4ea;
-  /* The orange glow under the pointer, and the blue one on the
-     focused or default button. Both are XP's, line for line. */
+  /* The orange hover glow and the blue one on a focused or default
+     button, both XP's line for line. */
   --button-glow-hover: inset -1px 1px #fff0cf, inset 1px 2px #fdd889, inset -2px 2px #fbc761, inset 2px -2px #e5a01a;
   --button-glow-focus: inset -1px 1px #cee7ff, inset 1px 2px #98b8ea, inset -2px 2px #bcd4f6, inset 1px -1px #89ade4, inset 2px -2px #89ade4;
 
@@ -274,8 +299,119 @@
 
   /* --- menus and pop-ups ------------------------------------ */
   --menu-edge:  var(--face-shadow);
-  --shadow-pop: 2px 2px 4px rgba(0, 0, 0, 0.35);  /* menus and tooltips only.
-                                                     XP's windows cast no shadow */
+  /* Menus and tooltips only. XP's windows cast no shadow. */
+  --shadow-pop: 2px 2px 4px rgba(0, 0, 0, 0.35);
+  /* A menu's marks (the tick for a setting that's on, the dot for the
+     one picked from a set, the submenu arrow). They're masks, so they
+     take the color of the words. --glyph-drop, a toolbar button's
+     drop-down arrow, works the same way. */
+  --glyph-menu-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath d='M4 7l2 2 5-5v3l-5 5-2-2z'/%3E%3C/svg%3E");
+  --glyph-menu-radio: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3C/svg%3E");
+  --glyph-menu-sub:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath d='M6 4l4 4-4 4z'/%3E%3C/svg%3E");
+  /* A spin box's arrows aren't masks, just plain black. */
+  --glyph-spin-up:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 5L4.5 0 9 5z'/%3E%3C/svg%3E");
+  --glyph-spin-down:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0h9L4.5 5z'/%3E%3C/svg%3E");
+  --glyph-drop:       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath d='M5 6h6l-3 4z'/%3E%3C/svg%3E");
+
+  /* --- tabs, toolbars, the task pane ------------------------
+     XP's tabbed dialogs (Display Properties), and an Explorer window's
+     toolbar, address bar and blue task pane. */
+  --tab-edge:    #919b9c;
+  --tab-face:    linear-gradient(180deg, #ffffff 0%, #ecebe5 100%);
+  /* The orange along the top of the picked or hovered tab. */
+  --tab-hot:     linear-gradient(180deg, #ffc83c 0%, #e68b2c 100%);
+  --tab-panel:   #fcfcfe;
+  --tool-hover:  inset 0 0 0 1px #ffffff, inset -1px -1px 0 1px #ced0c4;
+  --tool-down:   inset 1px 1px 0 #a5a297, inset -1px -1px 0 #ffffff;
+  --tool-rule:   #c5c2b2;
+  --pane:        linear-gradient(180deg, #7ba2e7 0%, #6375d6 100%);
+  --pane-head:   linear-gradient(90deg, #ffffff 0%, #c6d3f7 100%);
+  --pane-ink:    #215dc6;
+  --pane-hover:  #428eff;
+  --pane-box:    #d6dff7;
+  --pane-edge:   #ffffff;
+  --places:      #7f9bd8;   /* the places down the left of Open and Save As */
+  /* The Command Prompt's 16 colors, numbered 0 to f as its COLOR
+     command does, and the two it starts with (light gray on black). */
+  --console-0: #000000;  --console-1: #000080;  --console-2: #008000;  --console-3: #008080;
+  --console-4: #800000;  --console-5: #800080;  --console-6: #808000;  --console-7: #c0c0c0;
+  --console-8: #808080;  --console-9: #0000ff;  --console-a: #00ff00;  --console-b: #00ffff;
+  --console-c: #ff0000;  --console-d: #ff00ff;  --console-e: #ffff00;  --console-f: #ffffff;
+  --console-ink:   var(--console-7);
+  --console-paper: var(--console-0);
+  /* Mines has its own look. Tiles in Luna's blues, raised until opened,
+     its own colors for the numbers 1 to 8, and its own flag and mine. */
+  --mines-tile:       linear-gradient(180deg, #eaf1ff 0%, #c5d7f7 100%);
+  --mines-tile-hover: linear-gradient(180deg, #f6f9ff 0%, #d9e5fb 100%);
+  --mines-tile-edge:  inset 1px 1px #ffffff, inset -1px -1px #8ea8d6;
+  --mines-open:       #ffffff;
+  --mines-open-edge:  #d5deee;
+  --mines-boom:       #f2a3a3;
+  --mines-1: #215dc6;  --mines-2: #2b8a3e;  --mines-3: #d9480f;  --mines-4: #6741d9;
+  --mines-5: #a61e4d;  --mines-6: #0c8599;  --mines-7: #343a40;  --mines-8: #868e96;
+  --glyph-mine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.5v13M1.5 8h13M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2' stroke='%23343a40' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='8' r='4.6' fill='%23343a40'/%3E%3Ccircle cx='6.6' cy='6.6' r='1.3' fill='%23ffffff'/%3E%3C/svg%3E");
+  --glyph-flag: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M7 2h1.5v10H7zM4 12.5h8V14H4z' fill='%23343a40'/%3E%3Cpath d='M8.5 2.2l5 2.6-5 2.6z' fill='%23e03131'/%3E%3C/svg%3E");
+  --glyph-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 3l10 10M13 3L3 13' stroke='%23e03131' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  /* Solitaire's own cards. A green table, white faces in red and black,
+     and a striped Luna blue back in a white frame. */
+  --felt:        #1f7a3b;
+  --card-face:   #ffffff;
+  --card-edge:   #5c5f66;
+  --card-red:    #d6202b;
+  --card-black:  #1b1b1b;
+  --card-back:   repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 7px), linear-gradient(180deg, #3a7be0 0%, #1d4fa8 100%);
+  --card-frame:  inset 0 0 0 3px #ffffff, inset 0 0 0 4px #9db7e6;
+  --card-slot:   rgba(255, 255, 255, 0.4);
+  --card-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+  /* Notepad++. Its page, the line number margin, the caret's line, the
+     orange on top of the open file's tab, and its default code colors. */
+  --npp-paper:    #ffffff;
+  --npp-margin:   #e4e4e4;
+  --npp-margin-ink: #808080;
+  --npp-line:     #e8e8ff;
+  --npp-tab-hot:  #faaa3c;
+  --npp-picked:   rgba(192, 192, 192, 0.55);
+  --npp-keyword:  #0000ff;
+  --npp-number:   #ff8000;
+  --npp-string:   #808080;
+  --npp-comment:  #008000;
+  --npp-operator: #000080;
+  --npp-tag:      #0000ff;
+  --npp-attr:     #ff0000;
+  --npp-value:    #8000ff;
+  --calc-number: #0000ff;   /* Calculator keys. Numbers are blue, */
+  --calc-act:    #ff0000;   /* actions and memory red, as in XP */
+  /* Display Properties' little monitor, around its screen. */
+  --monitor:      linear-gradient(180deg, #e4e3dc 0%, #c9c7bb 100%);
+  --monitor-edge: inset 1px 1px #ffffff, inset -1px -1px #8e8c80, 1px 1px 2px rgba(0, 0, 0, 0.3);
+  /* Windows Media Player. Deep blue, with a black screen for the
+     visualization, the playlist on navy, and round glassy buttons. */
+  --player-face:      linear-gradient(180deg, #2e5394 0%, #132c5e 100%);
+  --player-bar:       linear-gradient(180deg, #24467f 0%, #0d1f45 100%);
+  --player-screen:    #000000;
+  --player-list:      #0b1d42;
+  --player-edge:      #061331;
+  --player-ink:       #eef3ff;
+  --player-ink-dim:   #9fb2d9;
+  --player-row-hover: #17346e;
+  --player-row-now:   #2f62c8;
+  --player-glass:     radial-gradient(circle at 50% 28%, #c4dbff 0%, #5288e6 42%, #173f9c 100%);
+  --player-glass-hot: radial-gradient(circle at 50% 28%, #def0ff 0%, #6fa2f3 42%, #2350b5 100%);
+  --player-glass-down: radial-gradient(circle at 50% 70%, #9fbff2 0%, #3c6ccb 45%, #12357f 100%);
+  --player-glass-edge: #071c4d;
+  --player-track:     #04112b;
+  --player-fill:      #4f8dff;
+  --player-thumb:     radial-gradient(circle at 40% 35%, #ffffff 0%, #c9d8f3 55%, #7b96c6 100%);
+  --player-low:       #1d55f0;   /* the visualization's bars at the bottom, */
+  --player-high:      #74f5ff;   /* at the top, */
+  --player-wave:      #e2f9ff;   /* and its wave */
+  --glyph-play:     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 2.5l9 5.5-9 5.5z' fill='%23ffffff'/%3E%3C/svg%3E");
+  --glyph-pause:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 3h3.2v10H3.5zM9.3 3h3.2v10H9.3z' fill='%23ffffff'/%3E%3C/svg%3E");
+  --glyph-stop:     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 3.5h9v9h-9z' fill='%23ffffff'/%3E%3C/svg%3E");
+  --glyph-previous: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 3h2v10h-2zM13.5 3v10L5.5 8z' fill='%23ffffff'/%3E%3C/svg%3E");
+  --glyph-next:     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M11.5 3h2v10h-2zM2.5 3v10l8-5z' fill='%23ffffff'/%3E%3C/svg%3E");
+  --glyph-speaker:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5h3l4-3.5v12l-4-3.5h-3z' fill='%23ffffff'/%3E%3Cpath d='M10.5 5.3a3.4 3.4 0 010 5.4M12.3 3.3a6 6 0 010 9.4' stroke='%23ffffff' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  --glyph-muted:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5h3l4-3.5v12l-4-3.5h-3z' fill='%23ffffff'/%3E%3Cpath d='M10.5 5.5l4 5M14.5 5.5l-4 5' stroke='%23ff6b6b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 
   /* --- the taskbar ------------------------------------------ */
   --taskbar: linear-gradient(180deg,
@@ -322,7 +458,7 @@
   --start-places-ink:   #00136b;
   --start-tile-edge:    #dedede;   /* around the user picture */
 
-  /* --- the Welcome screen and the Log Off dialog ------------- */
+  /* --- the Welcome screen and the Log Off dialog ------------ */
   --logon:             #5a7edc;   /* the middle */
   --logon-glow:        radial-gradient(circle at 15% 30%, rgba(145, 177, 239, 0.9) 0%, rgba(145, 177, 239, 0) 45%);
   --logon-band:        #00309c;   /* top and bottom */
@@ -331,24 +467,29 @@
   --logon-divider:     linear-gradient(180deg, transparent 0%, #c8d6f6 30%, #c8d6f6 70%, transparent 100%);
   --logon-tile-edge:   #e8eefc;   /* around a user's picture */
   --logon-tile-hover:  #ffc541;   /* ... under the pointer */
-  --logon-picked:      linear-gradient(90deg, #0d3aa8 0%, rgba(13, 58, 168, 0) 100%);  /* the user
-                                     being logged on */
+  /* The user being logged on. */
+  --logon-picked:      linear-gradient(90deg, #0d3aa8 0%, rgba(13, 58, 168, 0) 100%);
   --logon-shadow:      1px 1px 2px #0c2a80;
   --lift:              brightness(1.2);   /* a picture button under the pointer */
 
   /* --- the desktop ------------------------------------------ */
   --icon-shadow: 1px 1px 1px #000000;   /* icon labels over the wallpaper */
-  --marquee:     rgba(49, 106, 197, 0.3);   /* the selection rectangle's fill:
-                                               --select, see-through */
+  --marquee:     rgba(49, 106, 197, 0.3);   /* the marquee's fill, --select at 30% */
+  --cut-fade:    0.5;   /* a Cut item, faded until it's pasted, as in XP */
+  /* The shared wallpaper, a picture and a color picked in Display
+     Properties. js/desktop.js sets them on the desktop. Until then it's
+     no picture and the desktop's own blue. */
+  --wallpaper-image: none;
+  --wallpaper-color: var(--desktop);
 
   /* --- scrollbars ------------------------------------------- */
   --scroll-thumb: #c3d3fd;
   --scroll-track: #f4f3ee;
 
-  /* --- the stop screen ----------------------------------------
+  /* --- the stop screen --------------------------------------
      XP's blue screen, for the 404 and the under construction page
-     (css/bsod.css): white mono type on VGA's blue, at head size,
-     the one place mono is bigger than body. */
+     (css/bsod.css). White mono on VGA blue at head size, the one place
+     mono is bigger than body. */
   --bsod:     #0000aa;
   --bsod-ink: #ffffff;
 }
@@ -356,28 +497,26 @@
 /* ============================================================
    THE WEBSITE
 
-   techtrash.org itself: the page inside the Internet Explorer
-   window, the one every visit opens up to. It isn't XP. It has its
-   own look, after msaunders.dev (black, a monospaced face, hairline
-   panels over a sky of cosmos.js planets), but multicolor where
-   msaunders.dev is all blue, and in Paper Mono, with real buttons.
+   The page inside the Internet Explorer window, which every visit
+   opens to. It isn't XP. Its look follows msaunders.dev (black, a
+   monospaced face, hairline panels over a sky of cosmos.js planets),
+   but it's multicolor where msaunders.dev is all blue, set in Paper
+   Mono, and has real buttons.
 
-   Everything the website uses is below, plus the spacing scale
-   (--sp-*), --hairline and --r-control from above. Same rule as
-   the rest of the file: nothing raw anywhere else.
+   It uses everything below plus --sp-*, --hairline and --r-control
+   from above, and the same rule holds. Nothing raw anywhere else.
    ============================================================ */
 
-/* Paper Mono, the face cosmos.js's editor is set in: one variable
-   file for every weight, 100 to 800. OFL, see fonts/PaperMono-OFL.txt.
+/* Paper Mono, the face cosmos.js's editor uses. One variable file has
+   every weight from 100 to 800 (OFL, see fonts/PaperMono-OFL.txt).
 
-   Set up the way msaunders.dev sets it up. Its own advance is 0.606
-   em, a whole number of pixels at no size anyone sets, so size-adjust
-   scales it to exactly 0.625 em: at any size that's a multiple of 8,
-   every column lands on a whole pixel (the 16px labels on 10px
-   columns, the 48px headline on 30px ones). The letters come out 3%
-   bigger than the font's own. A browser without size-adjust (Safari
-   before 17) gets the plain 0.606. space.js measures the advance to
-   size the planets, so this changes the art's grid with it. */
+   Set up like msaunders.dev's. Its advance is 0.606 em, a whole number
+   of pixels at no size anyone sets, so size-adjust scales it to exactly
+   0.625 em. Then at any size that's a multiple of 8, every column lands
+   on a whole pixel (16px labels on 10px columns, the 48px headline on
+   30px ones), and the letters come out 3% bigger. Browsers without
+   size-adjust (Safari before 17) get the plain 0.606. space.js measures
+   the advance to size the planets, so this changes the art's grid too. */
 @font-face {
   font-family: "Paper Mono";
   src: url("/fonts/paper-mono.woff2") format("woff2");
@@ -392,29 +531,28 @@
                "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   /* --- type -------------------------------------------------
-     msaunders.dev's: two sizes for everything, each with its one
-     line height, a length (a ratio lands on a fraction at most
-     sizes), and the headline. Nothing is smaller than the body size.
-     Two weights, 400 and 500; bold words in a blog are 700, so they
-     read as bold (and so the editor's B button knows them).
+     msaunders.dev's. Two sizes for everything plus the headline, each
+     with one line height given as a length (a ratio lands on a fraction
+     at most sizes). Nothing is smaller than body. Weights are 400 and
+     500, and bold words in a blog are 700 so they read as bold (and so
+     the editor's B button knows them).
 
-     body   14/23  everything it says: copy, buttons, dates, flags,
-                   the footer, comments
-     label  16/23  anything that titles or labels something: a
-                   panel's name, a blog's title on its card and
+     body   14/23  all the text (copy, buttons, dates, flags, the footer,
+                   comments)
+     label  16/23  anything that titles or labels something, like a
+                   panel's name or a blog's title on its card and
                    beside Home
-     head   30/36  a blog's title, on its own page and in the editor:
+     head   30/36  a blog's title, on its own page and in the editor.
                    msaunders.dev's smallest headline, a step over the
-                   biggest heading a blog's words start with
+                   biggest heading in a blog.
      title  48/60  "Techtrash", once. 40/48 on a phone.
 
-     What's in a blog is the admin's to size, in the editor. Its
-     headings start at these:
-     sub    20/28  a heading (H2); a smaller one (H3) is a label,
-                   and the smallest (H4) is body size, in 500
+     The admin sizes what's in a blog in the editor, and its headings
+     start at these.
+     sub    20/28  H2. H3 is a label, and H4 is body size in 500.
 
-     art    5/1    the planets: a glyph of cosmos.js's is one cell
-                   of a picture, not text */
+     art    5/1    the planets. A cosmos.js glyph is one cell of a
+                   picture, not text. */
   --fs-site-body:    14px;  --lh-site-body:    23px;
   --fs-site-label:   16px;  --lh-site-label:   23px;
   --fs-site-sub:     20px;  --lh-site-sub:     28px;
@@ -422,45 +560,44 @@
   --fs-site-title:   48px;  --lh-site-title:   60px;
   --fs-site-title-s: 40px;  --lh-site-title-s: 48px;
   --fs-site-art:      5px;  --lh-site-art:      1;
-  /* The headlines' letters a step closer: whole pixels, so every one
-     stays on its whole-pixel column. msaunders.dev's. */
+  /* Headlines set a step tighter, msaunders.dev's. Whole pixels, so
+     every letter stays on its whole-pixel column. */
   --ls-site-head:    -1px;
   --ls-site-title:   -2px;
   --ls-site-title-s: -1px;
-  /* A small button (the Blog's sort, its flags, a flag in the editor):
-     one label line tall, its hairlines included, so it shares the line
-     with a panel's name and the name sits where it does in every panel. */
+  /* A small button (the Blog's sort and flags, a flag in the editor).
+     One label line tall with its hairlines, so it can share a line with
+     a panel's name and the name sits where it does in every panel. */
   --lh-site-small:   21px;
-  /* The copyleft sign in the foot: half again the size of its line (at
-     the line's own size, Paper Mono's ring closes into a dot), and set
-     down to sit on the line. msaunders.dev's. */
+  /* The copyleft sign in the footer, msaunders.dev's. Half again the
+     line's size (at the line's own size Paper Mono's ring closes into a
+     dot), and dropped to sit on the line. */
   --fs-site-mark:    1.5em;
   --site-mark-drop:  -0.12em;
-  --site-art-scale:   0.5;    /* the planets' glyphs, drawn at half that: finer */
+  --site-art-scale:   0.5;    /* the planets' glyphs, scaled down for finer art */
   --site-art-scale-s: 0.32;   /* ...and smaller still on a phone, so all four fit */
-  /* On a screen with one pixel for every pixel the page asks for, and
-     only there, Paper Mono's glyphs at the planets' size come out
-     thin: hinting snaps their strokes to the pixels, and the planets
-     keep under half their ink. Drawn unhinted, with a hairline of
-     stroke, they get it back, light and dark alike. A custom
-     property can't go in a media query, so site.css writes the
-     resolution out, and tools/check_style.py rejects any other. */
+  /* On 1x screens (and only there) Paper Mono's glyphs at the planets'
+     size come out thin. Hinting snaps their strokes to the pixels and
+     the planets keep under half their ink. Drawn unhinted with a hairline
+     of stroke they get it back, light and dark alike. A media query
+     can't use a custom property, so site.css writes the resolution out
+     and tools/check_style.py rejects any other. */
   --site-art-coarse: 1dppx;
   --site-art-stroke: 0.15px;
 
   /* --- spacing ----------------------------------------------
-     msaunders.dev's. One gap: between panels, and the same around
-     them, from the window's top and its sides (once the window is
-     narrow enough for the column to reach them) and under the foot.
-     Inside a panel, one inset all round, less 3px at the top and 2px
-     at the bottom: a line box is taller than its letters, and those
-     put the letters as far from the panel's top and bottom as from its
-     sides. A panel that ends on a box (buttons, cards, pictures, a
-     form) gives the 2px back, since a box's edge is its ink. The
-     headline's line box carries more over its capitals than a
-     label's, so it's trimmed more. A card, the bulletin and a form's
-     box have an inset of their own, trimmed the same way. All smaller
-     on a phone. */
+     msaunders.dev's. One gap, between panels and around them (from the
+     window's top, from its sides once the window is narrow enough for
+     the column to reach them, and under the footer).
+
+     A panel has one inset all around, less 3px at the top and 2px at the
+     bottom. A line box is taller than its letters, and the trims put the
+     letters as far from the top and bottom as from the sides. A panel
+     that ends on a box (buttons, cards, pictures, a form) gives the 2px
+     back, since a box's edge is its ink. The headline's line box has
+     more room over its capitals than a label's, so it's trimmed more.
+     Cards, the bulletin and a form's box have their own inset, trimmed
+     the same way. All smaller on a phone. */
   --site-gap:          16px;
   --site-gap-s:        12px;
   --site-pad:          24px;
@@ -471,34 +608,32 @@
   --site-trim-bottom:   2px;
   --site-title-trim:   -6px;
   --site-title-trim-s: -4px;
-  --site-whole:         1px;   /* a whole pixel: what the column's start rounds to */
+  --site-whole:         1px;   /* a whole pixel, which the column's start rounds to */
 
   /* --- sizes ------------------------------------------------ */
   --site-wrap:     1204px;  /* a panel at its widest, msaunders.dev's */
-  --site-form:     640px;   /* the comment form's box, at its widest: a name and a comment don't need a whole panel */
-  --site-card-min: 336px;   /* a blog's card, at its narrowest: three across a whole panel, as msaunders.dev lays its out */
+  --site-form:     640px;   /* the comment form at its widest, less than a panel */
+  --site-card-min: 336px;   /* a blog card at its narrowest, three to a full panel */
   --site-cover:    16 / 9;  /* a blog's first picture, on its card */
   --site-tile:     160px;   /* a picture in Pictures, at its narrowest */
   --site-side:     272px;   /* Home's side, with the newest blogs */
   --site-float:    50%;     /* a picture in a post with the words around it, at most */
   --site-editor:   360px;   /* the editor's box, at its shortest */
   --site-editor-short: 96px; /* ...when it's for a line or two (the tagline) */
-  --site-viewer-picture: calc(100dvh - 208px);  /* a picture in the viewer, at its
-                                                    tallest: the window, less the
-                                                    room for its words and buttons */
+  /* The viewer's tallest picture, leaving room for its words and buttons. */
+  --site-viewer-picture: calc(100dvh - 208px);
 
-  /* A player in a post: a video's shape, a phone video's (and how
-     wide it gets), how tall a song's and an album's are, and the
-     slider that sets how loud a sound is. */
+  /* Players in a post. The video shapes (and how wide a phone video
+     gets), how tall a song and an album are, and the volume slider. */
   --site-video:        16 / 9;
   --site-video-tall:   9 / 16;
   --site-video-tall-w: 340px;
   --site-song:         166px;
   --site-album:        380px;
-  --site-volume:       96px;   /* a sound player's loudness, its slider */
-  /* ...and its buttons: plain shapes on a 16 square, cut out of the
-     button's own color (site.css), so they're the gray of the words
-     around them. Play and Pause big, Mute and Unmute small. */
+  --site-volume:       96px;   /* a sound player's volume slider */
+  /* A sound player's buttons. Plain shapes on a 16 square, used as masks
+     over the button's color (site.css) so they're the gray of the words
+     around them. Play and Pause are big, Mute and Unmute small. */
   --site-glyph-big:    32px;
   --site-glyph:        16px;
   --site-glyph-play:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 2v12l10-6z'/%3E%3C/svg%3E");
@@ -506,28 +641,25 @@
   --site-glyph-volume: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 5.5h3L8 2v12l-4-3.5H1z'/%3E%3Cpath d='M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3a6.5 6.5 0 0 1 0 10' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E");
   --site-glyph-mute:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 5.5h3L8 2v12l-4-3.5H1z'/%3E%3Cpath d='M10.5 5.5l4.5 5M15 5.5l-4.5 5' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E");
 
-  /* --- layers, inside the page -------------------------------- */
+  /* --- layers, inside the page ------------------------------ */
   --z-site-sky:  0;   /* the planets and stars, behind everything */
   --z-site-page: 1;   /* the panels */
-  --z-site-tools: 1;  /* the editor's buttons, over the post scrolling under
-                         them (inside the page) */
+  --z-site-tools: 1;  /* the editor's buttons, over the post scrolling under them */
 
   /* --- color ------------------------------------------------ */
   --site-bg:     #000000;
-  --site-panel:  rgba(0, 0, 0, 0.62);   /* a panel: dark enough for text, open
-                                          enough that the sky shows through */
+  --site-panel:  rgba(0, 0, 0, 0.62);   /* a panel, dark but letting the sky through */
   --site-field:  #060709;               /* a button, a card, a text box */
   --site-line:   #171b21;               /* hairlines */
   --site-line-2: #232931;               /* a text box's edge */
   --site-fg:     #e7eaef;               /* text */
-  --site-fg-2:   #98a2b0;               /* quieter text: descriptions, labels */
-  --site-fg-3:   #5e6874;               /* quietest: dates, the footer */
-  --site-shade:  rgba(0, 0, 0, 0.85);   /* behind the picture viewer: the page,
-                                          nearly out of sight */
+  --site-fg-2:   #98a2b0;               /* quieter text (descriptions, labels) */
+  --site-fg-3:   #5e6874;               /* quietest text (dates, the footer) */
+  --site-shade:  rgba(0, 0, 0, 0.85);   /* dims the page behind the picture viewer */
 
-  /* The multicolor: six hues, every one readable on black. Anything
-     that takes a color takes one of these, through a .hue-1 to
-     .hue-6 class; a blog or a flag keeps the same one everywhere. */
+  /* The multicolor. Six hues, all readable on black. Anything colored
+     uses one through a .hue-1 to .hue-6 class, and a blog or flag keeps
+     the same hue everywhere. */
   --site-hue-1: #ff6b6b;   /* red */
   --site-hue-2: #ffa94d;   /* orange */
   --site-hue-3: #ffd43b;   /* yellow */
@@ -537,7 +669,6 @@
 
   --site-stars:   0.6;     /* how strong the stars are */
   --site-stars-dim: 0.12;  /* ...at the dark of a twinkle */
-  --site-twinkle: 3.4s;    /* one twinkle; each star takes 0.6 to 1.5 of it */
-  --site-planets: 0.9;     /* ...and the planets: stronger, since the panels
-                              dim them wherever they pass behind one */
+  --site-twinkle: 3.4s;    /* one twinkle. Each star's is 0.6 to 1.5 times this */
+  --site-planets: 0.9;     /* ...and the planets, stronger since panels dim them */
 }

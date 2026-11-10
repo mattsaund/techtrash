@@ -5,13 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>File Browser</title>
   <script src="/js/app.js"></script>
+  <link rel="icon" href="/img/icons/xp/my-documents.png">
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/explorer.css">
+  <script type="module" src="files.js"></script>
 </head>
-<body class="app">
-  <main class="doc">
-    <h1>File Browser</h1>
-    <p>Everything saved on the site will show up here. Nothing's been saved yet.</p>
-  </main>
+<!--
+  The File Browser, XP's Explorer over the shared disk. files.js fills all
+  of this in.
+-->
+<body class="app explorer">
+  <nav class="menu-bar" aria-label="Menu"></nav>
+  <div class="toolbar">
+    <button class="tool" type="button" data-go="back" disabled><img src="/img/icons/xp/back.png" alt="">Back</button>
+    <button class="tool" type="button" data-go="forward" disabled><img src="/img/icons/xp/forward.png" alt="Forward"></button>
+    <button class="tool" type="button" data-go="up"><img src="/img/icons/xp/up.png" alt="Up"></button>
+    <span class="toolbar__rule"></span>
+    <button class="tool tool--drop" type="button" data-views>Views</button>
+  </div>
+  <form class="address">
+    <label for="address">Address</label>
+    <span class="address__field"><img alt=""><input id="address" autocomplete="off" spellcheck="false"></span>
+    <button class="tool" type="submit"><img src="/img/icons/xp/go.png" alt="">Go</button>
+  </form>
+  <div class="explorer__main">
+    <aside class="pane" aria-label="Tasks"></aside>
+    <main class="view" role="listbox" aria-multiselectable="true" tabindex="0" aria-label="Contents"></main>
+  </div>
+  <footer class="status-bar">
+    <span class="status-bar__field" data-count></span>
+    <span class="status-bar__field status-bar__field--size" data-size></span>
+  </footer>
+
+  <!-- XP's half-and-half blue tint on a selected icon, as on the desktop (css/xp.css). -->
+  <svg class="filters" aria-hidden="true">
+    <filter id="select-tint" color-interpolation-filters="sRGB">
+      <feFlood class="select-tint__flood"/>
+      <feComposite in2="SourceAlpha" operator="in" result="tint"/>
+      <feComposite in="tint" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
+    </filter>
+  </svg>
 </body>
 </html>

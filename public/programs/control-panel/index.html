@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control Panel</title>
+  <script src="/js/app.js"></script>
+  <link rel="icon" href="/img/icons/xp/control-panel.png">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/explorer.css">
+  <script type="module">
+    // XP's Control Panel in classic view, with an icon for each thing that
+    // can be set. Display changes everyone's wallpaper. The Admin Dashboard
+    // is mine, so it only shows for the admin.
+    const desktop = window.top === window ? null : window.top.desktop;
+    const view = document.querySelector(".view");
+    const rows = [...view.querySelectorAll(".file")];
+    if (desktop?.disk.admin) view.querySelector("[data-app=admin]").hidden = false;
+
+    const pick = (row) => rows.forEach((one) => one.setAttribute("aria-selected", String(one === row)));
+    view.addEventListener("pointerdown", (e) => pick(e.target.closest(".file")));
+    view.addEventListener("dblclick", (e) => {
+      const row = e.target.closest(".file");
+      if (row) desktop.open(row.dataset.app);
+    });
+    view.addEventListener("keydown", (e) => {
+      const shown = rows.filter((row) => !row.hidden);
+      const at = shown.findIndex((row) => row.getAttribute("aria-selected") === "true");
+      if (e.key === "Enter" && at !== -1) desktop.open(shown[at].dataset.app);
+      else if (e.key === "ArrowRight" || e.key === "ArrowDown") pick(shown[Math.min(shown.length - 1, at + 1)]);
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") pick(shown[Math.max(0, at - 1)]);
+      else return;
+      e.preventDefault();
+    });
+    view.focus();
+  </script>
+</head>
+<body class="app explorer">
+  <div class="address">
+    <span>Address</span>
+    <span class="address__field"><img src="/img/icons/xp/control-panel.png" alt=""><input value="Control Panel" readonly aria-label="Address"></span>
+  </div>
+  <div class="explorer__main">
+    <aside class="pane" aria-label="Tasks">
+      <section class="pane__box">
+        <h2 class="pane__head">Control Panel</h2>
+        <ul class="pane__list"><li class="pane__details">Double-click an icon to change that setting. The wallpaper is everyone's: change it, and everyone on the site sees it.</li></ul>
+      </section>
+    </aside>
+    <main class="view view--icons" role="listbox" tabindex="0" aria-label="Control Panel">
+      <div class="file" role="option" aria-selected="false" data-app="display">
+        <span class="file__picture"><img class="file__icon" src="/img/icons/xp/display-properties.png" alt=""></span>
+        <span class="file__name">Display</span>
+      </div>
+      <div class="file" role="option" aria-selected="false" data-app="datetime">
+        <span class="file__picture"><img class="file__icon" src="/img/icons/xp/date-time.png" alt=""></span>
+        <span class="file__name">Date and Time</span>
+      </div>
+      <div class="file" role="option" aria-selected="false" data-app="admin" hidden>
+        <span class="file__picture"><img class="file__icon" src="/img/icons/xp/admin-tools.png" alt=""></span>
+        <span class="file__name">Admin Dashboard</span>
+      </div>
+    </main>
+  </div>
+  <svg class="filters" aria-hidden="true">
+    <filter id="select-tint" color-interpolation-filters="sRGB">
+      <feFlood class="select-tint__flood"/>
+      <feComposite in2="SourceAlpha" operator="in" result="tint"/>
+      <feComposite in="tint" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
+    </filter>
+  </svg>
+</body>
+</html>

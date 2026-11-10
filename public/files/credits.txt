@@ -9,6 +9,20 @@ Windows XP icons
   github.com/ShizukuIchi/winXP
 
 
+WALLPAPERS
+
+Windows XP wallpapers
+  Microsoft.
+  github.com/WINNT-Moments/Windows-Wallpaper-Archive
+  Twelve of them bigger, from their original photos, by way of the
+  Windows XP HD Wallpaper Pack (WindowsSenpai):
+  deviantart.com/windowssenpai/art/Windows-XP-HD-Wallpaper-Pack-776806652
+  Photographers: Charles O'Rear (Bliss, Red moon desert), Bill Ross (Azul,
+  Tulips), Peter Burian (Autumn), Warren Morgan (Follow), Chris Carroll
+  (Friend), Roger Ressmeyer (Radiance, Stonehenge), Tim Alt (Vortec space),
+  Jeff Vanuga (Wind).
+
+
 FONTS
 
 Tahoma (from Wine)
@@ -51,3 +65,21 @@ turndown and turndown-plugin-gfm (the editor's Markdown view)
   Dom Christie.
   MIT: /pages/blog/vendor/turndown-LICENSE.txt
   github.com/mixmark-io/turndown
+
+
+PAINT
+
+JS Paint (MS Paint, remade for the web)
+  Isaiah Odhner.
+  MIT: /programs/paint/jspaint/LICENSE.txt
+  github.com/1j01/jspaint
+  And the libraries it uses, each open source under its own license:
+  jQuery, OS-GUI.js, 98.css, gif.js, pako, UPNG.js, UTIF.js,
+  AnyPalette.js, FileSaver.js, libtess.js and ImageTracer.js.
+
+
+NOTEPAD++
+
+Notepad++
+  Don Ho.
+  notepad-plus-plus.org

@@ -1,60 +1,55 @@
-// techtrash.org : the sky behind the website, drawn with cosmos.js.
+// The sky behind the website. Four planets and two asteroids made with
+// cosmos.js (cosmos/planet.js, copied unchanged from
+// github.com/mattsaund/cosmos.js), each turning slowly, and a scatter of
+// twinkling stars in the six hues. The sky stays put while the page scrolls,
+// so every planet is on screen from the start.
 //
-// Four planets and two asteroids made with cosmos.js (cosmos/planet.js,
-// copied unchanged from github.com/mattsaund/cosmos.js), each turning slowly,
-// and a scatter of stars in the six hues, twinkling. The sky stays put while
-// the page scrolls over it, so every planet is on screen from the start.
+// Each body runs its own copy of the cosmos.js script, cache and all.
+// cosmos.js caches the part of a frame that doesn't turn (its view cache) for
+// one body at a time, so six bodies sharing one would rebuild it for every
+// body on every frame.
 //
-// Each body gets a cosmos.js of its own. cosmos.js keeps the part of a frame
-// that doesn't turn (its view cache) for one body at a time, so six bodies
-// taking turns with one would build it again for every one, every frame;
-// each run of the script is a cosmos.js of its own, cache and all. Each is
-// told the shape of a glyph in the font the planets are actually drawn in
-// (setAspect), so a round planet comes out round: measured once the page's
-// styles and the font have both arrived, and then checked against the planets
-// as they're really drawn (keepRound): right after the first frame, whenever
-// a font finishes loading, when the window changes size, and every couple of
-// seconds besides. Drawn in any other shape (a phone can run this before its
-// styles or its font have reached the page, and the planets come out wide),
-// they're built again for the real one.
+// cosmos.js needs the shape of a glyph in the planets' real font (setAspect)
+// to draw a round planet round. It's measured once the page's styles and the
+// font have both arrived, then checked against the planets as actually drawn
+// (keepRound) after the first frame, when a font loads, on resize, and every
+// couple of seconds. If it's off (a phone can run this before its styles or
+// font arrive, and the planets come out wide), they're rebuilt for the real
+// one.
 //
-// The planets are drawn at twice the rows the editor would use, in glyphs
-// half the size (site.css scales them by --site-art-scale): the same size on
-// screen, with twice the detail.
+// Planets are drawn at twice the rows the editor would use, in glyphs half
+// the size (site.css scales them by --site-art-scale). Same size on screen,
+// twice the detail.
 //
-// The asteroids keep to the sides: each sits in the empty strip of window
-// beside the page's column (left or right), as big as it can be there, up to
-// the planets' size. Where the strip is too thin for even a small one (a
-// phone), it isn't drawn at all, rather than over the words.
+// The asteroids keep to the empty strips beside the page's column, as big as
+// fits there, up to the planets' size. If a strip is too thin (a phone), the
+// asteroid isn't drawn at all rather than covering the words.
 //
-// No star lands on a planet: before the stars go out, each planet is turned a
-// full circle to find every place it ever covers (rings, and the bumps of a
-// lumpy one, included), and a star that would fall there goes somewhere else.
-// They're placed again when the window changes size, since the planets move
-// with it.
+// No star lands on a planet. Each planet is first turned a full circle to
+// find every spot it ever covers (rings and lumps included), and stars stay
+// off those. They're placed again on resize, since the planets move with the
+// window.
 //
 // To change a planet, tune it in the cosmos.js editor (msaunders.dev/cosmos)
-// and copy its settings into PLANETS: they're the editor's own settings, by
-// the same names. Three things come from the site instead of the editor: its
-// frame (rows, doubled as above, and wide, the frame's width over its
-// height), its color, which is a hue class so it stays one of the six, and
-// where it sits, its .planet--N rule in site.css. zoom is the editor's, but
-// past 1 here: the ringed one's frame is cut close around its rings as they
-// lie, the way it looked before cosmos.js cut every frame for rings at their
-// widest.
+// and copy its settings into PLANETS under the same names. Three things come
+// from the site instead: the frame (rows, doubled as above, and wide, its
+// width over its height), the color (a hue class, so it stays one of the six)
+// and the position (its .planet--N rule in site.css). zoom is the editor's
+// setting too, but goes past 1 here. The ringed one's frame is cut close
+// around its rings as they lie, the way it looked before cosmos.js started
+// cutting every frame for rings at their widest.
 //
-// Someone who's asked their computer for less motion gets the sky standing
-// still: no turning, no twinkling.
+// With reduced motion on, the sky stands still (no turning, no twinkling).
 
 const PLANETS = [
   { place: "planet--1", hue: "hue-6", rows: 88, wide: 1.847, texture: "gas", zoom: 1.926, brightness: 1.3, rings: true, tilt: 0.42, roll: -0.35, speed: 0.05, seed: 1994 },
   { place: "planet--2", hue: "hue-2", rows: 60, wide: 1, texture: "lava", zoom: 1, brightness: 1.3, tilt: 0.20, roll: 0.30, speed: 0.08, seed: 20260929 },
   { place: "planet--3", hue: "hue-5", rows: 52, wide: 1, texture: "ice", zoom: 1, brightness: 1.3, tilt: 0.50, roll: 0.10, speed: 0.07, direction: -1, seed: 1969 },
   { place: "planet--4", hue: "hue-4", rows: 36, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 22, lumpiness: 0.25, speed: 0.11, seed: 42 },
-  // two asteroids: lumpy, potato-shaped rocks, tumbling quicker than the planets
-  // turn. side, across and at say where: which side of the page, how far across
-  // that strip of window from its edge (1 is up against the page), and how far
-  // down the window.
+  // Two asteroids, lumpy potato-shaped rocks that tumble faster than the
+  // planets turn. side is which side of the page, across is how far across
+  // that strip from the window's edge (1 is up against the page), and at is
+  // how far down the window.
   { place: "planet--5", hue: "hue-3", side: "right", across: 0.5, at: 0.42, rows: 51, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 24, lumpiness: 1.5, tilt: 0.70, roll: 0.90, speed: 0.20, seed: 99942 },
   { place: "planet--6", hue: "hue-1", side: "left", across: 0.7, at: 0.12, rows: 51, wide: 1, texture: "rock", zoom: 1, brightness: 1.3, craters: 18, lumpiness: 1.7, tilt: 0.70, roll: 0.90, speed: 0.16, direction: -1, seed: 1221 },
 ];
@@ -63,14 +58,14 @@ const COSMOS = "/pages/blog/sky/cosmos/planet.js";
 const STARS = 150;
 const STAR_GLYPHS = [".", ".", ".", ".", ".", "+", "*"];
 const STAR_SEED = 2026;   // the same sky on every visit
-const FRAME_MS = 100;     // the planets turn slowly: ten frames a second is plenty
-const TURNS = 16;         // how many angles a planet is looked at, to find all it covers
-const CLEAR = 6;          // how far, in pixels, a star stays from a planet
+const FRAME_MS = 100;     // the planets turn slowly, so ten frames a second is plenty
+const TURNS = 16;         // angles a planet is sampled at, to find all it covers
+const CLEAR = 6;          // pixels a star keeps from a planet
 const ROCK_AIR = 12;      // ...and an asteroid from the page's column and the window's edge
 const ROCK_LEAST = 40;    // an asteroid smaller than this, in pixels, isn't drawn
-const SHAPE_SLACK = 0.02; // how far the glyphs as drawn can be from the shape the planets
-                          // were built for (2%) before they're built again
-const RECHECK_MS = 2000;  // ...and how often that's looked at, whatever else happens
+const SHAPE_SLACK = 0.02; // how far (2%) the drawn glyph shape can drift from the one
+                          // the planets were built for before they're rebuilt
+const RECHECK_MS = 2000;  // ...and how often that's checked, whatever else happens
 
 const sky = document.querySelector(".sky");
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -88,8 +83,8 @@ function seeded(seed) {
 
 // --- planets -------------------------------------------------------------------
 
-// A cosmos.js of its own: the script, run again. (One at a time, so each
-// Cosmos it leaves behind is caught before the next one's run.)
+// A fresh cosmos.js, by running the script again. One at a time, so each
+// window.Cosmos it leaves is caught before the next run replaces it.
 const cosmos = () => new Promise((resolve, reject) => {
   const script = document.createElement("script");
   script.src = COSMOS;
@@ -102,14 +97,14 @@ const cosmos = () => new Promise((resolve, reject) => {
 });
 
 // Has the page's styling reached this <pre>? Until it has, it measures as
-// anything: the window's width, a line of the browser's own 13px text.
+// anything (the window's width, a line of the browser's own 13px text).
 const styled = (pre) => getComputedStyle(pre).position === "absolute";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// The shape of a glyph the planets are drawn in, as cosmos.js wants it: its
-// width over its height. Measured in the font itself, once the page's styles
-// and the font have both arrived (either one missing would measure whatever
-// stands in for it), for up to 5 seconds of waiting for the styles.
+// The shape of the planets' glyph as cosmos.js wants it, width over height.
+// Measured in the real font once the page's styles and the font have both
+// arrived (without either it would measure a stand-in). Waits up to 5 seconds
+// for the styles.
 async function glyphShape() {
   const probe = document.createElement("pre");
   probe.className = "planet";
@@ -124,13 +119,12 @@ async function glyphShape() {
   return width / 100 / (height / 10);
 }
 
-// A planet built for glyphs of this shape, and every glyph it covers at any
-// angle. (cosmos.js turns away a shape no font has, and keeps the one it had.)
+// Builds a planet for glyphs of this shape and finds every glyph it covers at
+// any angle. (cosmos.js ignores a shape no font has and keeps its old one.)
 function build(planet, shape) {
   const { renderer } = planet;
   renderer.setAspect(shape);
   const body = renderer.build(planet.cfg, planet.grid);
-  // every glyph the planet covers at any angle
   const covers = new Uint8Array(body.rows * body.cols);
   for (let i = 0; i < TURNS; i++) {
     renderer.render(body, (i / TURNS) * 2 * Math.PI).split("\n").forEach((line, row) => {
@@ -164,8 +158,8 @@ let built = await glyphShape();   // the shape the planets are built for
 for (const planet of planets) build(planet, built);
 built = planets[0].renderer.aspect();
 
-// Each asteroid in its strip of window beside the page, where it says
-// (across, at), as big as fits (up to the planets' size), or not at all.
+// Puts each asteroid in its strip beside the page (where across and at say),
+// as big as fits (up to the planets' size), or hides it if there's no room.
 function placeAsteroids() {
   const page = document.querySelector(".page");
   const pad = parseFloat(getComputedStyle(page).paddingLeft);
@@ -174,8 +168,8 @@ function placeAsteroids() {
   const most = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--site-art-scale"));
   for (const rock of planets.filter((planet) => planet.side)) {
     const { pre, body, box } = rock;
-    // its own size, before scaling: the frame's, and the rock's in it (measured
-    // drawn: one left out last time measures nothing)
+    // its size before scaling, the frame's and the rock's in it (shown first,
+    // since one hidden last time measures nothing)
     pre.hidden = false;
     const glyphWide = pre.offsetWidth / body.cols;
     const glyphTall = pre.offsetHeight / body.rows;
@@ -185,8 +179,8 @@ function placeAsteroids() {
     const scale = Math.min(most, (strip - 2 * ROCK_AIR) / wide, (window_.height / 2 - ROCK_AIR) / tall);
     pre.hidden = !(scale * Math.max(wide, tall) >= ROCK_LEAST);
     if (pre.hidden) continue;
-    // the rock's middle, in its frame, goes where it says in the strip, all of
-    // it inside the strip and the window
+    // the rock's middle goes where it says in the strip, with all of it kept
+    // inside the strip and the window
     const x = ((box.left + box.right) / 2) * glyphWide;
     const y = ((box.top + box.bottom) / 2) * glyphTall;
     const half = (scale * wide) / 2;
@@ -200,7 +194,7 @@ function placeAsteroids() {
   }
 }
 
-// Every planet showing (or every one at all), turned to where it is at seconds.
+// Draws every planet showing (or all of them), turned to where it is at seconds.
 let drawnAt = 0;
 function draw(seconds, all = false) {
   drawnAt = seconds;
@@ -209,10 +203,9 @@ function draw(seconds, all = false) {
   }
 }
 
-// The glyphs as they're really drawn, read off the biggest planet showing. If
-// that isn't the shape the planets were built for, they're built again for
-// the real one (and drawn, and the asteroids and stars placed again around
-// them), and it says so.
+// Reads the real glyph shape off the biggest planet showing. If it isn't the
+// shape the planets were built for, rebuilds them for it, redraws, places the
+// asteroids and stars again, and returns true.
 function keepRound() {
   const planet = planets.filter((p) => !p.pre.hidden && styled(p.pre)).sort((a, b) => b.body.cols - a.body.cols)[0];
   if (!planet) return false;
@@ -248,13 +241,13 @@ function onPlanet(x, y, shapes) {
 
 // --- stars ---------------------------------------------------------------------
 
-// What each star is stays the same; where it is depends on where the planets are.
+// Each star's look is fixed. Where it goes depends on where the planets are.
 const looks = seeded(STAR_SEED);
 const stars = Array.from({ length: STARS }, () => {
   const star = document.createElement("span");
   star.className = `star hue-${1 + Math.floor(looks() * 6)}`;
   star.textContent = STAR_GLYPHS[Math.floor(looks() * STAR_GLYPHS.length)];
-  // its own twinkle: how fast, and where in it it starts
+  // its own twinkle speed and starting point
   star.style.setProperty("--pace", (0.6 + looks() * 0.9).toFixed(2));
   star.style.setProperty("--start", looks().toFixed(2));
   sky.append(star);
@@ -280,8 +273,8 @@ function placeStars() {
   }
 }
 
-// Again whenever the window's size changes: a scroll bar coming or going
-// moves the page's column too.
+// Places everything again whenever the window's size changes. A scroll bar
+// coming or going moves the page's column too.
 let resizing;
 new ResizeObserver(() => {
   clearTimeout(resizing);

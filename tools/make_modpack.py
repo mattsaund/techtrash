@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-make_modpack.py : builds public/files/create-mod-all.mrpack, the server's
-modpack, from the Prism Launcher instance it's played in.
+Builds public/files/create-mod-all.mrpack, the Minecraft server's modpack,
+from the Prism Launcher instance it's played in.
 
-A Modrinth pack (.mrpack) is a zip with one file in it, modrinth.index.json:
-which Minecraft and which mod loader, and every mod with its hashes and the
-address Modrinth serves it from. A launcher reads it, makes a fresh instance,
-and downloads each mod from Modrinth itself, checking it against its hashes.
-So the pack is a few dozen KB, and it hands out nobody's jars.
+A Modrinth pack (.mrpack) is a zip holding one file, modrinth.index.json. It
+names the Minecraft version and the mod loader, and lists every mod with its
+hashes and the address Modrinth serves it from. A launcher reads it, makes a
+fresh instance, and downloads each mod from Modrinth itself, checking it
+against its hashes. So the pack is a few dozen KB and hands out nobody's jars.
 
-It carries nothing else: no configs (every mod writes its own defaults the
-first time it runs), no settings, worlds, caches, resource packs or server
-list. Importing it gives a fresh instance with the mods, and nothing of the
-instance it was made from.
+It carries nothing else. No configs (every mod writes its own defaults the
+first time it runs), and no settings, worlds, caches, resource packs or
+server list. Importing it gives a fresh instance with the mods and nothing
+of the instance it was made from.
 
-Every mod has to have come from Modrinth (installed through Prism's mod
-browser, which records where each one came from in mods/.index). Before
+Every mod has to have come from Modrinth, installed through Prism's mod
+browser, which records where each one came from in mods/.index. Before
 anything is written, each jar on disk is checked against Prism's record of
 it, and Modrinth is asked to confirm every file by its hash, so the pack
 points at exactly the jars the instance runs.
@@ -23,9 +23,10 @@ points at exactly the jars the instance runs.
     python3 tools/make_modpack.py                    # the default instance
     python3 tools/make_modpack.py "<instance folder>" [--version 2026.11.02]
 
-Python 3.11 or newer, nothing to install. Players import the result in Prism
-(Add Instance, Import, paste https://techtrash.org/files/create-mod-all.mrpack)
-or open it with the Modrinth App.
+Needs Python 3.11 or newer (for tomllib) and nothing else. Players import
+the result in Prism (Add Instance, Import, paste
+https://techtrash.org/files/create-mod-all.mrpack) or open it with the
+Modrinth App.
 """
 import argparse
 import datetime
@@ -46,7 +47,7 @@ SUMMARY = "Create and its addons, for Minecraft 1.21.1 on NeoForge."
 
 # The hosts a launcher will download a pack's files from (the .mrpack format's own list).
 HOSTS = {"cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com"}
-# Prism's names for the game and the loaders, as the format names them.
+# Prism's names for the game and the loaders, and what the format calls them.
 LOADERS = {
     "net.minecraft": "minecraft",
     "net.neoforged": "neoforge",
@@ -105,7 +106,7 @@ def main():
     if "minecraft" not in dependencies or len(dependencies) < 2:
         fail(f"couldn't tell the Minecraft version and the loader from mmc-pack.json: {dependencies}")
 
-    # Prism's record of each mod: where it came from, and its hash
+    # Prism's record of each mod, with where it came from and its hash
     records = {}
     for path in (mods / ".index").glob("*.pw.toml"):
         record = tomllib.loads(path.read_text())

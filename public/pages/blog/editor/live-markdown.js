@@ -1,45 +1,37 @@
-// techtrash.org : the editor's Markdown, written live.
+// The editor's Markdown mode, drawn live the way Obsidian does it. The line
+// the cursor is on shows its Markdown, every character of it. Every other
+// line is drawn the way it'll look (headings, bold, links, pictures, players)
+// with its marks hidden.
 //
-// Markdown the way Obsidian shows it: the line the cursor's on is the
-// Markdown itself, every character of it, and every other line is drawn the
-// way it'll look (a heading big, bold words bold, a link as a link, a picture
-// as the picture, a video's link as its player), with the marks that make it
-// so out of sight. Move off a line and it's drawn; move onto one and it's
-// Markdown again.
+// The box holds every character of the Markdown, one line per div, and only
+// styles it. Marks are spans that site.css hides on lines the cursor isn't
+// on, and pictures and players are drawn beside their source as parts that
+// aren't text. So the cursor, a selection and the browser's own typing all
+// work on the Markdown itself, and moving the cursor only changes which lines
+// show their marks. After each change, only the lines that changed are drawn
+// again.
 //
-// The box holds the Markdown's own characters, all of them, a line to a div,
-// and only styles them: a mark is a span site.css hides on a line the cursor
-// isn't on, and a picture or a player is drawn beside its source, as a part
-// that isn't text. So the cursor, a selection and the browser's own typing
-// all work on the Markdown itself, and moving the cursor changes nothing but
-// which lines show their marks. After each change, the lines that changed are
-// drawn again.
+// A click picks a picture (or a player, by its bar) for editor.js to work
+// on, and pictureChanged() or playerChanged() writes it back into its line.
+// It has its own Undo and Redo (history.js).
 //
-// A picture's picked with a click (editor.js's picture row and its corners
-// work on it, then pictureChanged() writes it back into its line: as Markdown,
-// or as an <img> when it has a size or a place of its own), and so is a
-// player, by its bar. Enter carries a list or a quote on, and Enter on an empty
-// item ends it. Ctrl+B and Ctrl+I make words bold or italic. Undo and Redo are
-// its own (history.js). A paste is its words, as they are; from another page,
-// made Markdown.
-//
-// createLiveMarkdown({ onChange, onFiles, toMarkdown, short }) gives back
+// createLiveMarkdown({ onChange, onFiles, toMarkdown, short }) returns
 //   { element, text(), setText(text), insert(text), focus(), owns(node),
 //     column(), pictureChanged(img), playerChanged(box), moveLine(node, up),
 //     removeSource(node), undo(), redo() }
-// where onFiles(files) is told of files pasted or dropped in (the cursor's
-// where they were dropped), and toMarkdown(html) makes a paste from another
-// page Markdown.
+// onFiles(files) gets files pasted or dropped in (with the cursor moved to
+// where they were dropped), and toMarkdown(html) turns a paste from another
+// page into Markdown.
 
 import { fenceCloses, fenceOpens, PICTURE_PLACES, playerElement, playerFor, sizePlayer, SOUND_FILE, widthOf } from "../content.js";
 import { createHistory } from "./history.js";
 import { el } from "../util.js";
 
-// a copy from this box, pasted back in: its own words, as they are
+// marks a copy from this box, so pasting it back keeps the words as they are
 const OWN = "application/x-techtrash-markdown";
-// pictures come from the web or this site, as content.js has it
+// pictures only load from the web or this site, as in content.js
 const SAFE_ADDRESS = /^(?:https?:|\/(?!\/)|#|\?)/i;
-const parser = new DOMParser();   // its documents aren't shown, and load nothing
+const parser = new DOMParser();   // its documents aren't shown and load nothing
 
 // --- drawing a line --------------------------------------------------------------
 
@@ -47,7 +39,7 @@ const text = (value) => document.createTextNode(value);
 const span = (look, ...content) => el("span", { class: look }, content.flat().map((part) => (typeof part === "string" ? text(part) : part)));
 const mark = (value) => span("md-mark", value);
 
-// A part that isn't text: a picture, a player, a divider, drawn for the
+// A part that isn't text (a picture, a player, a divider), drawn for the
 // characters [start, end) of its line. It isn't part of the Markdown.
 function widget(node, start, end, inline = true) {
   const part = inline ? el("span", {}, node) : node;
@@ -58,9 +50,8 @@ function widget(node, start, end, inline = true) {
   return part;
 }
 
-// Words, and what's inside them: code, pictures, links, bold, italic,
-// strikethrough, a hue, underline, any other HTML, and bare addresses.
-// The earliest match wins, in this order where two start together.
+// What a line's words can hold. The earliest match wins, and where two start
+// at the same place, the first in this list.
 const INLINE = [
   ["code", /`([^`]+)`/y],
   ["image", /!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/y],
@@ -75,7 +66,7 @@ const INLINE = [
   ["address", /https?:\/\/[^\s<>]*[^\s<>.,;:!?)\]'"]/y],
 ];
 
-// Words, drawn into out; base is where they start in their line.
+// Draws words into out. base is where they start in their line.
 function inline(words, base, out) {
   let plain = "";
   const flush = () => {
@@ -127,8 +118,8 @@ function attributesOf(tag) {
   return img ? { src: img.getAttribute("src"), alt: img.getAttribute("alt"), width: img.getAttribute("width"), place: img.getAttribute("class") } : {};
 }
 
-// A picture's source (out of sight on a line the cursor isn't on), and the
-// picture, at its own width and in its place.
+// A picture's source (hidden unless the cursor's on its line), and the
+// picture itself, at its own width and in its place.
 function picture(source, at, { src, alt, width, place }) {
   const out = [span("md-source", source)];
   if (src && SAFE_ADDRESS.test(src.trim())) {
@@ -143,8 +134,8 @@ function picture(source, at, { src, alt, width, place }) {
 }
 
 // A line that's a player: a video's or a song's link on its own, a sound
-// uploaded here (linked by its name: [One More Time](/blog/sound/...)), or
-// either at a width of its own, the way a post keeps it (<p data-width>).
+// uploaded here (linked by its name, as in [One More Time](/blog/sound/...)),
+// or either one at its own width, the way a post keeps it (<p data-width>).
 // title is a sound's name.
 function playerLine(line) {
   let address = line.match(/^\s*(https?:\/\/\S+)\s*$/)?.[1];
@@ -163,8 +154,8 @@ function playerLine(line) {
   return player ? { player, address, width, title } : null;
 }
 
-// One line drawn, given the code fence it's in (if it's in one). Gives back
-// the line, and the fence the next one's in.
+// Draws one line, given the code fence it's in (if any). Returns the line and
+// the fence the next line is in.
 function drawLine(line, fence, tools) {
   const node = el("div", { class: "md-line" });
   const out = [];
@@ -187,7 +178,8 @@ function drawLine(line, fence, tools) {
     kind = "rule";
     out.push(span("md-source", line), widget(el("span", { class: "md-rule" }), 0, line.length));
   } else if ((m = line.match(/^(#{1,6})(\s+)(.*)$/))) {
-    // "#" is a post's top heading (h2: its title is the h1), "####" and down its smallest
+    // "#" is a post's top heading (h2, since its title is the h1), and
+    // "####" or more is h4, the smallest
     kind = `h${Math.min(4, Math.max(2, m[1].length))}`;
     out.push(mark(m[1] + m[2]));
     inline(m[3], m[1].length + m[2].length, out);
@@ -208,7 +200,7 @@ function drawLine(line, fence, tools) {
   }
   node.classList.add(`md-${kind}`);
   node.append(...out.filter((part) => part !== "").map((part) => (typeof part === "string" ? text(part) : part)));
-  if (!line) node.append(el("br"));   // an empty line, held open
+  if (!line) node.append(el("br"));   // holds an empty line open
   node.dataset.before = fence ?? "";
   node.dataset.after = after ?? "";
   return { node, after };
@@ -232,7 +224,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
   const whole = () => lines.join("\n");
   const ordered = ([a, b]) => (a <= b ? [a, b] : [b, a]);
 
-  // what a player's drawn as here: the player, and a bar to pick it by
+  // a player as it's drawn here, with a bar to pick it by
   const tools = {
     player({ player, address, width, title }) {
       const frame = sizePlayer(playerElement(player, title), width);
@@ -248,7 +240,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     },
   };
 
-  // --- the lines, drawn ------------------------------------------------------------
+  // --- the lines, drawn ----------------------------------------------------------
 
   function drawAll() {
     const nodes = [];
@@ -261,9 +253,9 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     box.replaceChildren(...nodes);
   }
 
-  // The box's nodes [from, upTo) out, and lines [from, from + count) drawn in
-  // their place; then any after them that a code fence opening or closing has
-  // moved in or out of code.
+  // Replaces the box's nodes [from, upTo) with lines [from, from + count),
+  // drawn again. Then redraws any lines after them that a code fence opening
+  // or closing has moved in or out of code.
   function redraw(from, upTo, count) {
     let fence = (from > 0 && box.childNodes[from - 1]?.dataset?.after) || null;
     const fresh = [];
@@ -286,10 +278,10 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     }
   }
 
-  // The lines a node of the box holds, as text (a browser's change can leave
-  // anything): its words, not a picture's or a player's; a line break where a
-  // <br> or a block inside it breaks it (not a <br> that only holds an empty
-  // line open, last in its line).
+  // A node of the box read back as lines of text (the browser's edits can
+  // leave anything in it). Pictures and players don't count. A <br> or a
+  // block inside it starts a new line, except a last <br> that only holds an
+  // empty line open.
   function linesOf(node) {
     if (node.nodeType === Node.TEXT_NODE) return node.data.replace(/\u00a0/g, " ").split("\n");
     const out = [""];
@@ -309,7 +301,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     return out;
   }
 
-  // Where a point in the box is, as how far into the Markdown.
+  // A point in the box, as how far into the Markdown it is.
   function offsetOf(node, offset) {
     const range = document.createRange();
     range.setStart(box, 0);
@@ -322,7 +314,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     if (!s.rangeCount || !box.contains(s.anchorNode) || !box.contains(s.focusNode)) return null;
     return [offsetOf(s.anchorNode, s.anchorOffset), offsetOf(s.focusNode, s.focusOffset)];
   }
-  // ...and back: the line, and the place in its words
+  // ...and back, as a node and a place in its line's words
   function point(offset) {
     let left = Math.max(0, Math.min(offset, whole().length));
     let i = 0;
@@ -354,8 +346,8 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     while (node && node.parentNode !== box) node = node.parentNode;
     return node ? Array.prototype.indexOf.call(box.children, node) : -1;
   };
-  // (only while the box has the cursor: Firefox leaves its selection in the
-  // box when a field, like the title, is clicked)
+  // (only while the box has the cursor, since Firefox leaves its selection in
+  // the box when another field, like the title, is clicked)
   function markActive() {
     const s = getSelection();
     let [from, to] = [-1, -1];
@@ -368,7 +360,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
   box.addEventListener("focus", markActive);
   box.addEventListener("blur", markActive);
 
-  // --- changes -----------------------------------------------------------------------
+  // --- changes -------------------------------------------------------------------
 
   function changed() {
     box.classList.toggle("is-empty", !whole().trim());
@@ -376,8 +368,8 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     onChange();
   }
 
-  // New lines in place of the old, drawing only those that changed, and the
-  // cursor (or a selection) where it's said to go.
+  // Swaps in new lines, drawing again only those that changed, and puts the
+  // cursor (or a selection) at `at`.
   function commit(next, at) {
     if (!next.length) next = [""];
     let a = 0;
@@ -394,14 +386,16 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     markActive();
     changed();
   }
-  // The Markdown from start to end replaced, the cursor after what went in.
+  // Replaces the Markdown from start to end with words, and puts the cursor
+  // after them.
   function replace(start, end, words, caret = start + words.length) {
     const all = whole();
     commit((all.slice(0, start) + words + all.slice(end)).split("\n"), [caret, caret]);
   }
 
-  // After the browser's own change (typing, deleting): the lines it touched,
-  // read back as Markdown and drawn again, the cursor where it was.
+  // After the browser's own change (typing, deleting), reads the lines it
+  // touched back as Markdown and draws them again, with the cursor kept where
+  // it was.
   function update() {
     for (const node of [...box.childNodes]) if (node.nodeType === Node.TEXT_NODE && !node.data) node.remove();
     const at = selection();
@@ -436,9 +430,9 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     update();
   });
 
-  // Enter: a new line, carrying a list or a quote on. An empty item ends it,
-  // with an empty line after it, so what's written next is a paragraph of its
-  // own (straight under an item, it'd be more of that item).
+  // Enter starts a new line, carrying a list or a quote on. Enter on an empty
+  // item ends it with an empty line, so what's written next is a paragraph of
+  // its own (right under an item, it would be more of that item).
   function enter() {
     const at = selection();
     if (!at) return;
@@ -458,7 +452,8 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     replace(start, end, `\n${carry}`);
   }
 
-  // Words made bold, italic or underlined (or the marks, with the cursor between them).
+  // Wraps the selected words in marks (bold, italic, underline), or with
+  // nothing selected, puts in the marks with the cursor between them.
   function wrap(open, close = open) {
     const at = selection();
     if (!at) return;
@@ -467,7 +462,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     replace(start, end, open + words + close, start === end ? start + open.length : end + open.length + close.length);
   }
 
-  // Tab on a list's item: a step in (Shift+Tab: a step out).
+  // Tab moves a list item a step in, and Shift+Tab a step out.
   function indent(out) {
     const at = selection();
     if (!at) return false;
@@ -485,9 +480,9 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     return true;
   }
 
-  // Backspace at a line's start (or Delete at its end) takes out the line
-  // break, and only it: the browsers' own would take a drawn picture or player
-  // with it (Firefox, the line's words too).
+  // Backspace at a line's start (or Delete at its end) takes out just the line
+  // break. The browsers' own would take a drawn picture or player with it
+  // (and in Firefox, the line's words too).
   function joinLines(back) {
     const at = selection();
     if (!at || at[0] !== at[1]) return false;
@@ -499,7 +494,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
   }
 
   box.addEventListener("beforeinput", (e) => {
-    // (a phone's keyboard: no keydown first)
+    // (a phone's keyboard sends no keydown first)
     if ((e.inputType === "deleteContentBackward" || e.inputType === "deleteContentForward") && !composing) {
       if (joinLines(e.inputType === "deleteContentBackward")) e.preventDefault();
       return;
@@ -536,9 +531,9 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     else if ((e.key === "Backspace" || e.key === "Delete") && !composing && !e.altKey && joinLines(e.key === "Backspace")) e.preventDefault();
   });
 
-  // A click on a picture or a player picks it (editor.js): the cursor stays put.
-  // A divider has nothing to pick: a click on it puts the cursor at the end of
-  // its line, to show its --- (and take it out).
+  // A click on a picture or a player picks it (editor.js) and leaves the
+  // cursor alone. A divider has nothing to pick, so a click on it puts the
+  // cursor at the end of its line, showing its --- to take it out.
   box.addEventListener("mousedown", (e) => {
     const part = e.target.closest(".md-widget");
     if (!part || e.target.closest("button")) return;
@@ -551,7 +546,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     markActive();
   });
 
-  // --- copy, cut, paste, drag and drop: the Markdown's own words ----------------------
+  // --- copy, cut, paste, drag and drop, as Markdown ------------------------------
 
   function copy(e, cut) {
     const at = selection();
@@ -594,7 +589,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     return box.contains(node) ? offsetOf(node, offset) : null;
   }
   box.addEventListener("dragstart", (e) => {
-    if (e.target.closest?.(".md-widget")) return e.preventDefault();   // a picture isn't dragged about: Up and Down move it
+    if (e.target.closest?.(".md-widget")) return e.preventDefault();   // pictures aren't dragged (Up and Down move them)
     const at = selection();
     if (!at) return;
     dragging = ordered(at);
@@ -614,7 +609,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     const words = e.dataTransfer.getData("text/plain");
     if (!words || at == null) return;
     if (dragging && e.dataTransfer.types.includes(OWN)) {
-      // words moved: out of where they were, in where they're dropped
+      // words dragged within the box move rather than copy
       const [start, end] = dragging;
       dragging = null;
       if (at >= start && at <= end) return;
@@ -625,7 +620,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     } else replace(at, at, words);
   });
 
-  // --- pictures and players, picked in editor.js -------------------------------------
+  // --- pictures and players, picked in editor.js ---------------------------------
 
   // the line a picture or a player is drawn on, and where its source is in it
   function sourceOf(node) {
@@ -634,7 +629,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     if (!line || line.parentNode !== box) return null;
     return { index: lineIndex(line), start: Number(part.dataset.start), end: Number(part.dataset.end) };
   }
-  // the same one, drawn again
+  // the same picture or player, once it's drawn again
   const again = (index, start) => {
     const part = [...(box.children[index]?.querySelectorAll(".md-widget") ?? [])].find((p) => Number(p.dataset.start) === start);
     return part?.matches(".embed") ? part : part?.querySelector("img") ?? null;
@@ -649,8 +644,8 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     commit(next, selection());
     return again(at.index, at.start);
   }
-  // A picture's source, from what's been made of it: Markdown, or an <img>
-  // once it has a width or a place of its own. Gives back the picture drawn again.
+  // Writes a picture back into its line, as Markdown, or as an <img> once it
+  // has a width or a place of its own. Returns the picture, drawn again.
   function pictureChanged(img) {
     const src = img.getAttribute("src");
     const alt = img.getAttribute("alt") ?? "";
@@ -660,15 +655,15 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
       ? `<img src="${quote(src)}" alt="${quote(alt)}"${width ? ` width="${width}"` : ""}${place ? ` class="${place}"` : ""}>`
       : `![${alt.replace(/[[\]]/g, "")}](${src})`);
   }
-  // A player's line, from its width: its link alone (a sound's, by its name),
-  // or at its width.
+  // Writes a player back into its line, as its link alone (a sound's by its
+  // name), or as a <p data-width> once it has a width of its own.
   function playerChanged(frame) {
     const { address, title } = frame.dataset;
     const width = widthOf(frame.dataset.width);
     if (width) return rewrite(frame, `<p data-width="${width}"><a href="${quote(address)}">${quote(title ?? address)}</a></p>`);
     return rewrite(frame, title ? `[${title.replace(/[[\]]/g, "")}](${address})` : address);
   }
-  // Its line, up or down one.
+  // Moves a picture's or a player's line up or down one.
   function moveLine(node, up) {
     const at = sourceOf(node);
     if (!at) return node;
@@ -679,7 +674,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     commit(next, null);
     return again(to, at.start);
   }
-  // Its source out (and its line, if that leaves nothing on it).
+  // Takes its source out, and its line too if that leaves nothing on it.
   function removeSource(node) {
     const at = sourceOf(node);
     if (!at) return;
@@ -690,7 +685,7 @@ export function createLiveMarkdown({ onChange = () => {}, onFiles = () => {}, to
     commit(next, null);
   }
 
-  // --- Undo and Redo ---------------------------------------------------------------
+  // --- Undo and Redo -------------------------------------------------------------
 
   const history = createHistory(
     () => ({ content: whole(), caret: selection()?.[1] ?? null }),

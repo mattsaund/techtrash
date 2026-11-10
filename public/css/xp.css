@@ -1,18 +1,11 @@
-/* ============================================================
-   techtrash.org : xp.css
+/* The XP kit. Base elements plus the windows, buttons, fields, menus,
+   taskbar and desktop icons every page and app is built from. Load it
+   after tokens.css. No raw values here. If a rule needs a number or a
+   color tokens.css doesn't have, add it there first.
 
-   The base elements and the XP kit every page and every app is
-   built from: windows, buttons, fields, menus, the taskbar and
-   the desktop's icons. Load it after tokens.css.
-
-   Nothing in here is a raw value. If a rule needs a number or a
-   color that tokens.css doesn't have, it goes in tokens.css first.
-
-   Two habits from XP that hold everywhere:
-   - The hand cursor is for links. Buttons, menus, icons and title
-     bars keep the arrow, the way XP did.
-   - Nothing animates. Hover and press states change instantly.
-   ============================================================ */
+   Two XP habits hold everywhere. The hand cursor is only for links
+   (buttons, menus, icons and title bars keep the arrow, as in XP), and
+   nothing animates, so hover and press states change instantly. */
 
 /* --- reset ------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -44,8 +37,8 @@ a:hover { color: var(--link-hover); }
 
 ::selection { background: var(--select); color: var(--select-ink); }
 
-/* XP's focus rectangle: one dotted pixel. Controls that draw their
-   own (push buttons, icons) move it inside themselves below. */
+/* XP's focus rectangle, one dotted pixel. Controls that draw their own
+   (push buttons, icons) move it inside themselves below. */
 :focus-visible { outline: var(--hairline) dotted var(--focus); outline-offset: var(--sp-2); }
 
 /* Screen reader only. */
@@ -54,12 +47,11 @@ a:hover { color: var(--link-hover); }
   overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
 
-/* --- app page ---------------------------------------------- *
-   Every app (a page like the blog, a program like the File
-   Browser) is its own HTML page, shown in a window's body through
-   an iframe. <body class="app"> is that body: it fills the window,
-   and a .doc directly inside it fills the rest and scrolls.
-   ============================================================ */
+/* --- app page ----------------------------------------------
+   Every app (a page like the blog, a program like the File Browser) is
+   its own HTML page, shown in a window's body through an iframe. Its
+   <body class="app"> fills the window, and a .doc directly inside it
+   fills the rest and scrolls. */
 html:has(> body.app) { height: 100%; }
 body.app {
   display: flex;
@@ -69,18 +61,16 @@ body.app {
 }
 body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
 
-/* --- window ------------------------------------------------ *
+/* --- window ------------------------------------------------
    <section class="window">
      <header class="title-bar"> icon, title, caption buttons
      <nav class="menu-bar">      optional
      <div class="window__body">  the content
      <footer class="status-bar"> optional
 
-   The blue frame is drawn by the window's inset shadows, and the
-   title bar is pulled out over the side frames so it runs edge to
-   edge, as XP's does. The window itself doesn't position anything:
-   where it sits is up to the page or the window manager.
-   ============================================================ */
+   Inset shadows draw the blue frame, and the title bar is pulled out
+   over the side frames so it runs edge to edge like XP's. The window
+   doesn't place itself. That's up to the page or the window manager. */
 .window {
   display: flex;
   flex-direction: column;
@@ -125,10 +115,10 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
   text-shadow: none;
 }
 
-/* --- caption buttons --------------------------------------- *
+/* --- caption buttons ---------------------------------------
    <button class="caption caption--min|max|close" aria-label="...">
-   The glyph and the gradient are two background layers, so a
-   state only has to swap the gradient. */
+   The glyph and the gradient are separate background layers, so a
+   state only swaps the gradient. */
 .caption {
   width: var(--caption);
   height: var(--caption);
@@ -190,11 +180,10 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
   text-overflow: ellipsis;
 }
 
-/* --- document ---------------------------------------------- *
-   Reading text: Notepad's, a program's, anything longer than a label.
-   The one place --fs-body is the default. A document is paper,
-   sunk into the window by a field's edge, like Notepad's or
-   Internet Explorer's page. */
+/* --- document ----------------------------------------------
+   Reading text, anything longer than a label (Notepad's, a program's).
+   The one place --fs-body is the default. It's paper, sunk into the
+   window by a field's edge like Notepad's or Internet Explorer's page. */
 .doc {
   padding: var(--sp-16) var(--sp-24) var(--sp-24);
   background: var(--paper);
@@ -225,14 +214,14 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
 .doc hr { border: 0; border-top: var(--hairline) solid var(--face-shadow); }
 .doc .meta { color: var(--ink-muted); }
 
-/* Notepad: the same paper, in the mono face, no measure. */
+/* Notepad. The same paper in the mono face, with no measure. */
 .doc--mono { font-family: var(--font-mono); white-space: pre-wrap; }
 .doc--mono > * { max-width: none; }
 
-/* --- push button ------------------------------------------- *
-   <button class="button">. Also works on <a> for a link that
-   should look like a button. --default is the one Enter presses:
-   it wears the blue glow even when it doesn't have focus. */
+/* --- push button -------------------------------------------
+   <button class="button">, or an <a> that should look like one.
+   .button--default is the one Enter presses, so it keeps the blue glow
+   even without focus. */
 .button {
   display: inline-flex;
   align-items: center;
@@ -264,12 +253,11 @@ a.button:hover { color: var(--ink); }
 }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 
-/* --- fields ------------------------------------------------ *
-   Every text field on the site is an XP field, so the elements
-   themselves are styled; nothing needs a class. XP gave a field
-   no focus ring (the caret was the cue), so focus darkens the
-   border to the selection blue instead, which a keyboard user can
-   actually see. */
+/* --- fields ------------------------------------------------
+   Every text field on the site is an XP field, so the elements are
+   styled directly and need no class. XP gave fields no focus ring (the
+   caret was the cue), so focus turns the border selection blue
+   instead, which a keyboard user can actually see. */
 input:where(:not([type]), [type="text"], [type="search"], [type="password"],
             [type="email"], [type="url"], [type="tel"], [type="number"]),
 textarea,
@@ -297,9 +285,9 @@ input:disabled, textarea:disabled, select:disabled {
   color: var(--ink-disabled);
 }
 
-/* A label beside its control: <label class="field-row">. */
+/* <label class="field-row">, a label beside its control. */
 .field-row { display: flex; align-items: center; gap: var(--sp-8); }
-/* A label above its control: <label class="field-stack">. */
+/* <label class="field-stack">, a label above its control. */
 .field-stack { display: flex; flex-direction: column; gap: var(--sp-4); }
 
 /* --- checkbox and radio ------------------------------------ */
@@ -332,9 +320,12 @@ fieldset {
 }
 legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 
-/* --- menu -------------------------------------------------- *
-   A drop-down or context menu. Paper, not face, with the face
-   color's edge and the only drop shadow XP had. */
+/* --- menu --------------------------------------------------
+   A drop-down or context menu. Paper, not face, with the only drop
+   shadow XP had. js/menu.js pops one up (.menu--pop) wherever it's
+   asked for. Each <button class="menu__item"> has a mark (a tick, a dot
+   or a picture), the label, the shortcut, and an arrow if it opens a
+   submenu. .is-default is the bold one, .is-active the highlighted one. */
 .menu {
   padding: var(--sp-2);
   list-style: none;
@@ -342,26 +333,67 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   border: var(--hairline) solid var(--menu-edge);
   box-shadow: var(--shadow-pop);
 }
+.menu--pop {
+  position: fixed;
+  z-index: var(--z-menu);
+  min-width: var(--menu-min-w);
+  margin: 0;
+  user-select: none;
+}
+.menu--pop:focus { outline: 0; }
 .menu__item {
   display: flex;
   align-items: center;
-  gap: var(--sp-8);
+  gap: var(--sp-4);
   width: 100%;
-  padding: var(--sp-2) var(--sp-16) var(--sp-2) var(--sp-8);
+  padding: var(--sp-2) var(--sp-16) var(--sp-2) var(--sp-2);
   border: 0;
   background: none;
+  color: var(--ink);
   text-align: left;
   font: 400 var(--fs-ui)/var(--lh-ui) var(--font-ui);
+  white-space: nowrap;
 }
-.menu__item:hover { background: var(--select); color: var(--select-ink); }
+.menu__item:hover,
+.menu__item.is-active { background: var(--select); color: var(--select-ink); }
 .menu__item:disabled { color: var(--ink-disabled); background: none; }
+.menu__item.is-active:disabled { background: none; }
+.menu__item.is-default { font-weight: 700; }
+.menu__mark { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.menu__mark img { width: 100%; height: 100%; }
+.menu__mark--check,
+.menu__mark--radio { background: currentColor; }
+.menu__mark--check { mask: var(--glyph-menu-check) center no-repeat; }
+.menu__mark--radio { mask: var(--glyph-menu-radio) center no-repeat; }
+.menu__label { flex: 1; }
+.menu__keys { padding-left: var(--sp-24); }
+.menu__item--sub { padding-right: var(--sp-2); }
+.menu__item--sub::after {
+  content: "";
+  width: var(--icon-s);
+  height: var(--icon-s);
+  flex: none;
+  background: currentColor;
+  mask: var(--glyph-menu-sub) center no-repeat;
+}
 .menu__rule { margin: var(--sp-2) 0; border-top: var(--hairline) solid var(--face-shadow); }
 
-/* --- message box ------------------------------------------- *
-   <section class="window message"> with a title bar (its close
-   button only), .message__body (the icon, then what it says) and
-   .message__foot (OK, in the middle), as XP laid them out. Placed by
-   whoever shows it (css/desktop.css). */
+/* --- layer -------------------------------------------------
+   Holds a message box or dialog over the whole page until it's
+   answered. Centered, over everything but the Welcome screen. */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-16);
+}
+
+/* --- message box -------------------------------------------
+   <section class="window message">, shown in a .layer by js/message.js.
+   A title bar (just its close button), .message__body (the icon, then
+   the text) and .message__foot (OK, centered), as XP laid them out. */
 .message { max-width: 100%; }
 .message__body {
   display: flex;
@@ -370,8 +402,121 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   padding: var(--sp-12) var(--sp-12) var(--sp-4);
 }
 .message__icon { width: var(--icon-m); height: var(--icon-m); flex: none; }
-.message__text { max-width: var(--measure); }
-.message__foot { display: flex; justify-content: center; padding: var(--sp-8) var(--sp-12) var(--sp-12); }
+.message__text { max-width: var(--measure); white-space: pre-line; }
+.message__foot { display: flex; justify-content: center; gap: var(--sp-8); padding: var(--sp-8) var(--sp-12) var(--sp-12); }
+
+/* --- toolbar -----------------------------------------------
+   <div class="toolbar"> of <button class="tool">, each a picture and
+   maybe a word. Flat until hovered, like XP's Explorer buttons. A
+   <span class="toolbar__rule"> goes between groups, and .tool--drop
+   has a drop-down arrow after its word. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--face);
+  border-bottom: var(--hairline) solid var(--face-hi);
+  box-shadow: 0 calc(-1 * var(--hairline)) 0 var(--face-shadow) inset;
+  overflow: hidden;
+  user-select: none;
+}
+.tool {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: none;
+  padding: var(--sp-2) var(--sp-4);
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  white-space: nowrap;
+}
+.tool img { width: var(--icon-tool); height: var(--icon-tool); }
+.tool:hover:not(:disabled) { box-shadow: var(--tool-hover); }
+.tool:active:not(:disabled),
+.tool[aria-pressed="true"] { box-shadow: var(--tool-down); }
+.tool:disabled { color: var(--ink-disabled); }
+.tool:disabled img { filter: grayscale(1); opacity: var(--cut-fade); }
+.tool--drop::after {
+  content: "";
+  width: var(--sp-8);
+  height: var(--icon-s);
+  background: currentColor;
+  mask: var(--glyph-drop) center no-repeat;
+}
+.toolbar__rule {
+  align-self: stretch;
+  width: var(--hairline);
+  margin: var(--sp-2) var(--sp-2);
+  background: var(--tool-rule);
+}
+
+/* An address bar. "Address", then a field with a picture in it. */
+.address {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--face);
+  border-bottom: var(--hairline) solid var(--face-shadow);
+  color: var(--ink-muted);
+}
+.address__field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 1;
+  min-width: 0;
+  height: var(--field-h);
+  padding: 0 var(--sp-2);
+  border: var(--hairline) solid var(--field-edge);
+  background: var(--paper);
+  color: var(--ink);
+}
+.address__field img { width: var(--icon-s); height: var(--icon-s); flex: none; }
+.address__field input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; }
+
+/* --- tabs --------------------------------------------------
+   <div class="tabs" role="tablist"> of <button class="tab" role="tab"
+   aria-selected>, over the .tab-panel it opens. The picked tab joins
+   its panel. A picked or hovered tab wears XP's orange along its top. */
+.tabs { display: flex; padding: 0 var(--sp-2); }
+.tab {
+  position: relative;
+  margin-bottom: calc(-1 * var(--hairline));
+  padding: var(--sp-4) var(--sp-8);
+  border: var(--hairline) solid var(--tab-edge);
+  border-bottom-color: var(--tab-edge);
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  background: var(--tab-face);
+}
+.tab + .tab { margin-left: calc(-1 * var(--hairline)); }
+.tab:hover::before,
+.tab[aria-selected="true"]::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--hairline));
+  left: calc(-1 * var(--hairline));
+  right: calc(-1 * var(--hairline));
+  height: var(--sp-4);
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  background: var(--tab-hot);
+}
+.tab[aria-selected="true"] {
+  z-index: var(--z-icon);
+  margin-top: calc(-1 * var(--sp-2));
+  padding-top: calc(var(--sp-4) + var(--sp-2));
+  padding-bottom: calc(var(--sp-4) + var(--hairline));
+  border-bottom-color: var(--tab-panel);
+  background: var(--tab-panel);
+}
+.tab:focus-visible { outline-offset: calc(-1 * var(--sp-4)); }
+.tab-panel {
+  padding: var(--sp-12);
+  border: var(--hairline) solid var(--tab-edge);
+  background: var(--tab-panel);
+}
 
 /* --- tooltip ----------------------------------------------- */
 .tip {
@@ -384,13 +529,18 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   z-index: var(--z-tip);
 }
 
-/* --- desktop icon ------------------------------------------ *
+/* XP tints a selected icon half and half with the selection blue. A
+   page that shows icons includes the filter (<svg class="filters">)
+   and uses it as url(#select-tint). */
+.select-tint__flood { flood-color: var(--select); }
+.filters { position: absolute; width: 0; height: 0; }
+
+/* --- desktop icon ------------------------------------------
    <a class="icon"><img class="icon__img"><span class="icon__label">
-   White label with XP's drop shadow over the wallpaper; when
-   selected or focused the label takes the selection blue and the
-   shadow goes. A long label stops at two lines, so every icon fits
-   its grid cell, and shows in full while it's selected, over
-   whatever's below, as XP's did. */
+   A white label with XP's drop shadow. Selected or focused, the label
+   turns selection blue and loses the shadow. A long label stops at two
+   lines so every icon fits its grid cell, and shows in full over
+   whatever's below while selected, as in XP. */
 .icon {
   display: flex;
   flex-direction: column;
@@ -428,9 +578,9 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 }
 .icon:focus-visible .icon__label { outline: var(--hairline) dotted var(--select-ink); }
 
-/* --- taskbar ----------------------------------------------- *
-   start, the window buttons, the tray. Fixed to the foot of the
-   screen, over every window. */
+/* --- taskbar -----------------------------------------------
+   Start, the window buttons and the tray, fixed to the bottom of the
+   screen over every window. */
 .taskbar {
   position: fixed;
   left: 0;
@@ -505,3 +655,11 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   color: var(--ink-inverse);
 }
 .tray__icon { width: var(--icon-s); height: var(--icon-s); }
+.tray__clock-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.tray__clock-button:focus-visible { outline-color: var(--ink-inverse); }

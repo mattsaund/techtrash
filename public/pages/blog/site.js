@@ -1,20 +1,17 @@
-// techtrash.org : what every page of the website shares.
-//
-// Who's reading (the admin, or anyone), every address on the site, the
-// window's title, and going from one page to another. blog.js works out which
-// page the address asks for; each kind of page is drawn by a module of its
-// own (front.js, post.js, write.js), inside the frame they all share
-// (frame.js).
+// What every page of the website shares. Whether the admin is reading, every
+// address on the site, the window title, and moving between pages. blog.js
+// picks the page, and front.js, post.js and write.js draw them inside the
+// frame they share (frame.js).
 
 import { api, el, forNow, hueOf } from "./util.js";
 
 // The admin (server/admin.js) gets the buttons and forms to write, change and
-// delete everything, and their drafts. The server checks it's the admin again
-// for every one of those: they're a convenience, not the lock.
+// delete everything, plus their drafts. The server checks again on every
+// request, so this is a convenience, not the lock.
 export const admin = await api("/api/me").then((me) => me.admin === true, () => false);
 
-// Every address on the site, made here and nowhere else. A blog's and a
-// flag's are their slugs, their names made fit for an address (server/blog.js).
+// Every address on the site, made here and nowhere else. Blogs and flags go
+// by their slugs (server/blog.js).
 const slug = (value) => encodeURIComponent(value);
 export const to = {
   home: "./",
@@ -28,7 +25,7 @@ export const to = {
   edit: (post) => `?edit/${slug(post)}`,
 };
 
-// Where the page is, in parts: ?flag/space/rockets is ["flag", "space", "rockets"].
+// The address in parts, so ?flag/space/rockets is ["flag", "space", "rockets"].
 export function whereNow() {
   try {
     return decodeURIComponent(location.search.slice(1)).split("/").filter(Boolean);
@@ -37,16 +34,15 @@ export function whereNow() {
   }
 }
 
-// The page moving without loading again (the Blog, as its flags are picked,
-// or a new blog once it's saved): its address says where it is now, and the
-// desktop's follows (js/desktop.js).
+// Changes the address without reloading (the Blog as flags are picked, or a
+// new blog once it's saved). The desktop's address follows (js/desktop.js).
 export function moveTo(address) {
   if (location.search === address) return;
   history.replaceState(null, "", address);
   dispatchEvent(new Event("addresschange"));
 }
 
-// The page is going somewhere else: nothing more to draw. (blog.js catches it.)
+// The page is leaving, so there's nothing more to draw. blog.js catches Gone.
 export class Gone extends Error {}
 export function goTo(address) {
   location.replace(address);
@@ -56,18 +52,18 @@ export function goTo(address) {
 // XP's Internet Explorer named its window after the page.
 export const titled = (name) => { document.title = `${name} - Microsoft Internet Explorer`; };
 
-// The Blog the way it was left (its address, with the flags picked), kept
-// while the tab's open, for Back from a blog. The Blog keeps it (front.js).
+// The Blog's address as it was left (with its picked flags), so Back from a
+// blog goes there. front.js saves it for as long as the tab's open.
 export const BLOG_AT = "techtrash:blog";
 export const theBlog = () => forNow.get(BLOG_AT) ?? to.blog;
 
-// A blog's flags, "#space #rockets", each in its hue: links to the Blog with
-// only that flag's blogs, or (on a card, which is a link already) words.
+// A blog's flags ("#space #rockets"), each in its hue. Each links to the Blog
+// filtered by it, or is plain text on a card, since a card is already a link.
 export const flagTags = (flags, { links = true } = {}) => el(links ? "p" : "span", { class: "tags" },
   flags.map((flag) => el(links ? "a" : "span", { class: `tag ${hueOf(flag.id)}`, href: links ? to.flags([flag.slug]) : null, textContent: flag.name })));
 
-// The page drawn again, after the admin changes something on it. frame.js
-// says how, each time it draws a page.
+// Redraws the page after the admin changes something. frame.js sets how,
+// each time it draws a page.
 let drawAgain = () => location.reload();
 export const again = () => drawAgain();
 export const drawWith = (draw) => { drawAgain = draw; };

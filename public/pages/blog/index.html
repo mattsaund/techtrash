@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- XP's Internet Explorer titled a window "<the page> - Microsoft
-       Internet Explorer"; blog.js keeps it that way as the page changes. -->
+  <!-- XP's Internet Explorer titled its window "<the page> - Microsoft
+       Internet Explorer". site.js keeps it that way as the page changes. -->
   <title>Techtrash - Microsoft Internet Explorer</title>
   <!-- The blog, for feed readers (server/feed.js). -->
   <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
@@ -18,30 +18,30 @@
   <!-- The planets and stars, drawn by space.js with cosmos.js. -->
   <div class="sky" aria-hidden="true"></div>
 
-  <!-- Drawn by blog.js: the headline and a panel (Home, the Blog, Pictures,
-       About me), a blog, or the admin's editor. -->
+  <!-- blog.js draws the page here, with the headline on top and a panel
+       (Home, the Blog, Pictures, About me), a blog or the admin's editor. -->
   <main class="page wrap" id="page">
     <p class="meta">Loading...</p>
   </main>
 
-  <!-- The credits are a text file the desktop's Notepad opens (js/app.js
-       opens the window). The feed opens in a tab of its own. -->
+  <!-- The credits are a text file that opens in the desktop's Notepad
+       (js/app.js opens the window). The feed opens in its own tab. -->
   <footer class="foot wrap">
     <span><span class="copyleft" role="img" aria-label="Copyleft">©</span> Matthew Saunders</span>
     <a href="/programs/notepad/?file=credits.txt">credits</a>
     <a href="/rss.xml" target="_blank">rss</a>
   </footer>
 
-  <!-- The front page's top panel. -->
+  <!-- The headline panel on top of every page (frame.js). -->
   <template id="hero">
     <section class="panel">
       <h1 class="title" aria-label="Techtrash">
         <span aria-hidden="true"><span class="title__letter hue-1">T</span><span class="title__letter hue-2">e</span><span class="title__letter hue-3">c</span><span class="title__letter hue-4">h</span><span class="title__letter hue-5">t</span><span class="title__letter hue-6">r</span><span class="title__letter hue-1">a</span><span class="title__letter hue-2">s</span><span class="title__letter hue-3">h</span></span>
       </h1>
-      <!-- Placeholder: what the site is, in a sentence. -->
+      <!-- The tagline until one's written. server/feed.js has the same line. -->
       <p class="lede">My own little corner of the internet.</p>
-      <!-- Which panel shows under the headline. blog.js fills in the one
-           that's showing. -->
+      <!-- Which panel shows under the headline. frame.js fills in the
+           current one. -->
       <div class="button-row">
         <a class="button hue-5" href="./" data-view="home">Home</a>
         <a class="button hue-4" href="?blog" data-view="blog">Blog</a>

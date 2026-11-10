@@ -4,19 +4,21 @@
   "main": "worker.js",
   "compatibility_date": "2026-09-01",
   "assets": {
-    // the public site: everything in public/ and nothing outside it
+    // the site itself, everything in public/ and nothing outside it
     "directory": "./public",
     // so worker.js can answer an unknown address with public/404.html
     "binding": "ASSETS"
   },
   "d1_databases": [
-    // the blog: its posts, flags, comments and the site's own words (and the
-    // first blog's topics, kept but unused); Cloudflare creates it on the first deploy
+    // The blog's posts, flags, comments and the site's own words, plus the
+    // first blog's topics (kept, but unused). Cloudflare creates it on the
+    // first deploy.
     { "binding": "DB" }
   ],
   "kv_namespaces": [
-    // the blog's pictures, and its sounds; Cloudflare creates it on the first
-    // deploy. (Its name stays PICTURES: it's how the Worker finds the same store.)
+    // The blog's pictures and sounds. Cloudflare creates it on the first
+    // deploy. It's still called PICTURES, since that name is how the Worker
+    // finds the same store.
     { "binding": "PICTURES" }
   ],
   "durable_objects": {
@@ -26,18 +28,22 @@
     ]
   },
   "migrations": [
-    // tells Cloudflare to create each object; never edit or remove these, only add new entries at the end
+    // These tell Cloudflare to create each object. Never edit or remove one,
+    // only add new ones at the end.
     { "tag": "v1", "new_sqlite_classes": ["Desktop"] }
   ],
-  // Workers Logs: what the Worker logs, errors included, under the Worker's
-  // Observability tab in the dashboard
+  // Workers Logs. Whatever the Worker logs, errors included, shows up under
+  // its Observability tab in the dashboard.
   "observability": { "enabled": true },
   "ratelimits": [
     // 5 admin log on tries a minute per person, so the password can't be guessed
     { "name": "LOGON_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
     // 5 blog comments a minute per person
-    { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } }
+    { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
+    // 60 changes a minute per person to the shared disk (saves, renames, deletes...)
+    { "name": "DISK_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }
   ]
-  // The admin's user name and password are secrets, not settings: ADMIN_USERNAME
-  // and ADMIN_PASSWORD (README.md, "Deploying", and server/admin.js).
+  // The admin's user name and password are secrets, not settings. They're
+  // ADMIN_USERNAME and ADMIN_PASSWORD (see "Deploying" in README.md, and
+  // server/admin.js).
 }

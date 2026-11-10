@@ -1,15 +1,13 @@
 /* ============================================================
-   techtrash.org : the website
+   The website, the page every visit opens to inside the Internet
+   Explorer window. It has its own look, not XP's. That's
+   msaunders.dev's (black, hairline panels over a sky of cosmos.js
+   planets), but multicolor, in Paper Mono, with real buttons.
 
-   The page every visit opens up to, inside the Internet Explorer
-   window. Its own look, not XP's: msaunders.dev's (black, hairline
-   panels over a sky of cosmos.js planets), but multicolor, in Paper
-   Mono, with real buttons.
-
-   Colors come in through .hue-1 to .hue-6, which set --hue for
-   everything inside: a link, a button, a section's name, a card's
-   edge. Nothing picks a color of its own. Tokens only, like every
-   other stylesheet (see "THE WEBSITE" in css/tokens.css).
+   Colors only come in through .hue-1 to .hue-6, which set --hue
+   for everything inside (a link, a button, a section's name, a
+   card's edge). Nothing picks a color of its own. Tokens only, like
+   every other stylesheet (see "THE WEBSITE" in css/tokens.css).
    ============================================================ */
 
 /* --- the six hues ------------------------------------------ */
@@ -37,7 +35,7 @@ body {
 }
 
 h1, h2, h3, p, ul, ol, figure, fieldset { margin: 0; }
-/* One font for everything: the browser gives these its own otherwise. */
+/* One font for everything. Browsers give these their own otherwise. */
 button, input, select, textarea { font: inherit; }
 pre, code, kbd, samp { font-family: inherit; }
 img { display: block; max-width: 100%; height: auto; }
@@ -46,12 +44,12 @@ a:hover { color: var(--site-fg); }
 ::selection { background: var(--hue); color: var(--site-bg); }
 :focus-visible { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-2); }
 
-/* The column: panels at most --site-wrap wide, and once the window is
-   narrower than that, as far from its sides as from its top and from
-   each other (--site-gap). Its start is rounded down to a whole pixel,
-   so a column centered in an odd window doesn't start on a half one and
-   draw every hairline in it across two; the end takes up the half. (A
-   browser without round() centers it as before.) */
+/* The column. Panels are at most --site-wrap wide, and in a narrower
+   window they keep --site-gap from its sides, the same as from its
+   top and from each other. The start is rounded down to a whole
+   pixel, so a column centered in an odd-width window doesn't start
+   on a half pixel and smear every hairline across two. The end takes
+   up the half. (A browser without round() just centers it.) */
 .wrap {
   max-width: calc(var(--site-wrap) + 2 * var(--site-gap));
   margin: 0 auto;
@@ -63,11 +61,10 @@ a:hover { color: var(--site-fg); }
 }
 
 /* --- the sky ----------------------------------------------- *
-   cosmos.js planets and a scatter of stars, drawn by space.js,
-   behind everything, and staying put while the page scrolls over
-   them: every planet is on screen, from the start. The panels dim
-   what's behind them, so a star under a paragraph reads as sky
-   rather than noise. */
+   cosmos.js planets and a scatter of stars (space.js), behind
+   everything and fixed while the page scrolls, so every planet is
+   on screen from the start. The panels dim what's behind them, so a
+   star under a paragraph reads as sky rather than noise. */
 .sky {
   position: fixed;
   inset: 0;
@@ -90,28 +87,28 @@ a:hover { color: var(--site-fg); }
   0%, 100% { opacity: var(--site-stars); }
   50%      { opacity: var(--site-stars-dim); }
 }
-/* A planet's glyphs are drawn at --site-art-scale of their size, at
-   twice the rows: the same planet, finer. */
+/* A planet is drawn at twice the rows and scaled by --site-art-scale,
+   so it's the same planet, only finer. */
 .planet {
   position: absolute;
   margin: 0;
   color: var(--hue);
   opacity: var(--site-planets);
-  /* bold: a glyph this small needs the ink */
+  /* bold, since a glyph this small needs the ink */
   font: 700 var(--fs-site-art)/var(--lh-site-art) var(--font-site);
   white-space: pre;
   transform: scale(var(--site-art-scale));
 }
-/* Where each one sits: inside the window, each from the corner it
-   grows out of. */
+/* Where each one sits in the window, anchored to the corner it grows
+   out of. */
 .planet--1 { top: 3%; right: 2%; transform-origin: top right; }
 .planet--2 { top: 34%; left: 2%; transform-origin: top left; }
 .planet--3 { bottom: 10%; right: 4%; transform-origin: bottom right; }
 .planet--4 { bottom: 3%; left: 9%; transform-origin: bottom left; }
-/* The asteroids (.planet--5 and --6) are placed by space.js: in the
-   strips of window beside the page, sized to fit them. */
-/* A pixel for every pixel: unhinted, and a hairline of stroke, for
-   the glyphs' ink (see --site-art-stroke). */
+/* space.js places the asteroids (.planet--5 and --6) in the strips
+   beside the page, sized to fit. */
+/* On a 1x screen, unhinted with a hairline of stroke so the tiny
+   glyphs keep their ink (see --site-art-stroke). */
 @media (max-resolution: 1dppx) {
   .planet {
     text-rendering: geometricPrecision;
@@ -125,9 +122,9 @@ a:hover { color: var(--site-fg); }
 .page, .foot { position: relative; z-index: var(--z-site-page); }
 
 /* --- buttons ----------------------------------------------- *
-   An edge in the hue, and nothing inside it: black, whatever's
-   behind. Only a selected one (the page you're on, the sort that's
-   picked) fills with its hue. Under the pointer, its words go white. */
+   An edge in the hue and nothing inside it (black, whatever's
+   behind). Only a selected one (the page you're on, the picked sort)
+   fills with its hue. Under the pointer its words go white. */
 .button {
   display: inline-flex;
   align-items: center;
@@ -146,20 +143,20 @@ a:hover { color: var(--site-fg); }
 .button:disabled { opacity: var(--site-stars); cursor: default; }
 .button:disabled:hover { color: var(--hue); }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
-/* A small one: the Blog's sort and its flags, a flag in the editor.
-   Body size like everything else, and one label line tall, so a row of
-   them shares the line with a panel's name. */
+/* A small one, for the Blog's sort and flags and a flag in the
+   editor. Body-size text like everything else and one label line
+   tall, so a row of them shares the line with a panel's name. */
 .button--small {
   padding: 0 var(--sp-8);
   font: 400 var(--fs-site-body)/var(--lh-site-small) var(--font-site);
 }
 
 /* --- panels ------------------------------------------------ *
-   msaunders.dev's spacing (see "spacing" in tokens.css): the first
-   panel as far from the window's top as the panels are from each other
-   and from the window's sides, one step (16) between everything inside
-   a panel, and its letters as far from its top and bottom as from its
-   sides. */
+   msaunders.dev's spacing (see "spacing" in tokens.css). The first
+   panel is as far from the window's top as panels are from each
+   other and from the window's sides. Inside, there's one step (16)
+   between everything, and the letters sit as far from the top and
+   bottom as from the sides. */
 .page { padding-top: var(--site-gap); }
 .panel {
   display: flex;
@@ -170,14 +167,15 @@ a:hover { color: var(--site-fg); }
   background: var(--site-panel);
   border: var(--hairline) solid var(--site-line);
 }
-/* Ending on a box, its edge is the ink: the full inset under it. */
+/* A panel ending on a box gets the full inset under it, since the
+   box's edge is the ink. */
 .panel > :last-child:is(.button-row, .cards, .gallery, .comment-form),
 .panel > .page-text:last-child > .button-row:last-child { margin-bottom: var(--site-trim-bottom); }
 
-/* A panel's name on the left, and in the other corner, on the same
-   line, whatever goes with it (how many pictures, the Blog's sort).
-   Lined up by their tops, so a name sits in the same place in every
-   panel, whatever's beside it. */
+/* A panel's name on the left, and on the same line in the other
+   corner whatever goes with it (a picture count, the Blog's sort).
+   Lined up by their tops, so the name sits in the same place in
+   every panel. */
 .panel__head {
   display: flex;
   flex-wrap: wrap;
@@ -186,17 +184,17 @@ a:hover { color: var(--site-fg); }
   gap: var(--sp-8) var(--sp-24);
 }
 
-/* Small buttons in a line, after what they're for: the Blog's sort
-   ("Sort by"), its flags, and any or all of the flags picked. */
+/* A row of small buttons after their label, for the Blog's sort
+   ("Sort by"), its flags, and any or all of the picked flags. */
 .sort, .filter {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8);
 }
-/* The sort's buttons are boxes at the top of their panel, where the
-   inset is trimmed for letters (see .panel): down by the trim, so their
-   edges sit as far from the panel's top as from its side. */
+/* The sort's buttons are boxes at the top of the panel, where the
+   inset is trimmed for letters (see .panel). Moving them down by the
+   trim puts their edges as far from the panel's top as its side. */
 .panel__head .sort { margin-top: var(--site-trim-top); }
 .filters { display: flex; flex-direction: column; gap: var(--sp-8); }
 
@@ -208,8 +206,8 @@ a:hover { color: var(--site-fg); }
 .crumb { color: var(--site-fg-3); }
 
 /* --- the headline ------------------------------------------ *
-   "Techtrash", a letter in each hue, msaunders.dev's size and
-   tracking. Its line box carries more over its capitals than a
+   "Techtrash", a letter in each hue, at msaunders.dev's size and
+   tracking. Its line box has more room over the capitals than a
    label's, so it's pulled up into the panel's inset by the
    difference (--site-title-trim). */
 .title {
@@ -225,7 +223,7 @@ a:hover { color: var(--site-fg); }
   letter-spacing: var(--ls-site-head);
 }
 
-/* --- the Blog: a card for each blog ------------------------- */
+/* --- the Blog's cards -------------------------------------- */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--site-card-min)), 1fr));
@@ -259,18 +257,18 @@ a:hover { color: var(--site-fg); }
 .named { font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site); }
 
 /* --- flags ------------------------------------------------- *
-   "#space", in the flag's hue: a button to filter the Blog by, a
-   link under a blog's title, words on its card. */
+   "#space" in the flag's hue. A button to filter the Blog by, a
+   link under a blog's title, or plain words on its card. */
 .flag::before, .tag::before { content: "#"; }
 .tags { display: flex; flex-wrap: wrap; gap: 0 var(--sp-16); }
 .tag { color: var(--hue); text-decoration: none; }
 a.tag:hover { color: var(--site-fg); }
 
 /* --- Home -------------------------------------------------- *
-   The bulletin across the top, edged in the hue on the left; then
-   Home's words, and down the right side the newest blogs: a title,
-   and its flags under it, smaller. On a phone the side goes
-   under, a step down like everything else. */
+   The bulletin across the top with its left edge in the hue, then
+   Home's words, and the newest blogs down the right side (each
+   title with its flags under it, smaller). On a phone the side
+   moves underneath, a step down like everything else. */
 .home {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--site-side);
@@ -307,12 +305,12 @@ a.tag:hover { color: var(--site-fg); }
   border: var(--hairline) solid var(--site-line);
   border-left-color: var(--hue);
 }
-/* The editor for one of the site's own pages: Home's words, the bulletin, About me. */
+/* The editor for one of the site's own pages (Home's words, the bulletin, About me). */
 .writing-form { display: flex; flex-direction: column; gap: var(--sp-16); }
 
 /* --- Pictures ---------------------------------------------- *
-   Every picture on the site, square, edge to edge: no borders, no
-   gaps. */
+   Every picture on the site, square and edge to edge, with no
+   borders or gaps. */
 .gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(50%, var(--site-tile)), 1fr));
@@ -320,10 +318,10 @@ a.tag:hover { color: var(--site-fg); }
 .gallery__item { display: block; cursor: zoom-in; }
 .gallery__item img { width: 100%; aspect-ratio: 1; object-fit: cover; }
 
-/* --- the picture viewer -------------------------------------- *
-   A picture over the page (viewer.js), as big as the window has room
-   for, in a box like a panel, with its description, where it's from,
-   and its buttons under it. The page behind goes nearly black. */
+/* --- the picture viewer ------------------------------------ *
+   A picture over the page (viewer.js), as big as fits, in a box like
+   a panel with its description, where it's from and its buttons
+   under it. The page behind goes nearly black. */
 .viewer {
   width: 100%;
   height: 100%;
@@ -356,7 +354,7 @@ a.tag:hover { color: var(--site-fg); }
 }
 .viewer__caption { display: flex; flex-direction: column; gap: var(--sp-8); }
 
-/* A heading inside a panel: "Newest blogs". */
+/* A heading inside a panel, like "Newest blogs". */
 .group__head {
   display: flex;
   flex-wrap: wrap;
@@ -365,7 +363,7 @@ a.tag:hover { color: var(--site-fg); }
   font: 400 var(--fs-site-label)/var(--lh-site-label) var(--font-site);
 }
 
-/* What only the admin sees on a draft's page: that it's a draft. */
+/* The note on a draft's page (only the admin sees it) saying it's a draft. */
 .notice {
   padding: var(--sp-8) var(--sp-12);
   background: var(--site-field);
@@ -375,9 +373,9 @@ a.tag:hover { color: var(--site-fg); }
 }
 
 /* --- a blog ------------------------------------------------ *
-   What the editor makes, the same in the editor as on the page,
-   across the whole width of its panel: the panel is the measure,
-   as on msaunders.dev. */
+   What the editor makes, the same in the editor as on the page. It
+   runs the full width of its panel (the panel is the measure, as on
+   msaunders.dev). */
 .prose {
   display: flow-root;   /* holds a picture the words go around */
   color: var(--site-fg-2);
@@ -423,11 +421,11 @@ a.tag:hover { color: var(--site-fg); }
 .prose:not(.editor__area) img { cursor: zoom-in; }
 .prose a img { cursor: pointer; }
 .prose img.is-found { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-4); }
-/* Small, until it's given a width of its own (dragged in the editor):
+/* Small until it's given a width of its own (dragged in the editor),
    then that, up to the column's. */
 .prose .pic--left:not([width]), .prose .pic--right:not([width]), .prose .pic--center:not([width]) { max-width: var(--site-float); }
-/* (under a picture, a paragraph's space: the words that wrap under it, and a
-   line put under it, start where the next paragraph would) */
+/* (a paragraph's space under a picture, so the words that wrap below it
+   and a line put under it start where the next paragraph would) */
 .prose .pic--left { float: left; margin: 0 var(--sp-16) var(--sp-16) 0; }
 .prose .pic--right { float: right; margin: 0 0 var(--sp-16) var(--sp-16); }
 .prose .under-pic { clear: both; }
@@ -440,9 +438,9 @@ a.tag:hover { color: var(--site-fg); }
 .prose th, .prose td { padding: var(--sp-4) var(--sp-8); border: var(--hairline) solid var(--site-line-2); text-align: left; }
 .prose th { color: var(--site-fg); font-weight: 500; }
 
-/* A video's or a song's player: a paragraph that was only its link. */
-/* As wide as the column, or as wide as it was made in the editor
-   (content.js sizePlayer), never wider than the column. */
+/* A video's or a song's player, from a paragraph that was only its
+   link. As wide as the column, or as wide as it was made in the
+   editor (content.js sizePlayer), but never wider than the column. */
 .embed { clear: both; max-width: 100%; margin-left: 0; margin-right: 0; border: var(--hairline) solid var(--site-line); background: var(--site-field); }
 .embed iframe, .embed video { display: block; width: 100%; border: 0; }
 .embed--video iframe, .embed--file video { aspect-ratio: var(--site-video); }
@@ -451,9 +449,8 @@ a.tag:hover { color: var(--site-fg); }
 .embed--song iframe { height: var(--site-song); }
 .embed--list iframe { height: var(--site-album); }
 
-/* A sound's player (sound.js): Play, big, down its left; beside it its
-   name and how far in it is, and under them the bar to drag along it,
-   Mute and how loud. */
+/* A sound's player (sound.js). A big Play down the left, the name and
+   time beside it, and under them the seek bar, Mute and the volume. */
 .embed--sound { padding: var(--sp-8) var(--sp-12); }
 .sound {
   display: grid;
@@ -462,10 +459,10 @@ a.tag:hover { color: var(--site-fg); }
   align-items: center;
   gap: var(--sp-8) var(--sp-12);
 }
-/* Play (Pause while it plays) and Mute (Unmute while it's muted): plain
-   gray icons, white under the pointer. Each is its shape (a token) cut
-   out of the button's color, so the focus ring still goes round the
-   button itself. */
+/* Play (Pause while it plays) and Mute (Unmute while it's muted) are
+   plain gray icons, white under the pointer. Each is its shape (a
+   token) cut out of the button's color, so the focus ring still goes
+   around the button itself. */
 .sound__button {
   padding: 0;
   border: 0;
@@ -492,9 +489,9 @@ a.tag:hover { color: var(--site-fg); }
 .sound__loud { grid-area: loud; display: flex; align-items: center; gap: var(--sp-8); }
 .sound__volume { width: var(--site-volume); margin: 0; accent-color: var(--hue); }
 
-/* --- the admin's editor -------------------------------------- *
-   The buttons stay in reach at the top as a long blog
-   scrolls; the box under them is drawn the way the blog will be. */
+/* --- the admin's editor ------------------------------------ *
+   The buttons stay in reach at the top as a long blog scrolls.
+   The box under them is drawn the way the blog will look. */
 .editor {
   position: relative;   /* what a picked picture's corners are placed against */
   display: flex;
@@ -561,7 +558,7 @@ a.tag:hover { color: var(--site-fg); }
   padding: var(--sp-16);
   outline: 0;
 }
-/* Rich text, Markdown or HTML: the switch over the buttons. */
+/* The Rich text, Markdown or HTML switch over the buttons. */
 .editor__modes {
   display: flex;
   flex-wrap: wrap;
@@ -569,7 +566,7 @@ a.tag:hover { color: var(--site-fg); }
   gap: var(--sp-8);
   padding: var(--sp-8) var(--sp-8) 0;
 }
-/* Markdown or HTML, as text to write. */
+/* Markdown or HTML, as plain text to edit. */
 .editor__source {
   display: block;
   width: 100%;
@@ -582,9 +579,9 @@ a.tag:hover { color: var(--site-fg); }
   resize: vertical;
 }
 .editor__source:focus-visible { outline: 0; }
-/* Markdown, written live (live-markdown.js): a line to a row, the
-   Markdown itself on the line the cursor's on, and every other line
-   drawn the way it'll look, with its marks out of sight. */
+/* Live Markdown (live-markdown.js), a line to a row. The cursor's
+   line shows the Markdown itself, and every other line is drawn the
+   way it'll look, with its marks hidden. */
 .md-live {
   position: relative;
   min-height: var(--site-editor);
@@ -646,13 +643,13 @@ a.tag:hover { color: var(--site-fg); }
 .editor__area .embed.is-picked { outline: var(--sp-2) solid var(--hue); }
 .editor__area .embed { user-select: none; }
 .editor__area .embed__bar { cursor: pointer; }
-/* a divider: a click on it, or a little above or below it, picks it */
+/* a divider, picked by a click on it or a little above or below it */
 .editor__area hr { position: relative; overflow: visible; cursor: pointer; }
 .editor__area hr::after { content: ""; position: absolute; inset: calc(-1 * var(--sp-8)) 0; }
 .editor__area hr.is-picked { outline: var(--sp-2) solid var(--hue); outline-offset: var(--sp-4); }
-/* A picked picture's or player's corners: a square in the hue on each,
-   to drag it bigger or smaller (editor.js). Under the editor's buttons as
-   the post scrolls beneath them. */
+/* A square in the hue on each corner of a picked picture or player,
+   to drag it bigger or smaller (editor/resizer.js). They pass under
+   the editor's buttons as the post scrolls. */
 .resizer { position: absolute; pointer-events: none; }
 .resizer__handle {
   position: absolute;
@@ -695,11 +692,11 @@ a.tag:hover { color: var(--site-fg); }
   letter-spacing: var(--ls-site-head);
 }
 .editor__title:focus-visible { outline: 0; border-color: var(--hue); }
-/* Under the box: the blog's flags, and its comments on or off. */
+/* Under the box, the blog's flags and its comments switch. */
 .settings { display: flex; flex-direction: column; align-items: start; gap: var(--sp-16); }
 
-/* Its flags: a small button each (a click takes it off), a box to
-   name another, and under them the flags other blogs have. */
+/* Its flags as small buttons (a click takes one off), a box to name
+   another, and under them the flags other blogs have. */
 .flag-picker { display: flex; flex-direction: column; gap: var(--sp-8); }
 .flag-picker__row, .flag-picker__on { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
 .flag-picker__on:empty { display: none; }
@@ -721,8 +718,9 @@ a.tag:hover { color: var(--site-fg); }
 }
 .flag-picker__others:empty { display: none; }
 
-/* --- comments ------------------------------------------------ *
-   Threads: each reply a step in, on a line in the blog's hue. */
+/* --- comments ---------------------------------------------- *
+   Threads, with each level of replies a step in and a line down its
+   left. */
 .thread { display: flex; flex-direction: column; gap: var(--sp-16); padding: 0; list-style: none; }
 .thread .thread {
   margin-top: var(--sp-16);
@@ -740,7 +738,7 @@ a.tag:hover { color: var(--site-fg); }
 .comment__actions { display: flex; gap: var(--sp-16); }
 .comment .comment-form { margin-top: var(--sp-8); }
 
-/* A button that looks like a link: Reply, Delete. */
+/* A button that looks like a link (Reply, Delete). */
 .link-button {
   padding: 0;
   border: 0;
@@ -754,7 +752,7 @@ a.tag:hover { color: var(--site-fg); }
 .link-button:hover { color: var(--site-fg); }
 .link-button:disabled { color: var(--site-fg-3); cursor: default; }
 
-/* --- the admin's forms -------------------------------------- */
+/* --- forms ------------------------------------------------- */
 .form fieldset {
   display: flex;
   flex-direction: column;
@@ -767,7 +765,7 @@ a.tag:hover { color: var(--site-fg); }
 .form legend { padding: 0 var(--sp-4); color: var(--hue); }
 .form label,
 .form__field { display: flex; flex-direction: column; gap: var(--sp-8); color: var(--site-fg-2); }
-/* A form's own fields: not the editor's, which has its own look. */
+/* A form's own fields, not the editor's, which has its own look. */
 .form label > input:not([type="file"]),
 .form label > textarea {
   width: 100%;
@@ -806,15 +804,15 @@ a.tag:hover { color: var(--site-fg); }
 .form__message:empty { display: none; }
 
 
-/* The field only a bot fills in: there, but out of sight. */
+/* The field only a bot fills in, there but out of sight. */
 .trap { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
 
 /* --- the foot ---------------------------------------------- *
-   Copyleft, Matthew Saunders, and the credits (Notepad, on the
-   desktop): a gap under the last panel, like the gap between any
-   two, and the same under it. The copyleft sign is the font's own ©
-   turned around (Paper Mono has no copyleft of its own), half again
-   the size of the line, as msaunders.dev sets it (--fs-site-mark). */
+   Copyleft, Matthew Saunders, the credits (Notepad on the desktop)
+   and the feed. The same gap above it as between any two panels,
+   and the same below. The copyleft sign is the font's own © turned
+   around (Paper Mono has no copyleft sign), half again the line's
+   size, as msaunders.dev sets it (--fs-site-mark). */
 .foot {
   display: flex;
   flex-wrap: wrap;
@@ -832,7 +830,7 @@ a.tag:hover { color: var(--site-fg); }
 .foot a { color: var(--site-fg-2); }
 .foot a:hover { color: var(--hue); }
 
-/* --- a phone, or a narrow window ------------------------------ */
+/* --- a phone or a narrow window ---------------------------- */
 @media (max-width: 640px) {
   /* every gap and inset a size down, all at once */
   :root {

@@ -6,45 +6,48 @@
   <title>Untitled - Notepad</title>
   <script src="/js/app.js"></script>
   <script>
-    // Opens a text file from public/files/, named in the address:
-    // /programs/notepad/?file=credits.txt. The name goes in the title right
-    // away, before the page has loaded, so the window's title bar has it
-    // from the start.
+    // A site file from public/files/, like ?file=credits.txt. Its name goes
+    // in the title right away so the window's title bar has it from the
+    // start. Files on the shared disk are ?id=, and notepad.js names those
+    // once the disk loads.
     const asked = new URLSearchParams(location.search).get("file");
-    const file = asked && /^[\w.-]+\.txt$/.test(asked) ? asked : null;
-    if (file) document.title = `${file} - Notepad`;
+    window.siteFile = asked && /^[\w.-]+\.txt$/.test(asked) ? asked : null;
+    if (window.siteFile) document.title = `${window.siteFile} - Notepad`;
   </script>
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/explorer.css">
+  <style>
+    /* The text box, edge to edge under the menu bar, in the mono font. */
+    .notepad__text {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      padding: 0 var(--sp-2);
+      border: 0;
+      border-top: var(--hairline) solid var(--face-shadow);
+      background: var(--paper);
+      color: var(--ink);
+      font: 400 var(--fs-body)/var(--lh-mono) var(--font-mono);
+      resize: none;
+    }
+    .notepad__text:focus-visible { border-color: var(--face-shadow); }
+    .notepad__text.is-unwrapped { white-space: pre; overflow-x: auto; }
+    .notepad .status-bar { padding: var(--sp-2); }
+  </style>
+  <script type="module" src="notepad.js"></script>
 </head>
-<body class="app">
-  <main class="doc doc--mono" id="text"></main>
-  <script>
-    // Addresses in the text are links, opening in a new tab: the web's, with
-    // or without https:// (github.com/..., dejavu-fonts.github.io), and the
-    // site's own files (/fonts/LGPL-2.1.txt). A name like cosmos.js isn't one.
-    const ADDRESS = /(https?:\/\/\S+|(?<![\w.])\/[\w.-]+\/[\w./-]+|\b(?:[\w-]+\.)+(?:com|org|net|io|dev|app|gov|edu)(?:\/[\w./%-]*)?)/g;
-    function linked(text) {
-      const out = document.createDocumentFragment();
-      text.split(ADDRESS).forEach((part, i) => {
-        if (i % 2 === 0) return out.append(part);
-        const link = document.createElement("a");
-        link.textContent = part;
-        link.href = /^(?:https?:|\/)/.test(part) ? part : `https://${part}`;
-        link.target = "_blank";
-        link.rel = "noopener";
-        out.append(link);
-      });
-      return out;
-    }
-
-    if (file) {
-      const text = document.getElementById("text");
-      fetch(`/files/${file}`)
-        .then((response) => (response.ok ? response.text() : Promise.reject()))
-        .then((words) => text.replaceChildren(linked(words)))
-        .catch(() => { text.textContent = `Cannot find the ${file} file.`; });
-    }
-  </script>
+<!--
+  XP's Notepad, for text files on the shared disk. It also shows the site's
+  own files (like credits.txt) read-only. notepad.js does the rest.
+-->
+<body class="app notepad">
+  <nav class="menu-bar" aria-label="Menu"></nav>
+  <textarea class="notepad__text" spellcheck="false" autocomplete="off" aria-label="Text"></textarea>
+  <main class="doc doc--mono notepad__site" hidden></main>
+  <footer class="status-bar" hidden>
+    <span class="status-bar__field"></span>
+    <span class="status-bar__field status-bar__field--size" data-where></span>
+  </footer>
 </body>
 </html>

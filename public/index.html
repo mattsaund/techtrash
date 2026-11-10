@@ -8,9 +8,9 @@
   <!-- The blog, for feed readers (server/feed.js). -->
   <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
   <script>
-    // Before anything paints: a visitor arrives logged on, straight into the
-    // blog. Only a tab that has logged off comes back to the Welcome screen
-    // (js/session.js does the rest).
+    // Runs before anything paints. A visitor arrives logged on, straight into
+    // the blog, and only a tab that has logged off comes back to the Welcome
+    // screen. js/session.js does the rest.
     try {
       if (sessionStorage.getItem("techtrash:logged-off")) document.documentElement.classList.add("is-logged-off");
     } catch {}
@@ -18,14 +18,17 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
   <link rel="stylesheet" href="/css/desktop.css">
+  <!-- For Paint's Open and Save As, which it puts up out here (js/file-dialog.js). -->
+  <link rel="stylesheet" href="/css/explorer.css">
   <script type="module" src="/js/desktop.js"></script>
 </head>
 <body>
   <!--
-    The desktop. The icons, the start menu's lists and every window are drawn
-    by js/desktop.js and js/icons.js from the list in js/apps.js.
+    The desktop. The icons are what's in the shared disk's Desktop folder
+    (js/icons.js). js/desktop.js draws every window and the start menu's
+    lists (from js/apps.js).
   -->
-  <main class="desktop" aria-label="Desktop">
+  <main class="desktop" aria-label="Desktop" data-wallpaper="stretch">
     <nav class="desktop__icons" aria-label="Desktop icons"></nav>
 
     <noscript>
@@ -34,12 +37,9 @@
           <h2 class="title-bar__text" id="noscript-title">techtrash</h2>
         </header>
         <div class="window__body">
-          <p>The desktop needs JavaScript, but every page works without it:</p>
-          <!-- The same apps as js/apps.js (the blog first: it's the site). -->
+          <p>The desktop needs JavaScript, but the blog doesn't:</p>
           <ul>
             <li><a href="/pages/blog/">Techtrash.org blog</a></li>
-            <li><a href="/programs/files/">File Browser</a></li>
-            <li><a href="/programs/recycle-bin/">Recycle Bin</a></li>
             <li><a href="/files/credits.txt">credits.txt</a></li>
           </ul>
         </div>
@@ -54,7 +54,10 @@
     </div>
     <div class="start-menu__hotline"></div>
     <div class="start-menu__cols">
-      <ul class="start-menu__list start-menu__programs" aria-label="Programs"></ul>
+      <div class="start-menu__left">
+        <ul class="start-menu__list start-menu__programs" aria-label="Programs"></ul>
+        <button class="start-menu__all" type="button" aria-haspopup="menu">All Programs<img src="/img/icons/xp/go.png" alt=""></button>
+      </div>
       <ul class="start-menu__list start-menu__places" aria-label="Pages"></ul>
     </div>
     <div class="start-menu__foot">
@@ -66,7 +69,9 @@
     <button class="start" aria-expanded="false" aria-controls="start-menu"><img class="start__flag" src="/img/icons/xp/start-flag.png" alt="">start</button>
     <div class="taskbar__tasks" role="group" aria-label="Open windows"></div>
     <div class="tray">
-      <time class="tray__clock"></time>
+      <img class="tray__icon tray__lock" src="/img/icons/xp/padlock.png" alt="Locked" title="The desktop is locked: only the admin can change things on it right now." hidden>
+      <!-- Opens Date and Time Properties when clicked. -->
+      <button class="tray__clock-button" type="button" aria-label="Date and Time"><time class="tray__clock"></time></button>
     </div>
   </footer>
 
@@ -93,7 +98,7 @@
         <p class="logon__prompt" role="status"></p>
       </div>
       <div class="logon__divider"></div>
-      <!-- Everyone is techtrash. admin is me: it asks for a user name and
+      <!-- Everyone is techtrash. admin is me. It asks for a user name and
            password, and can post (server/admin.js). -->
       <ul class="logon__users" aria-label="Users">
         <li class="logon__entry">
@@ -126,8 +131,8 @@
     </div>
   </div>
 
-  <!-- XP tints a selected icon with the selection blue, half and half. The
-       color comes from --select, through css/desktop.css. -->
+  <!-- XP tints a selected icon half and half with the selection blue. The
+       color is --select, set in css/xp.css. -->
   <svg class="filters" aria-hidden="true">
     <filter id="select-tint" color-interpolation-filters="sRGB">
       <feFlood class="select-tint__flood"/>
@@ -135,28 +140,6 @@
       <feComposite in="tint" in2="SourceGraphic" operator="arithmetic" k2="0.5" k3="0.5"/>
     </filter>
   </svg>
-
-  <!-- XP's message box (js/message.js), over the whole desktop until it's
-       answered. -->
-  <template id="message-template">
-    <div class="message-layer">
-      <section class="window message" role="alertdialog" aria-modal="true" aria-labelledby="message-title" aria-describedby="message-text">
-        <header class="title-bar">
-          <h2 class="title-bar__text" id="message-title"></h2>
-          <div class="title-bar__controls">
-            <button class="caption caption--close" aria-label="Close"></button>
-          </div>
-        </header>
-        <div class="message__body">
-          <img class="message__icon" alt="">
-          <p class="message__text" id="message-text"></p>
-        </div>
-        <div class="message__foot">
-          <button class="button button--default" data-ok>OK</button>
-        </div>
-      </section>
-    </div>
-  </template>
 
   <template id="window-template">
     <section class="window">

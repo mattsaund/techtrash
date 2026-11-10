@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Display Properties</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <link rel="stylesheet" href="/css/explorer.css">
+  <style>
+    .display { padding: var(--sp-8); gap: var(--sp-8); }
+    .display__panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-8); }
+
+    /* XP's little monitor. Its screen shows the picture where it would go,
+       over the background color. */
+    .monitor {
+      align-self: center;
+      padding: var(--sp-12) var(--sp-12) var(--sp-24);
+      border-radius: var(--r-window);
+      background: var(--monitor);
+      box-shadow: var(--monitor-edge);
+    }
+    .monitor__screen {
+      width: var(--monitor-w);
+      height: var(--monitor-h);
+      border: var(--hairline) solid var(--ink);
+      background-color: var(--wallpaper-color);
+      background-image: var(--wallpaper-image);
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+    }
+    .monitor__screen[data-wallpaper="tile"] { background-repeat: repeat; background-position: 0 0; }
+
+    .display__row { flex: 1; min-height: 0; display: flex; gap: var(--sp-8); }
+    .display__list {
+      flex: 1;
+      min-width: 0;
+      overflow: auto;
+      padding: var(--sp-2);
+      background: var(--paper);
+      border: var(--hairline) solid var(--field-edge);
+      user-select: none;
+    }
+    .display__list:focus { outline: 0; }
+    .display__side { display: flex; flex-direction: column; gap: var(--sp-4); width: var(--button-w); }
+    .display__side select { width: 100%; }
+    .display__side input[type="color"] {
+      width: 100%;
+      height: var(--button-h);
+      padding: var(--sp-2);
+      border: var(--hairline) solid var(--button-edge);
+      border-radius: var(--r-control);
+      background: var(--button-face);
+    }
+    .display__gap { height: var(--sp-8); }
+    .display__foot { display: flex; justify-content: flex-end; gap: var(--sp-8); }
+  </style>
+  <script type="module" src="display.js"></script>
+</head>
+<!--
+  Display Properties, just XP's Desktop tab. The wallpaper it sets is
+  everyone's. display.js does the rest.
+-->
+<body class="app display">
+  <div class="tabs" role="tablist">
+    <button class="tab" type="button" role="tab" aria-selected="true" aria-controls="desktop-tab">Desktop</button>
+  </div>
+  <div class="tab-panel display__panel" id="desktop-tab" role="tabpanel">
+    <div class="monitor"><div class="monitor__screen" data-wallpaper="stretch"></div></div>
+    <span id="background-label">Background:</span>
+    <div class="display__row">
+      <div class="display__list" role="listbox" tabindex="0" aria-labelledby="background-label"></div>
+      <div class="display__side">
+        <button class="button" type="button" data-browse>Browse...</button>
+        <span class="display__gap"></span>
+        <label for="position">Position:</label>
+        <select id="position">
+          <option value="center">Center</option>
+          <option value="tile">Tile</option>
+          <option value="stretch">Stretch</option>
+        </select>
+        <label for="color">Color:</label>
+        <input type="color" id="color">
+      </div>
+    </div>
+  </div>
+  <div class="display__foot">
+    <button class="button button--default" type="button" data-ok>OK</button>
+    <button class="button" type="button" data-cancel>Cancel</button>
+    <button class="button" type="button" data-apply disabled>Apply</button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculator</title>
+  <script src="/js/app.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/xp.css">
+  <style>
+    .calc__body { flex: 1; display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-8); }
+    .calc__display {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      height: var(--field-h);
+      padding: 0 var(--sp-4);
+      border: var(--hairline) solid var(--field-edge);
+      background: var(--paper);
+      overflow: hidden;
+      white-space: nowrap;
+      user-select: text;
+    }
+    .calc__keys {
+      display: grid;
+      grid-template-columns: var(--calc-key) var(--sp-8) repeat(5, var(--calc-key));
+      grid-auto-rows: var(--calc-key-h);
+      gap: var(--sp-4);
+      justify-content: center;
+    }
+    .calc__keys .button { min-width: 0; height: auto; padding: 0; color: var(--calc-number); }
+    .calc__keys .button.is-act { color: var(--calc-act); }
+    .calc__memory {
+      grid-column: 1;
+      display: grid;
+      place-items: center;
+      box-shadow: inset var(--hairline) var(--hairline) var(--face-shadow), inset calc(-1 * var(--hairline)) calc(-1 * var(--hairline)) var(--face-hi);
+    }
+    .calc__top { grid-column: 3 / span 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+  </style>
+  <script type="module" src="calculator.js"></script>
+</head>
+<!--
+  The Calculator, XP's Standard view. calculator.js does the sums left to
+  right, a number at a time, the way XP's did.
+-->
+<body class="app calc">
+  <nav class="menu-bar" aria-label="Menu"></nav>
+  <div class="calc__body">
+    <output class="calc__display" aria-live="polite" data-display>0.</output>
+    <div class="calc__keys">
+      <span class="calc__memory" data-memory title="Memory"></span>
+      <span></span>
+      <div class="calc__top">
+        <button class="button is-act" type="button" data-key="Backspace">Backspace</button>
+        <button class="button is-act" type="button" data-key="CE">CE</button>
+        <button class="button is-act" type="button" data-key="C">C</button>
+      </div>
+
+      <button class="button is-act" type="button" data-key="MC">MC</button>
+      <span></span>
+      <button class="button" type="button" data-key="7">7</button>
+      <button class="button" type="button" data-key="8">8</button>
+      <button class="button" type="button" data-key="9">9</button>
+      <button class="button is-act" type="button" data-key="/">/</button>
+      <button class="button" type="button" data-key="sqrt">sqrt</button>
+
+      <button class="button is-act" type="button" data-key="MR">MR</button>
+      <span></span>
+      <button class="button" type="button" data-key="4">4</button>
+      <button class="button" type="button" data-key="5">5</button>
+      <button class="button" type="button" data-key="6">6</button>
+      <button class="button is-act" type="button" data-key="*">*</button>
+      <button class="button" type="button" data-key="%">%</button>
+
+      <button class="button is-act" type="button" data-key="MS">MS</button>
+      <span></span>
+      <button class="button" type="button" data-key="1">1</button>
+      <button class="button" type="button" data-key="2">2</button>
+      <button class="button" type="button" data-key="3">3</button>
+      <button class="button is-act" type="button" data-key="-">-</button>
+      <button class="button" type="button" data-key="1/x">1/x</button>
+
+      <button class="button is-act" type="button" data-key="M+">M+</button>
+      <span></span>
+      <button class="button" type="button" data-key="0">0</button>
+      <button class="button" type="button" data-key="+/-">+/-</button>
+      <button class="button" type="button" data-key=".">.</button>
+      <button class="button is-act" type="button" data-key="+">+</button>
+      <button class="button is-act" type="button" data-key="=">=</button>
+    </div>
+  </div>
+</body>
+</html>
