@@ -327,13 +327,6 @@ html, body { height: 100%; overflow: hidden; }
 }
 .logon__band--top::after { bottom: 0; background: var(--logon-line-top); }
 .logon__band--bottom::after { top: 0; background: var(--logon-line-bottom); }
-.logon__band--bottom {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 var(--sp-32);
-}
-.logon__note { max-width: var(--measure); text-align: right; }
 
 .logon__main {
   flex: 1;
@@ -425,8 +418,6 @@ html, body { height: 100%; overflow: hidden; }
   .logon__intro { justify-self: center; text-align: center; }
   .logon__divider { display: none; }
   .logon__users { justify-self: center; }
-  .logon__band--bottom { justify-content: center; padding: 0 var(--sp-16); }
-  .logon__note { text-align: center; }
 }
 
 /* --- no JavaScript ----------------------------------------- */

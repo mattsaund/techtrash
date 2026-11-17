@@ -254,6 +254,12 @@ document.addEventListener("keydown", (e) => {
 text.addEventListener("input", status);
 text.addEventListener("keyup", status);
 text.addEventListener("pointerup", status);
+// Tab types a tab, as in XP's Notepad, instead of leaving the window.
+text.addEventListener("keydown", (e) => {
+  if (e.key !== "Tab" || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  insert("\t");
+});
 
 // --- the site's own files --------------------------------------------------
 

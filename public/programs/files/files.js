@@ -246,9 +246,9 @@ function drawPane(folder) {
       if (renamable(single)) task(list, `Rename this ${word}`, `${XP}/rename.png`, () => startRename(single.id));
       if (movable(single)) task(list, `Move this ${word}`, `${XP}/move-to.png`, () => moveTo(chosen));
       if (isPicture(single)) task(list, "Set as desktop background", `${XP}/display-properties.png`, () => setAsWallpaper(single));
-      task(list, `Delete this ${word}`, `${XP}/delete.png`, () => deleteItems(chosen));
-    } else {
-      if (chosen.some(movable)) task(list, "Move the selected items", `${XP}/move-to.png`, () => moveTo(chosen));
+      if (movable(single)) task(list, `Delete this ${word}`, `${XP}/delete.png`, () => deleteItems(chosen));
+    } else if (chosen.some(movable)) {
+      task(list, "Move the selected items", `${XP}/move-to.png`, () => moveTo(chosen));
       task(list, "Delete the selected items", `${XP}/delete.png`, () => deleteItems(chosen));
     }
     // XP's Music Tasks show in My Music and anywhere else with music.
@@ -527,7 +527,7 @@ function itemMenu() {
     "-",
     { label: "Cut", disabled: !chosen.some(movable), action: () => clipboard.cut(chosen) },
     "-",
-    { label: "Delete", action: () => deleteItems(chosen) },
+    { label: "Delete", disabled: !chosen.some(movable), action: () => deleteItems(chosen) },
     { label: "Rename", disabled: !renamable(single), action: () => startRename(single.id) },
   );
   return entries;
@@ -574,7 +574,7 @@ function setUpMenus() {
         : [{ label: "New", submenu: newEntries() }, "-", { label: "Open", disabled: !chosen.length, action: () => chosen.forEach(open) }];
       entries.push(
         "-",
-        { label: "Delete", disabled: !chosen.length, action: () => deleteItems(chosen) },
+        { label: "Delete", disabled: !chosen.some(movable), action: () => deleteItems(chosen) },
         { label: "Rename", disabled: chosen.length !== 1 || !renamable(chosen[0]) || inBin(), action: () => startRename(chosen[0].id) },
         "-",
         { label: "Close", action: () => desktop.close(window) },

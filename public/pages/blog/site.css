@@ -266,7 +266,7 @@ a.tag:hover { color: var(--site-fg); }
 
 /* --- Home -------------------------------------------------- *
    The bulletin across the top with its left edge in the hue, then
-   Home's words, and the newest blogs down the right side (each
+   Home's words, and the featured blogs down the right side (each
    title with its flags under it, smaller). On a phone the side
    moves underneath, a step down like everything else. */
 .home {
@@ -291,6 +291,45 @@ a.tag:hover { color: var(--site-fg); }
   text-decoration: none;
 }
 .side-posts__title:hover { color: var(--hue); }
+/* The admin's star beside each title, and the one being dragged into a
+   new place. */
+.side-posts__row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.side-posts.is-sortable li { cursor: grab; }
+.side-posts li.is-dragging { opacity: var(--site-dragging); cursor: grabbing; }
+
+/* The admin's star on a blog, on its card, its page and Home's featured
+   list. Hollow, then filled in the blog's hue once it's featured. */
+.feature-star::before {
+  content: "";
+  flex: none;
+  width: var(--site-glyph);
+  height: var(--site-glyph);
+  background: currentColor;
+  mask: var(--site-glyph-star) center / contain no-repeat;
+}
+.feature-star.is-on::before { mask-image: var(--site-glyph-starred); }
+.feature-star:not(.button) {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--site-fg-2);
+  cursor: pointer;
+}
+.feature-star:not(.button):hover { color: var(--site-fg); }
+.feature-star:not(.button).is-on { color: var(--hue); }
+.feature-star--words { gap: var(--sp-8); }
+/* On a card it sits over the picture's corner, outside the card's link. */
+.card-spot { position: relative; }
+.card-spot > .feature-star {
+  position: absolute;
+  top: var(--sp-8);
+  right: var(--sp-8);
+  padding: var(--sp-4);
+  border: var(--hairline) solid var(--site-line);
+  border-radius: var(--r-control);
+  background: var(--site-field);
+}
 
 /* One of the site's own pages (the tagline, Home's words, About me),
    and the admin's button to edit it. */
@@ -354,7 +393,7 @@ a.tag:hover { color: var(--site-fg); }
 }
 .viewer__caption { display: flex; flex-direction: column; gap: var(--sp-8); }
 
-/* A heading inside a panel, like "Newest blogs". */
+/* A heading inside a panel, like "Featured blogs". */
 .group__head {
   display: flex;
   flex-wrap: wrap;
@@ -808,19 +847,56 @@ a.tag:hover { color: var(--site-fg); }
 .trap { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
 
 /* --- the foot ---------------------------------------------- *
-   Copyleft, Matthew Saunders, the credits (Notepad on the desktop)
+   The admin's own words and the blinkies, then the line with the
+   copyleft, Matthew Saunders, the credits (Notepad on the desktop)
    and the feed. The same gap above it as between any two panels,
    and the same below. The copyleft sign is the font's own © turned
    around (Paper Mono has no copyleft sign), half again the line's
    size, as msaunders.dev sets it (--fs-site-mark). */
 .foot {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0 var(--sp-16);
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-16);
   padding-bottom: var(--site-gap);
   color: var(--site-fg-3);
 }
+.foot__line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 var(--sp-16);
+  margin: 0;
+}
+.foot__words { align-self: stretch; text-align: center; }
+.foot__words:empty { display: none; }
+.foot__words > .button-row { justify-content: center; }
+.foot__words .writing-form { text-align: start; }
+/* Blinkies at their own size, their pixels kept sharp. The admin gets an
+   × on each, to take it off. */
+.blinkies { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-4); }
+.blinkies:empty { display: none; }
+.blinkie { position: relative; }
+.blinkie img { display: block; image-rendering: pixelated; }
+.blinkies.is-sortable .blinkie { cursor: grab; }
+.blinkie.is-dragging { opacity: var(--site-dragging); cursor: grabbing; }
+.blinkie__off {
+  position: absolute;
+  top: calc(-1 * var(--sp-8));
+  right: calc(-1 * var(--sp-8));
+  display: none;
+  place-items: center;
+  width: var(--site-glyph);
+  height: var(--site-glyph);
+  padding: 0;
+  border: var(--hairline) solid var(--site-line-2);
+  border-radius: 50%;
+  background: var(--site-field);
+  color: var(--site-fg);
+  font: 400 var(--fs-site-body)/var(--lh-site-small) var(--font-site);
+  cursor: pointer;
+}
+.blinkie:hover .blinkie__off, .blinkie:focus-within .blinkie__off { display: grid; }
 .copyleft {
   display: inline-block;
   font-size: var(--fs-site-mark);

@@ -1,7 +1,8 @@
 // The blog's server side. It keeps posts, flags, comments and pages.
 //
-//   post     a blog, with a title, a body, flags, comments on or off, and
-//            whether it's a draft. The body is HTML from the editor, cleaned
+//   post     a blog, with a title, a body, flags, comments on or off,
+//            whether it's a draft, and its place among the featured blogs on
+//            Home if the admin starred it. The body is HTML from the editor, cleaned
 //            by the page before it's sent and again before it's shown
 //            (public/pages/blog/content.js). A draft is the admin's alone
 //            until it's published. Turning comments off keeps the ones
@@ -13,7 +14,8 @@
 //            so comments form threads. Just a name and plain text.
 //   page     one of the site's own pages the admin writes (Home's words, the
 //            bulletin at the top of Home, About me, the tagline under the
-//            headline). Just a body, like a post's.
+//            headline, the footer's words, and the footer's blinkies). Just a
+//            body, like a post's.
 //
 // Each post has a slug, its title made fit for an address ("Daft Punk's
 // best" is daft-punks-best). It's unique across the blog so addresses can
@@ -37,13 +39,15 @@
 //   GET    /api/blog/posts[?limit=]      published posts, newest first, each with its
 //                                        opening words, first picture, flags and
 //                                        comment count (?limit= for the newest few)
+//   GET    /api/blog/posts?featured      the starred ones, in the admin's order
 //   GET    /api/blog/post?slug= | ?id=   a post with its flags and comments (a draft
 //                                        only for the admin)
 //   GET    /api/blog/flags               the flags published posts have, with counts
 //                                        (the admin gets every flag)
 //   GET    /api/blog/pictures            every picture posted to the site, newest
 //                                        first, each with where it's from
-//   GET    /api/blog/page?name=          the body of home, bulletin, about or tagline
+//   GET    /api/blog/page?name=          the body of home, bulletin, about, tagline,
+//                                        footer or blinkies
 //                                        ("" until it's written, or once it's taken down)
 //   POST   /api/blog/comments            { post, parent, name, body }
 //
@@ -52,7 +56,9 @@
 //
 //   GET    /api/blog/posts?drafts        every draft, listed the same way
 //   POST   /api/blog/posts               { title, body, flags, comments, draft }
-//   PUT    /api/blog/post?id=            any of { title, body, flags, comments, draft }
+//   PUT    /api/blog/post?id=            any of { title, body, flags, comments, draft,
+//                                        featured }
+//   PUT    /api/blog/featured            { ids }, the featured blogs in their new order
 //   DELETE /api/blog/post?id=            the post and its comments (and any pictures
 //                                        or sounds nothing else shows)
 //   POST   /api/blog/pictures            a form with a picture, returns its address
@@ -84,7 +90,8 @@ const POSTS = `(
   comments_open INTEGER NOT NULL DEFAULT 1,
   created INTEGER NOT NULL,
   published INTEGER,
-  updated INTEGER
+  updated INTEGER,
+  featured INTEGER
 )`;
 
 // Made the first time they're needed, once per Worker instance.
@@ -146,6 +153,7 @@ async function upgrade(env) {
   const posts = await columns("posts");
   if (!posts.has("slug")) await env.DB.prepare("ALTER TABLE posts ADD COLUMN slug TEXT").run().catch(alreadyThere);
   if (!posts.has("updated")) await env.DB.prepare("ALTER TABLE posts ADD COLUMN updated INTEGER").run().catch(alreadyThere);
+  if (!posts.has("featured")) await env.DB.prepare("ALTER TABLE posts ADD COLUMN featured INTEGER").run().catch(alreadyThere);
   if (!posts.has("comments_open")) {
     // Plain-text posts become HTML, in the same batch as the new column so
     // it only ever happens once.
@@ -433,12 +441,14 @@ export async function listPosts(request, env) {
   await ensureSchema(env);
   const params = new URL(request.url).searchParams;
   const drafts = params.has("drafts");
+  const featured = params.has("featured");
   if (drafts && !(await isAdmin(request, env))) return apiError(401, "Only the admin can do that.");
   const limit = Math.min(Math.max(Number(params.get("limit")) || 0, 0), 100);   // 0 means all
+  const order = featured ? "featured, id" : "COALESCE(published, created) DESC, id DESC";
   const { results } = await env.DB.prepare(
-    `SELECT id, title, slug, substr(body, 1, 50000) AS start, draft, comments_open, created, published, updated,
+    `SELECT id, title, slug, substr(body, 1, 50000) AS start, draft, comments_open, created, published, updated, featured,
        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id AND deleted = 0) AS comment_count
-     FROM posts WHERE draft = ? ORDER BY COALESCE(published, created) DESC, id DESC${limit ? " LIMIT ?" : ""}`,
+     FROM posts WHERE draft = ?${featured ? " AND featured IS NOT NULL" : ""} ORDER BY ${order}${limit ? " LIMIT ?" : ""}`,
   ).bind(drafts ? 1 : 0, ...(limit ? [limit] : [])).all();
   const flags = await flagsOf(env, results.map((post) => post.id));
   // each post as a card, with its opening words, first picture and flags
@@ -454,7 +464,7 @@ export async function getPost(request, env) {
   const params = new URL(request.url).searchParams;
   const bySlug = params.has("slug");
   const post = await env.DB.prepare(
-    `SELECT id, title, slug, body, draft, comments_open, created, published, updated FROM posts WHERE ${bySlug ? "slug = ?" : "id = ?"}`,
+    `SELECT id, title, slug, body, draft, comments_open, created, published, updated, featured FROM posts WHERE ${bySlug ? "slug = ?" : "id = ?"}`,
   ).bind(bySlug ? params.get("slug") : Number(params.get("id"))).first();
   if (!post || (post.draft && !(await isAdmin(request, env)))) return apiError(404, "That blog isn't here anymore.");
   const [flags, { results: comments }] = await Promise.all([
@@ -468,7 +478,7 @@ export async function getPost(request, env) {
   });
 }
 
-// Whatever of { title, body, flags, comments, draft } a request sends,
+// Whatever of { title, body, flags, comments, draft, featured } a request sends,
 // cleaned. Flags are names, and case doesn't matter.
 async function postInput(request) {
   const input = await readJson(request, MAX_LENGTH.body * 2 + 10_000);
@@ -478,6 +488,7 @@ async function postInput(request) {
   if ("body" in input) out.body = typeof input.body === "string" ? input.body.slice(0, MAX_LENGTH.body) : "";
   if ("comments" in input) out.comments = input.comments ? 1 : 0;
   if ("draft" in input) out.draft = input.draft ? 1 : 0;
+  if ("featured" in input) out.featured = Boolean(input.featured);
   if ("flags" in input) {
     const names = (Array.isArray(input.flags) ? input.flags : [])
       .map((name) => cleanText(name, MAX_LENGTH.flag).replace(/\s+/g, " "))
@@ -516,7 +527,7 @@ export async function createPost(request, env) {
 export async function updatePost(request, env) {
   await ensureSchema(env);
   const id = idParam(request);
-  const before = await env.DB.prepare("SELECT title, slug, body, draft, comments_open, published FROM posts WHERE id = ?").bind(id).first();
+  const before = await env.DB.prepare("SELECT title, slug, body, draft, comments_open, published, featured FROM posts WHERE id = ?").bind(id).first();
   if (!before) return apiError(404, "That blog isn't here anymore.");
   const input = await postInput(request);
   if (!input) return apiError(400, "That didn't come through. Try again.");
@@ -538,9 +549,29 @@ export async function updatePost(request, env) {
     `UPDATE posts SET title = ?, slug = ?, body = ?, draft = ?, comments_open = ?, published = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
   ).bind(next.title, slug, next.body, next.draft, next.comments, published, ...(edited ? [Date.now()] : []), id).run();
   if (input.flags) await setFlags(env, id, input.flags);
+  // A newly starred blog goes at the end of the featured ones.
+  if (input.featured === true && before.featured === null) {
+    await env.DB.prepare("UPDATE posts SET featured = (SELECT COALESCE(MAX(featured), 0) + 1 FROM posts) WHERE id = ?").bind(id).run();
+  } else if (input.featured === false) {
+    await env.DB.prepare("UPDATE posts SET featured = NULL WHERE id = ?").bind(id).run();
+  }
   const kept = new Set(filesIn(next.body));
   await dropUnused(env, filesIn(before.body).filter((address) => !kept.has(address)));
   return fresh({ id, slug, draft: next.draft });
+}
+
+// The featured blogs in a new order, from Home. ids is every one of them, in
+// order, and a blog left out isn't featured anymore.
+export async function saveFeatured(request, env) {
+  await ensureSchema(env);
+  const input = await readJson(request, 10_000);
+  const ids = Array.isArray(input?.ids) ? [...new Set(input.ids.map(Number).filter(Number.isInteger))].slice(0, 100) : null;
+  if (!ids) return apiError(400, "That didn't come through. Try again.");
+  await env.DB.batch([
+    env.DB.prepare("UPDATE posts SET featured = NULL WHERE featured IS NOT NULL"),
+    ...ids.map((id, at) => env.DB.prepare("UPDATE posts SET featured = ? WHERE id = ?").bind(at + 1, id)),
+  ]);
+  return fresh({ ids });
 }
 
 export async function deletePost(request, env) {
@@ -560,14 +591,15 @@ export async function deletePost(request, env) {
 // --- pictures --------------------------------------------------------------------
 
 // Every picture posted to the site, newest first. That's the ones in published
-// posts and the site's own pages, each once, with where it's from.
+// posts and the site's own pages, each once, with where it's from. The
+// footer's pictures and blinkies are part of the site, so they're left out.
 export async function listPictures(request, env) {
   await ensureSchema(env);
   const [posts, pages] = await Promise.all([
     env.DB.prepare(
       "SELECT id, title, slug, body, COALESCE(published, created) AS created FROM posts WHERE draft = 0 AND instr(body, '/blog/img/') > 0",
     ).all(),
-    env.DB.prepare("SELECT name AS id, body, updated AS created FROM pages WHERE instr(body, '/blog/img/') > 0").all(),
+    env.DB.prepare("SELECT name AS id, body, updated AS created FROM pages WHERE instr(body, '/blog/img/') > 0 AND name NOT IN ('footer', 'blinkies')").all(),
   ]);
   // where a picture is, as { kind, id, title } plus a post's slug
   const from = (kind, row) => ({ kind, id: row.id, title: row.title ?? PAGES[row.id], ...(row.slug ? { slug: row.slug } : {}) });
@@ -653,7 +685,7 @@ export async function deleteComment(request, env) {
 // --- pages -----------------------------------------------------------------------
 
 // The site's own pages the admin writes, by name, with their titles.
-const PAGES = { home: "Home", bulletin: "Bulletin", about: "About me", tagline: "Tagline" };
+const PAGES = { home: "Home", bulletin: "Bulletin", about: "About me", tagline: "Tagline", footer: "Footer", blinkies: "Blinkies" };
 const pageName = (request) => {
   const name = new URL(request.url).searchParams.get("name");
   return Object.hasOwn(PAGES, name) ? name : null;

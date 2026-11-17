@@ -3,11 +3,12 @@
 // it, rename it, move it, throw it away or take it back out of the Recycle
 // Bin. The wallpaper is everyone's too.
 //
-// A few things are held back. Nobody can rename, move or delete the folders
-// the desktop is built on, or rename its first shortcuts. Only the admin can
-// move the blog's shortcut and the Recycle Bin, delete the blog's, or add and
-// change music. The admin can also lock the desktop, keep a visitor out, and
-// see everything that's been done (programs/admin/).
+// A few things are held back. Nobody, the admin included, can rename, move or
+// delete the folders the desktop is built on, or its three first shortcuts
+// (the Recycle Bin, the blog and the File Browser), which also never leave
+// their cells (server/desktop.js). Only the admin can add or change music.
+// The admin can also lock the desktop, keep a visitor out, and see
+// everything that's been done (programs/admin/).
 //
 // It all lives in the shared desktop's Durable Object (server/desktop.js), in
 // four tables. items has every folder, file and shortcut, without its bytes.
@@ -42,10 +43,6 @@ const FOLDERS = [
   { id: "recycle", name: "Recycle Bin", parent: null },
 ];
 const FOLDER_IDS = new Set(FOLDERS.map((folder) => folder.id));
-
-// Only the admin can move these, or throw the blog's away. The Recycle Bin
-// never goes in the bin, not even the admin's.
-const ADMINS_ONLY = new Set(["recycle-bin", "blog"]);
 
 // A row holds 8 MB at most, so a file's bytes are kept in smaller pieces.
 const CHUNK = 2 * 1024 * 1024;
@@ -135,11 +132,17 @@ export class Disk {
       sql.exec("INSERT OR IGNORE INTO items (id, parent, name, kind, created, modified) VALUES (?, ?, ?, 'folder', ?, ?)",
         folder.id, folder.parent, folder.name, now, now);
     }
+    // The first shortcuts stay on the desktop under their own names. One
+    // that went missing, or got moved or thrown away before they were fixed
+    // in place, comes back.
+    for (const id of FIRST_SHORTCUTS) {
+      const title = findApp(id).title;
+      sql.exec("INSERT OR IGNORE INTO items (id, parent, name, kind, type, created, modified) VALUES (?, 'desktop', ?, 'app', ?, ?, ?)",
+        id, title, id, now, now);
+      sql.exec("UPDATE items SET parent = 'desktop', name = ?, was_in = NULL, modified = ? WHERE id = ? AND (parent IS NOT 'desktop' OR name IS NOT ?)",
+        title, now, id, title);
+    }
     if (!this.setting("installed")) {
-      for (const id of FIRST_SHORTCUTS) {
-        sql.exec("INSERT OR IGNORE INTO items (id, parent, name, kind, type, created, modified) VALUES (?, 'desktop', ?, 'app', ?, ?, ?)",
-          id, findApp(id).title, id, now, now);
-      }
       this.setSetting("wallpaper", FIRST_WALLPAPER);
       this.setSetting("installed", true);
     }
@@ -215,10 +218,7 @@ export class Disk {
   // What stays put. verb is what was tried, for XP's own words, like
   // "Cannot delete My Documents: Permission Denied."
   mayTouch(row, who, verb) {
-    const denied = FOLDER_IDS.has(row.id)
-      || (verb === "rename" && FIRST_SHORTCUTS.includes(row.id))
-      || (who !== "admin" && ADMINS_ONLY.has(row.id));
-    if (denied) refuse(403, `Cannot ${verb} ${row.name}: Permission Denied.`);
+    if (FOLDER_IDS.has(row.id) || FIRST_SHORTCUTS.includes(row.id)) refuse(403, `Cannot ${verb} ${row.name}: Permission Denied.`);
     if (who !== "admin" && this.holdsSound(row)) {
       refuse(403, `Cannot ${verb} ${row.name}: Permission Denied. Only the admin can change music and sounds.`);
     }
@@ -415,7 +415,6 @@ export class Disk {
     this.mayChange(who);
     const row = this.existing(id);
     this.mayTouch(row, who, "delete");
-    if (row.id === "recycle-bin") refuse(403, "The Recycle Bin can't go in itself.");
     if (row.parent === "recycle" || this.inBin(row.id) || (forGood && who === "admin")) {
       return { gone: this.purge(who, [row]) };
     }

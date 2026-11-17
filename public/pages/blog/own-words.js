@@ -15,11 +15,11 @@ export function swap(spot, form) {
   return () => spot.replaceChildren(...was);
 }
 
-// The tagline, Home's words or About me. Shows the words, or `fallback` until
-// they're written. The admin also gets a button (labeled `edit`) that opens
-// them in the editor, with any `more` buttons beside it. short means a line
-// or two.
-export function ownWords(text, { fallback = null, short = false, look = "", edit, more = [] }) {
+// The tagline, Home's words, About me or the footer's words. Shows the words,
+// or `fallback` until they're written. The admin also gets a button (labeled
+// `edit`) that opens them in the editor, with any `more` buttons beside it.
+// short means a line or two, and canEmpty lets them be saved with nothing.
+export function ownWords(text, { fallback = null, short = false, look = "", edit, more = [], canEmpty = false }) {
   const spot = el("div", { class: `page-text ${look}` });
   const written = Boolean(text.body.trim());
   spot.append(...[written ? el("div", { class: "prose" }, renderBody(text.body)) : fallback].filter(Boolean));
@@ -29,6 +29,7 @@ export function ownWords(text, { fallback = null, short = false, look = "", edit
       const back = swap(spot, await writingForm({
         body: text.body,
         short,
+        canEmpty,
         saveText: "Save",
         cancel: () => back(),
         save: async (data) => {
@@ -44,8 +45,9 @@ export function ownWords(text, { fallback = null, short = false, look = "", edit
 
 // The blog editor with Save and Cancel, for one of the site's own words.
 // save({ body }) sends it and moves on, cancel() puts back what was there.
-// short makes the box fit a line or two (the tagline).
-export async function writingForm({ body = "", short = false, saveText, save, cancel }) {
+// short makes the box fit a line or two (the tagline), and canEmpty lets it
+// save with nothing in it.
+export async function writingForm({ body = "", short = false, canEmpty = false, saveText, save, cancel }) {
   const { createEditor } = await import("./editor/editor.js");
   // (problems in it, like a picture that won't upload, show under Save)
   const editor = createEditor(body, { short, onProblem: (text) => { message.textContent = text; } });
@@ -54,14 +56,14 @@ export async function writingForm({ body = "", short = false, saveText, save, ca
   const back = el("button", { class: "button hue-1", type: "button", textContent: "Cancel" });
   back.addEventListener("click", cancel);
   saveButton.addEventListener("click", async () => {
-    if (editor.empty()) {
+    if (editor.empty() && !canEmpty) {
       message.textContent = "Write something first.";
       return editor.focus();
     }
     saveButton.disabled = true;
     message.textContent = "Saving...";
     try {
-      await save({ body: editor.html() });
+      await save({ body: editor.empty() ? "" : editor.html() });
     } catch (error) {
       message.textContent = error.message;
       saveButton.disabled = false;

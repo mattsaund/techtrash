@@ -1,7 +1,7 @@
 // The front page's panels. One of four shows under the headline, picked by
 // its buttons.
 //
-//   Home      the bulletin, Home's words, the newest blogs beside them
+//   Home      the bulletin, Home's words, the featured blogs beside them
 //   Blog      every blog as a card, to sort and filter by flag
 //   Pictures  every picture posted to the site
 //   About me  the site's own About page
@@ -13,7 +13,7 @@ import { renderBody } from "./content.js";
 import { framed } from "./frame.js";
 import { ownWords, swap, writingForm } from "./own-words.js";
 import { BLOG_AT, admin, again, flagTags, moveTo, theBlog, titled, to, whereNow } from "./site.js";
-import { api, backTo, date, el, forNow, hueOf, label, plural, twoClick } from "./util.js";
+import { api, backTo, date, el, forNow, hueOf, label, plural, sortable, starButton, twoClick } from "./util.js";
 import { openViewer, pictureHash } from "./viewer.js";
 
 // The front page, with `view` (home, blog, pictures or about) under the headline.
@@ -22,11 +22,11 @@ export const showFront = (view) => framed(view, PANELS[view]);
 
 // --- Home ------------------------------------------------------------------------
 
-// The bulletin across the top (if there is one), Home's words, and the newest
-// blogs down the right side, each title with its flags under it.
+// The bulletin across the top (if there is one), Home's words, and the
+// featured blogs down the right side.
 async function homePanel() {
   const [home, bulletin, { posts }] = await Promise.all([
-    api("/api/blog/page?name=home"), api("/api/blog/page?name=bulletin"), api("/api/blog/posts?limit=8"),
+    api("/api/blog/page?name=home"), api("/api/blog/page?name=bulletin"), api("/api/blog/posts?featured"),
   ]);
   titled("Techtrash");
   const top = bulletinSpot(bulletin);
@@ -36,18 +36,28 @@ async function homePanel() {
   const main = el("div", { class: "home__main" }, ownWords(home, { edit: "Edit homepage", more: [add] }));
   if (!home.body.trim() && !admin) main.append(el("p", { class: "meta", textContent: "Nothing here yet." }));
 
-  const side = el("aside", { class: "home__side", "aria-label": "Newest blogs" },
-    el("h3", { class: "group__head", textContent: "Newest blogs" }),
-    posts.length
-      ? el("ul", { class: "side-posts" }, posts.map((post) => el("li", { class: hueOf(post.id) },
-        el("a", { class: "side-posts__title", href: to.post(post.slug), textContent: post.title }),
-        post.flags.length ? flagTags(post.flags) : null)))
-      : el("p", { class: "meta", textContent: "Nothing posted yet." }));
+  const side = el("aside", { class: "home__side", "aria-label": "Featured blogs" },
+    el("h3", { class: "group__head", textContent: "Featured blogs" }),
+    featuredList(posts));
 
   return el("section", { class: "panel hue-5", id: "home" },
     el("div", { class: "panel__head" }, label("Home")),
     top,
     el("div", { class: "home" }, main, side));
+}
+
+// The blogs the admin starred, in their order, each title with its flags
+// under it. The admin can drag them into a new order, or take a star off.
+function featuredList(posts) {
+  if (!posts.length) return el("p", { class: "meta", textContent: admin ? "Star a blog to feature it here." : "Nothing here yet." });
+  const list = el("ul", { class: "side-posts" }, posts.map((post) => {
+    const title = el("a", { class: "side-posts__title", href: to.post(post.slug), textContent: post.title });
+    return el("li", { class: hueOf(post.id), "data-id": post.id },
+      admin ? el("span", { class: "side-posts__row" }, title, starButton(post, { changed: () => again() })) : title,
+      post.flags.length ? flagTags(post.flags) : null);
+  }));
+  if (admin) sortable(list, (ids) => api("/api/blog/featured", { method: "PUT", json: { ids: ids.map(Number) } }).catch(() => again()));
+  return list;
 }
 
 // The bulletin is one thing at the top of Home that matters right now (news,
@@ -106,6 +116,10 @@ const blogCard = (post, { draft = false } = {}) => el("a", { class: `card ${hueO
     post.excerpt ? el("span", { class: "card__text", textContent: post.excerpt }) : null,
     el("span", { class: "meta", textContent: draft ? `Started ${date(post.created)}` : `${date(post.at)}, ${plural(post.comment_count, "comment")}` }),
     post.flags.length ? flagTags(post.flags, { links: false }) : null));
+
+// The admin's cards carry a star in the corner, outside the card's link, to
+// feature the blog on Home.
+const starredCard = (post) => el("div", { class: `card-spot ${hueOf(post.id)}` }, blogCard(post), starButton(post));
 
 // A small button that's on or off, filled when it's on.
 function toggle(text, look, click) {
@@ -169,7 +183,7 @@ async function blogPanel() {
     const shown = posts.filter(shows).sort(SORTS[sort].order);
     count.textContent = picked.size ? `${shown.length} of ${plural(posts.length, "blog")}` : plural(posts.length, "blog");
     list.replaceChildren(shown.length
-      ? el("div", { class: "cards" }, shown.map(blogCard))
+      ? el("div", { class: "cards" }, shown.map((post) => (admin ? starredCard(post) : blogCard(post))))
       : el("p", { class: "meta", textContent: posts.length ? "No blog has all of those flags." : "Nothing posted yet." }));
 
     const on = flags.filter((flag) => picked.has(flag.slug));

@@ -4,6 +4,7 @@
 // (Home, Blog, Pictures, About me) with the current one filled in. The page's
 // own panels go under it.
 
+import { drawFooter } from "./footer.js";
 import { ownWords } from "./own-words.js";
 import { drawWith } from "./site.js";
 import { api } from "./util.js";
@@ -11,10 +12,10 @@ import { api } from "./util.js";
 const page = document.getElementById("page");
 
 // view is the button to fill in (null for none). build() makes the page's
-// panels while the tagline loads.
+// panels while the tagline and the footer load.
 export async function framed(view, build) {
   drawWith(() => framed(view, build));
-  const [tagline, panels] = await Promise.all([api("/api/blog/page?name=tagline").catch(() => null), build()]);
+  const [tagline, panels] = await Promise.all([api("/api/blog/page?name=tagline").catch(() => null), build(), drawFooter()]);
   const hero = document.getElementById("hero").content.cloneNode(true);
   for (const link of hero.querySelectorAll("[data-view]")) {
     if (link.dataset.view === view) link.setAttribute("aria-current", "page");

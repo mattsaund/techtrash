@@ -1,13 +1,14 @@
 // A blog's own page, with its title, date, flags, words and comments
-// (comments.js). The admin also gets buttons to edit it, switch comments on
-// or off, move it back to drafts or delete it. On a draft (which only they
-// can see) the buttons finish it, publish it or throw it away.
+// (comments.js). The admin also gets buttons to edit it, feature it on Home,
+// switch comments on or off, move it back to drafts or delete it. On a draft
+// (which only they can see) the buttons finish it, publish it or throw it
+// away.
 
 import { commentsPanel } from "./comments.js";
 import { renderBody } from "./content.js";
 import { framed } from "./frame.js";
 import { admin, flagTags, goTo, theBlog, titled, to } from "./site.js";
-import { api, backTo, date, el, hueOf, status, twoClick } from "./util.js";
+import { api, backTo, date, el, hueOf, starButton, status, twoClick } from "./util.js";
 
 // The blog whose slug is postSlug.
 export const showPost = (postSlug) => framed("blog", async () => {
@@ -73,6 +74,7 @@ function postButtons(post, hue) {
   });
   return el("div", { class: "button-row" },
     el("a", { class: "button hue-4", href: to.edit(post.slug), textContent: "Edit blog" }),
+    starButton(post, { words: true }),
     comments,
     twoClick("Move to drafts", "Click again to take it down", async () => {
       await put({ draft: true });

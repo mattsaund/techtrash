@@ -53,6 +53,8 @@
     .card.is-down { background: var(--card-back); box-shadow: var(--card-frame), var(--card-shadow); }
     .card.is-down > * { visibility: hidden; }
     .card.is-picked { outline: var(--sp-2) solid var(--select); }
+    /* the win's cascade, painted over everything (solitaire.js) */
+    .trails { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   </style>
   <script type="module" src="solitaire.js"></script>
 </head>

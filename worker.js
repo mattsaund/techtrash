@@ -33,6 +33,7 @@ const BLOG = {
   "POST posts": blog.createPost,
   "GET post": blog.getPost,        // a draft is the admin's, checked there
   "PUT post": blog.updatePost,
+  "PUT featured": blog.saveFeatured,
   "DELETE post": blog.deletePost,
   "GET flags": blog.listFlags,
   "GET pictures": blog.listPictures,

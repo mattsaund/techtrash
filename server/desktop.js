@@ -25,7 +25,7 @@
 // The disk's requests are the cases in answer(), below.
 
 import { DurableObject } from "cloudflare:workers";
-import { findApp, firstShortcutsFirst } from "../public/js/apps.js";
+import { FIRST_SHORTCUTS, findApp, firstShortcutsFirst } from "../public/js/apps.js";
 import { LAST_CELL, cellKey, nearestFree, nextFreeCell, startingCells } from "../public/js/grid.js";
 import { LIMITS } from "../public/js/items.js";
 import { Disk, DiskError, TEXT } from "./disk.js";
@@ -68,6 +68,17 @@ export class Desktop extends DurableObject {
     const saved = new Map(sql.exec("SELECT id, col, row FROM cells").toArray().map(({ id, col, row }) => [id, [col, row]]));
     this.icons = startingCells(onDesktop.map((item) => item.id), saved);
     for (const [id, cell] of this.icons) if (!saved.has(id)) this.store(id, cell);
+    // The first shortcuts never move. They sit at the top of the first
+    // column in their order, and whatever got one of those cells swaps with
+    // the shortcut that belongs there.
+    FIRST_SHORTCUTS.forEach((id, row) => {
+      const at = this.icons.get(id);
+      if (!at || (at[0] === 0 && at[1] === row)) return;
+      for (const [other, cell] of this.icons) {
+        if (other !== id && cell[0] === 0 && cell[1] === row) this.store(other, at);
+      }
+      this.store(id, [0, row]);
+    });
   }
 
   // Puts an icon in a cell and saves it for next time.
@@ -150,7 +161,8 @@ export class Desktop extends DurableObject {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const icons = {};
     for (const [id, at] of Object.entries(value)) {
-      if (!this.icons.has(id) || !Array.isArray(at) || at.length !== 2) continue;
+      // (the first shortcuts never move, whatever a tab says)
+      if (!this.icons.has(id) || FIRST_SHORTCUTS.includes(id) || !Array.isArray(at) || at.length !== 2) continue;
       const cell = at.map(Number);
       if (!cell.every(Number.isFinite)) continue;
       icons[id] = cell.map((n) => {

@@ -26,7 +26,7 @@ import { cellKey, nearestFree, nextFreeCell } from "./grid.js";
 import { DRAGGED, editor, iconOf, isFolder, isPicture, isShortcut, nameParts, opener, renamable } from "./items.js";
 import { showMenu } from "./menu.js";
 import { line } from "./shared.js";
-import { clipboard, deleteItems, emptyBin, makeNew, movable, moveItems, renameItem, saveFromComputer, setAsWallpaper, throwAway } from "./tasks.js";
+import { clipboard, deleteItems, emptyBin, makeNew, movable, moveItems, refuseFixed, renameItem, saveFromComputer, setAsWallpaper, throwAway } from "./tasks.js";
 
 const css = getComputedStyle(document.documentElement);
 const num = (name) => parseInt(css.getPropertyValue(name), 10);
@@ -250,13 +250,16 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   // --- dragging and dropping -----------------------------------------------
 
   // Snaps what was dragged to the grid, the icon under the pointer first,
-  // each to its nearest free cell. The cells they left count as free.
+  // each to its nearest free cell. The cells they left count as free. An
+  // icon that's fixed in place (js/items.js isFixed) goes back to its own,
+  // with XP's error.
   function drop(grabbed) {
     const { columns, rows } = size();
-    const staying = [...icons.values()].filter((icon) => !moving.has(icon) && !icon.float && icon.cell);
+    const fixed = [...moving].filter((icon) => !movable(icon.item));
+    const staying = [...icons.values()].filter((icon) => (!moving.has(icon) || fixed.includes(icon)) && !icon.float && icon.cell);
     const taken = new Set(staying.map((icon) => cellKey(icon.cell)));
     const placed = {};
-    for (const icon of [grabbed, ...[...moving].filter((one) => one !== grabbed)]) {
+    for (const icon of [grabbed, ...moving].filter((one, i, all) => all.indexOf(one) === i && !fixed.includes(one))) {
       const [x, y] = [icon.el.offsetLeft, icon.el.offsetTop];
       let cell = [
         clamp(Math.round((x - EDGE) / CELL), 0, columns - 1),
@@ -268,8 +271,9 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
       placed[icon.item.id] = cell;
     }
     moving = null;
-    line.drop(placed);
+    if (Object.keys(placed).length) line.drop(placed);
     arrange();
+    if (fixed.length) refuseFixed(fixed[0].item, "move");
   }
 
   // The Recycle Bin or folder that would take the icons if they were let go
@@ -288,7 +292,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   // says so. If it says no, XP's error says why and they stay where they were.
   function dropInto(target) {
     const back = {};
-    for (const icon of moving) back[icon.item.id] = icon.home;
+    for (const icon of moving) if (movable(icon.item)) back[icon.item.id] = icon.home;
     const items = [...moving].map((icon) => icon.item);
     moving = null;
     target.el.classList.remove("is-target");
@@ -324,9 +328,10 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
         const where = {};
         for (const { one, x, y } of group) {
           put(one, x + dx, y + dy);
-          where[one.item.id] = toCells(one.el.offsetLeft, one.el.offsetTop);
+          // (a fixed icon follows the pointer here, but nobody else sees it go)
+          if (movable(one.item)) where[one.item.id] = toCells(one.el.offsetLeft, one.el.offsetTop);
         }
-        line.move(where);
+        if (Object.keys(where).length) line.move(where);
         const now = targetAt(move.clientX, move.clientY);
         if (now !== target) {
           target?.el.classList.remove("is-target");
@@ -421,9 +426,9 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     if (single && isPicture(single)) entries.push("-", { label: "Set as Desktop Background", action: () => setAsWallpaper(single) });
     entries.push(
       "-",
-      { label: "Cut", disabled: !items.some((item) => movable(item) && !isBin(item)), action: () => clipboard.cut(items.filter((item) => !isBin(item))) },
+      { label: "Cut", disabled: !items.some(movable), action: () => clipboard.cut(items) },
       "-",
-      { label: "Delete", disabled: items.every(isBin), action: () => deleteSelected() },
+      { label: "Delete", disabled: !items.some(movable), action: () => deleteSelected() },
       { label: "Rename", disabled: !renamable(single), action: () => startRename(icon) },
     );
     return entries;
@@ -488,7 +493,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   // --- the keyboard and renaming -------------------------------------------
 
   async function deleteSelected(shift = false) {
-    const items = chosen().filter((item) => !isBin(item));
+    const items = chosen();
     if (items.length) await deleteItems(items, { forGood: shift && disk.admin });
   }
 
@@ -506,7 +511,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
       icons.forEach((icon) => selected.add(icon));
       paint();
     } else if (ctrl && e.key.toLowerCase() === "x" && items.length) {
-      clipboard.cut(items.filter((item) => !isBin(item)));
+      clipboard.cut(items);
     } else if (ctrl && e.key.toLowerCase() === "v" && clipboard.has()) {
       clipboard.paste("desktop");
     } else {

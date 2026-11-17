@@ -45,6 +45,7 @@ let history = [];          // what Undo goes back to
 let three = loadOptions().three ?? false;
 let size = { w: BASE_W, h: BASE_H, scale: 1 };
 let won = false;
+let trails = null;         // what the win's cascade painted, until the next deal
 
 function loadOptions() {
   try {
@@ -127,7 +128,9 @@ function deal() {
   clearInterval(timer);
   timer = null;
   history = [];
-  for (const card of cards.values()) card.el.getAnimations().forEach((one) => one.cancel());
+  trails?.remove();
+  trails = null;
+  for (const card of cards.values()) card.el.hidden = false;
   layout();
   status();
 }
@@ -341,25 +344,142 @@ function status() {
 
 // --- winning ---------------------------------------------------------------
 
-// Every card flies off across the table, then it asks about dealing again.
+// The classic finish. The cards leave the piles one at a time, kings first,
+// and each bounces off down the table, painting a trail of itself on the
+// felt. A click or a key skips to the end, then it asks about dealing again.
 async function celebrate() {
   won = true;
   clearInterval(timer);
   timeField.dataset.final = String(Math.floor((Date.now() - started) / 1000));
   status();
-  const box = table.getBoundingClientRect();
-  [...cards.values()].forEach((card, i) => {
-    const angle = Math.random() * Math.PI * 2;
-    const far = Math.max(box.width, box.height);
-    card.el.animate([
-      { transform: "translate(0, 0) rotate(0deg)", opacity: 1 },
-      { transform: `translate(${Math.cos(angle) * far}px, ${Math.sin(angle) * far}px) rotate(${(Math.random() - 0.5) * 720}deg)`, opacity: 0 },
-    ], { duration: 1400, delay: i * 35, easing: "ease-in", fill: "forwards" });
-  });
-  await new Promise((resolve) => setTimeout(resolve, 52 * 35 + 1400));
+  await cascade();
   const answer = await showMessage({ title: "Solitaire", text: `You won, with a score of ${score}!\n\nDeal again?`, icon: "question", buttons: ["Yes", "No"] });
   delete timeField.dataset.final;
   if (answer === "Yes") deal();
+}
+
+const STEPS = 120;      // moves a second, each painted where it lands
+const GRAVITY = 0.6;    // how much faster a card falls each move, in pixels
+const BOUNCE = 0.75;    // how much of its speed it keeps off the bottom
+
+function cascade() {
+  return new Promise((resolve) => {
+    const scale = devicePixelRatio || 1;
+    const width = table.clientWidth;
+    const height = table.clientHeight;
+    trails = document.createElement("canvas");
+    trails.className = "trails";
+    trails.width = Math.round(width * scale);
+    trails.height = Math.round(height * scale);
+    trails.style.zIndex = String(cards.size + 1);
+    table.append(trails);
+    const paint = trails.getContext("2d");
+    paint.scale(scale, scale);
+
+    // The top card of each pile in turn, so the kings go first.
+    const order = [];
+    for (let rank = 13; rank >= 1; rank--) {
+      for (const pile of piles.foundations) if (pile[rank - 1]) order.push(cards.get(pile[rank - 1]));
+    }
+    let flying = null;   // { card, face, x, y, dx, dy }
+    let last = performance.now();
+    let owed = 0;
+    let done = false;
+
+    // It sets off from where it sits on its pile, which it then leaves.
+    const launch = () => {
+      const card = order.shift();
+      if (!card) return null;
+      const speed = 3 + Math.random() * 4;
+      const flight = {
+        face: faceOf(card),
+        x: card.el.offsetLeft,
+        y: card.el.offsetTop,
+        dx: Math.random() < 0.5 ? -speed : speed,
+        dy: -Math.random() * 8,
+      };
+      card.el.hidden = true;
+      return flight;
+    };
+    const finish = () => {
+      if (done) return;
+      done = true;
+      removeEventListener("keydown", finish, true);
+      table.removeEventListener("pointerdown", finish);
+      for (const card of cards.values()) card.el.hidden = true;
+      resolve();
+    };
+    const step = () => {
+      flying ??= launch();
+      if (!flying) return finish();
+      flying.dy += GRAVITY;
+      flying.x += flying.dx;
+      flying.y += flying.dy;
+      if (flying.y + size.h > height) {
+        flying.y = height - size.h;
+        flying.dy *= -BOUNCE;
+      }
+      paint.drawImage(flying.face, flying.x, flying.y, size.w, size.h);
+      if (flying.x + size.w < 0 || flying.x > width) flying = null;
+    };
+    const frame = (now) => {
+      if (done) return;
+      owed = Math.min(owed + ((now - last) * STEPS) / 1000, 8);
+      last = now;
+      for (; owed >= 1; owed--) step();
+      requestAnimationFrame(frame);
+    };
+    addEventListener("keydown", finish, true);
+    table.addEventListener("pointerdown", finish);
+    requestAnimationFrame(frame);
+  });
+}
+
+// A card's face for the cascade to paint with, drawn the way the page draws
+// it (.card in index.html), from the card's own computed look.
+function faceOf(card) {
+  const scale = devicePixelRatio || 1;
+  const { w, h } = size;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(w * scale);
+  canvas.height = Math.ceil(h * scale);
+  const g = canvas.getContext("2d");
+  g.scale(scale, scale);
+  const look = getComputedStyle(card.el);
+  g.beginPath();
+  g.roundRect(0.5, 0.5, w - 1, h - 1, parseFloat(look.borderTopLeftRadius));
+  g.fillStyle = look.backgroundColor;
+  g.fill();
+  g.strokeStyle = look.borderTopColor;
+  g.lineWidth = 1;
+  g.stroke();
+
+  g.fillStyle = look.color;
+  g.textAlign = "center";
+  const em = parseFloat(look.fontSize);
+  const pad = parseFloat(look.paddingTop);
+  const family = look.fontFamily;
+  const index = parseFloat(css.getPropertyValue("--card-index")) * em;
+  const lines = parseFloat(css.getPropertyValue("--lh-card")) * em;
+  // a corner, the rank over the suit, then the same again upside down
+  const corner = () => {
+    g.font = `700 ${em}px ${family}`;
+    g.textBaseline = "top";
+    g.fillText(RANKS[card.rank], pad + index / 2, pad);
+    g.fillText(SUITS[card.suit], pad + index / 2, pad + lines);
+  };
+  corner();
+  g.save();
+  g.translate(w, h);
+  g.rotate(Math.PI);
+  corner();
+  g.restore();
+  const face = card.rank > 10;
+  const big = parseFloat(css.getPropertyValue(face ? "--card-letter" : "--card-pip")) * em;
+  g.font = `${face ? 700 : 400} ${big}px ${family}`;
+  g.textBaseline = "middle";
+  g.fillText(face ? RANKS[card.rank] : SUITS[card.suit], w / 2, h / 2);
+  return canvas;
 }
 
 // --- the pointer -----------------------------------------------------------

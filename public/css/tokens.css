@@ -616,7 +616,7 @@
   --site-card-min: 336px;   /* a blog card at its narrowest, three to a full panel */
   --site-cover:    16 / 9;  /* a blog's first picture, on its card */
   --site-tile:     160px;   /* a picture in Pictures, at its narrowest */
-  --site-side:     272px;   /* Home's side, with the newest blogs */
+  --site-side:     272px;   /* Home's side, with the featured blogs */
   --site-float:    50%;     /* a picture in a post with the words around it, at most */
   --site-editor:   360px;   /* the editor's box, at its shortest */
   --site-editor-short: 96px; /* ...when it's for a line or two (the tagline) */
@@ -640,6 +640,9 @@
   --site-glyph-pause:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 2h3.5v12H3zM9.5 2H13v12H9.5z'/%3E%3C/svg%3E");
   --site-glyph-volume: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 5.5h3L8 2v12l-4-3.5H1z'/%3E%3Cpath d='M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3a6.5 6.5 0 0 1 0 10' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E");
   --site-glyph-mute:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 5.5h3L8 2v12l-4-3.5H1z'/%3E%3Cpath d='M10.5 5.5l4.5 5M15 5.5l-4.5 5' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E");
+  /* The admin's star on a blog, hollow until it's featured on Home. */
+  --site-glyph-star:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.4L9.76 6.17L14.85 6.38L10.85 9.53L12.23 14.42L8 11.6L3.77 14.42L5.15 9.53L1.15 6.38L6.24 6.17Z' fill='none' stroke='black' stroke-width='1.3' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --site-glyph-starred: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.4L9.76 6.17L14.85 6.38L10.85 9.53L12.23 14.42L8 11.6L3.77 14.42L5.15 9.53L1.15 6.38L6.24 6.17Z'/%3E%3C/svg%3E");
 
   /* --- layers, inside the page ------------------------------ */
   --z-site-sky:  0;   /* the planets and stars, behind everything */
@@ -668,6 +671,7 @@
   --site-hue-6: #da77f2;   /* violet */
 
   --site-stars:   0.6;     /* how strong the stars are */
+  --site-dragging: 0.5;    /* something the admin is dragging into a new order */
   --site-stars-dim: 0.12;  /* ...at the dark of a twinkle */
   --site-twinkle: 3.4s;    /* one twinkle. Each star's is 0.6 to 1.5 times this */
   --site-planets: 0.9;     /* ...and the planets, stronger since panels dim them */

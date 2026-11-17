@@ -28,9 +28,11 @@ export const SPECIAL = {
 };
 export const isSpecial = (item) => Boolean(item && SPECIAL[item.id]);
 
-// Only what people made can be renamed. The desktop's own folders and
-// shortcuts keep their names, and the server says no to that too.
-export const renamable = (item) => Boolean(item) && !isSpecial(item) && !FIRST_SHORTCUTS.includes(item.id);
+// What stays where it is, as it is. The desktop's own folders and its first
+// shortcuts can't be renamed, moved or thrown away, by anyone (the server
+// says no too), and the shortcuts never leave the top of the first column.
+export const isFixed = (item) => Boolean(item) && (isSpecial(item) || FIRST_SHORTCUTS.includes(item.id));
+export const renamable = (item) => Boolean(item) && !isFixed(item);
 
 // How much the disk holds and how big things can be. The server enforces
 // these (server/disk.js) and the programs show them.

@@ -4,7 +4,7 @@
 // for. The address reads like a path after the "?", and the desktop shows it
 // as the site's own address (#blog/liftoff, #flag/space).
 //
-//   (nothing)          Home, with the bulletin and the newest blogs
+//   (nothing)          Home, with the bulletin and the featured blogs
 //   ?blog              the Blog, every blog, to sort and filter by flag
 //   ?flag/<flag>/...   the Blog, only the blogs with those flags
 //   ?pictures          every picture on the site

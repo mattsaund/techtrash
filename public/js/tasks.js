@@ -6,7 +6,7 @@
 // questions and messages go up in whichever page called them (the desktop,
 // or a program's window), as XP put them over the window that asked.
 
-import { BAD_NAME, NAME_RULE, SOUND_NAME, isFolder, isSpecial } from "./items.js";
+import { BAD_NAME, NAME_RULE, SOUND_NAME, isFixed, isFolder } from "./items.js";
 import { showMessage } from "./message.js";
 
 export const disk = () => window.top.desktop.disk;
@@ -19,25 +19,43 @@ export function complain(title, error) {
   return showMessage({ title, text: error.message ?? String(error) });
 }
 
+// XP's error for something fixed in place (js/items.js isFixed), in the
+// same words the server would use. verb is "delete" or "move".
+export function refuseFixed(item, verb) {
+  const title = `Error ${verb === "delete" ? "Deleting" : "Moving"} ${isFolder(item) ? "Folder" : "File or Folder"}`;
+  return showMessage({ title, text: `Cannot ${verb} ${item.name}: Permission Denied.` });
+}
+
 // Into the Recycle Bin, after XP's question. From inside the bin (or with
 // the admin's Shift+Delete) it's gone for good, which asks differently.
+// Anything fixed in place gets XP's error instead.
 export async function deleteItems(items, { forGood = false } = {}) {
   items = items.filter(Boolean);
+  const loose = items.filter(movable);
   if (!items.length) return false;
-  const gone = forGood || items.every((item) => disk().inBin(item.id));
-  const what = one(items) ? (isFolder(items[0]) ? "Folder" : "File") : "Multiple File";
-  const text = gone
-    ? (one(items) ? `Are you sure you want to delete ${quoted(items[0])}?` : `Are you sure you want to delete these ${items.length} items?`)
-    : (one(items) ? `Are you sure you want to send ${quoted(items[0])} to the Recycle Bin?` : `Are you sure you want to send these ${items.length} items to the Recycle Bin?`);
-  const answer = await showMessage({ title: `Confirm ${what} Delete`, text, icon: "delete", buttons: ["Yes", "No"] });
-  if (answer !== "Yes") return false;
+  if (loose.length) {
+    const gone = forGood || loose.every((item) => disk().inBin(item.id));
+    const what = one(loose) ? (isFolder(loose[0]) ? "Folder" : "File") : "Multiple File";
+    const text = gone
+      ? (one(loose) ? `Are you sure you want to delete ${quoted(loose[0])}?` : `Are you sure you want to delete these ${loose.length} items?`)
+      : (one(loose) ? `Are you sure you want to send ${quoted(loose[0])} to the Recycle Bin?` : `Are you sure you want to send these ${loose.length} items to the Recycle Bin?`);
+    const answer = await showMessage({ title: `Confirm ${what} Delete`, text, icon: "delete", buttons: ["Yes", "No"] });
+    if (answer !== "Yes") return false;
+  }
   return throwAway(items, { forGood });
 }
 
 // The same without asking, for dragging onto the Recycle Bin.
 export async function throwAway(items, { forGood = false } = {}) {
   let ok = true;
+  let refused = false;
   for (const item of items) {
+    if (!movable(item)) {
+      ok = false;
+      if (!refused) await refuseFixed(item, "delete");
+      refused = true;
+      continue;
+    }
     try {
       await disk().remove(item.id, forGood);
     } catch (error) {
@@ -69,9 +87,16 @@ export async function renameItem(item, name) {
 }
 
 // Into a folder. Skips the folder itself and anything already in it.
+// Anything fixed in place gets XP's error instead.
 export async function moveItems(items, folderId) {
+  let refused = false;
   for (const item of items) {
     if (item.id === folderId || item.parent === folderId) continue;
+    if (!movable(item)) {
+      if (!refused) await refuseFixed(item, "move");
+      refused = true;
+      continue;
+    }
     try {
       await disk().move(item.id, folderId);
     } catch (error) {
@@ -163,8 +188,9 @@ export async function setAsWallpaper(item) {
   }
 }
 
-// Anything but the desktop's own folders can be cut and pasted elsewhere.
-export const movable = (item) => Boolean(item) && !isSpecial(item);
+// What can be moved somewhere else, or thrown away: anything but the
+// desktop's own folders and first shortcuts (js/items.js isFixed).
+export const movable = (item) => Boolean(item) && !isFixed(item);
 
 // What Cut has put aside. The desktop keeps it (js/desktop.js), so something
 // cut in one window can be pasted in another, or on the desktop. Paste moves

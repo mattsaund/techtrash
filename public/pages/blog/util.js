@@ -113,6 +113,92 @@ export function twoClick(text, ask, work, look = "button hue-1") {
 // A form's status line.
 export const status = () => el("p", { class: "form__message meta", role: "status" });
 
+// The admin's star on a blog. It's filled once the blog is one of the
+// featured blogs on Home, and a click stars it or takes the star off.
+// words puts "Feature" or "Featured" beside it, for a row of buttons.
+// changed(on) runs after each click goes through.
+export function starButton(post, { words = false, changed } = {}) {
+  const button = el("button", { class: words ? "button feature-star feature-star--words" : "feature-star", type: "button" });
+  const show = () => {
+    const on = post.featured != null;
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-pressed", String(on));
+    button.title = on ? "Take it off Home's featured blogs" : "Feature it on Home";
+    if (words) button.textContent = on ? "Featured" : "Feature";
+    else button.setAttribute("aria-label", "Featured on Home");
+  };
+  show();
+  button.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const on = post.featured == null;
+    button.disabled = true;
+    try {
+      await api(`/api/blog/post?id=${post.id}`, { method: "PUT", json: { featured: on } });
+      post.featured = on ? 1 : null;
+      show();
+      changed?.(on);
+    } catch (error) {
+      button.title = error.message;
+    }
+    button.disabled = false;
+  });
+  return button;
+}
+
+// Lets the admin drag the items in `list` (each with a data-id) into a new
+// order. A press that doesn't move is still an ordinary click. done(ids) gets
+// the new order once the item is let go. across is for a row that wraps,
+// like the blinkies, rather than a list down the page.
+export function sortable(list, done, { across = false } = {}) {
+  let draggedAt = 0;
+  list.classList.add("is-sortable");
+  // (the browser's own drag of a link or a picture would take the pointer away)
+  for (const one of list.querySelectorAll("a, img")) one.draggable = false;
+  list.addEventListener("dragstart", (e) => e.preventDefault());
+  // the click at the end of a drag isn't a click on whatever's under it
+  list.addEventListener("click", (e) => {
+    if (performance.now() - draggedAt < 400) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+  list.addEventListener("pointerdown", (down) => {
+    const item = down.target.closest("[data-id]");
+    if (down.button !== 0 || item?.parentElement !== list || down.target.closest("button")) return;
+    let dragging = false;
+    const move = (e) => {
+      if (e.pointerId !== down.pointerId) return;
+      if (!dragging) {
+        if (Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < 5) return;
+        dragging = true;
+        item.classList.add("is-dragging");
+      }
+      e.preventDefault();
+      // in front of the first one whose middle is still ahead of the pointer
+      const next = [...list.children].find((one) => {
+        if (one === item) return false;
+        const r = one.getBoundingClientRect();
+        if (!across) return e.clientY < r.top + r.height / 2;
+        return e.clientY < r.top || (e.clientY < r.bottom && e.clientX < r.left + r.width / 2);
+      });
+      if (next !== item.nextElementSibling) list.insertBefore(item, next ?? null);
+    };
+    const up = (e) => {
+      if (e.pointerId !== down.pointerId) return;
+      removeEventListener("pointermove", move);
+      removeEventListener("pointerup", up);
+      removeEventListener("pointercancel", up);
+      if (!dragging) return;
+      item.classList.remove("is-dragging");
+      draggedAt = performance.now();
+      done([...list.children].map((one) => one.dataset.id));
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+    addEventListener("pointercancel", up);
+  });
+}
+
 // What this browser remembers (a commenter's name, an unsaved blog) and what
 // this tab keeps while it's open (the Blog's sort). Storage can be off or
 // full, so it's only ever a convenience.

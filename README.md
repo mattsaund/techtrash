@@ -35,6 +35,7 @@ public/pages/blog/editor/      the editor (rich text, live Markdown, undo)
 public/pages/blog/content.js   what a blog is made of (cleaning, players, Markdown)
 public/pages/blog/viewer.js    the picture viewer
 public/pages/blog/sound.js     the sound player
+public/pages/blog/footer.js    the footer's words and blinkies
 public/pages/blog/sky/         the planets and stars, drawn with cosmos.js
 
 public/programs/               the File Browser (and the Recycle Bin), Notepad,
