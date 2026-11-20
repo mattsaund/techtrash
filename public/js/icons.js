@@ -1,24 +1,7 @@
-// The icons on the desktop, which are what's in the shared disk's Desktop
-// folder (js/disk.js). Anyone can move them, and everyone sees it happen
-// (js/shared.js). Like XP's desktop with Align to Grid on, a dragged icon
-// follows the pointer, then snaps to the nearest free cell when it's let go.
-//
-// Cells count from the top left (js/grid.js), so the desktop looks the same
-// on every screen. A screen too small for an icon's cell shows it in the
-// nearest free cell it does have, without moving it for anyone else.
-//
-// It all works like XP. A click selects, Ctrl+click adds or takes away, a
-// drag across the bare desktop draws a selection rectangle, dragging a
-// selected icon moves every selected one, and a double-click opens. A tap or
-// Enter opens straight away. Delete asks, then throws away (Shift+Delete
-// deletes for good, for the admin). F2 renames in place. Right-click brings
-// up an icon's menu (Open, Cut, Delete, Rename) or the desktop's (Arrange
-// Icons By, Paste, New, Properties).
-//
-// Icons dropped on the Recycle Bin are thrown away, and icons dropped on a
-// folder go into it. Either one lights up while they're over it, like XP.
-// What can't go (the blog, for anyone but the admin) gets XP's error and goes
-// back where it was, for everyone.
+// Desktop icons: the shared disk's Desktop folder (js/disk.js). Drags show live
+// for everyone (js/shared.js) and snap to the nearest free cell, like XP's Align
+// to Grid. Cells count from the top left (js/grid.js). A screen too small for a
+// cell shows its icon in the nearest free one, without moving it for anyone else.
 
 import { FIRST_SHORTCUTS, findApp, firstShortcutsFirst } from "./apps.js";
 import { disk } from "./disk.js";
@@ -30,29 +13,28 @@ import { clipboard, deleteItems, emptyBin, makeNew, movable, moveItems, refuseFi
 
 const css = getComputedStyle(document.documentElement);
 const num = (name) => parseInt(css.getPropertyValue(name), 10);
-const CELL = num("--icon-cell");   // a grid cell, both ways
-const EDGE = num("--sp-8");        // from the desktop's edge to the first cell
-const DRAG = num("--drag");        // how far a press moves before it's a drag
+const CELL = num("--icon-cell");   // grid cell width and height
+const EDGE = num("--sp-8");        // desktop edge to the first cell
+const DRAG = num("--drag");        // drag threshold
 
 const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
 
-// The shortcuts the desktop starts with. They're all there is until the disk
-// arrives (or for good, offline).
+// Shown until the disk arrives, or for good when offline.
 const STARTING = FIRST_SHORTCUTS.map((id) => ({ id, parent: "desktop", name: findApp(id).title, kind: "app", type: id, created: 0, modified: 0 }));
 
 const isBin = (item) => isShortcut(item) && Boolean(findApp(item.type)?.bin);
 
 export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   const icons = new Map();      // by item id
-  const cells = new Map();      // the cell the server has for each, by id
+  const cells = new Map();      // the server's cell for each, by id
   const selected = new Set();
-  let moving = null;            // the icons this tab is dragging right now
-  let renaming = null;          // { icon, cancel } while one is being renamed
-  let arrived = false;          // has the whole disk come?
+  let moving = null;            // icons this tab is dragging
+  let renaming = null;          // { icon, cancel } during a rename
+  let arrived = false;          // whole disk received
 
   layer.tabIndex = -1;
 
-  // --- what's on the desktop -----------------------------------------------
+  // --- sync ----------------------------------------------------------------
 
   const order = (items) => [...items].sort((a, b) => firstShortcutsFirst(a, b) || a.created - b.created);
 
@@ -68,20 +50,16 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     label.className = "icon__label";
     el.append(img, label);
     layer.append(el);
-    //   home   the cell it's saved in
-    //   cell   the cell it's shown in, which is home unless this screen is
-    //          too small for it
-    //   float  where it is while someone else drags it, in cells but not
-    //          whole ones
+    //   home   saved cell
+    //   cell   shown cell, home unless this screen is too small for it
+    //   float  fractional cell while another tab drags it
     const icon = { item, el, img, label, home: null, cell: null, float: null };
     wire(icon);
     return icon;
   }
 
-  // Catches the icons up with the disk. New ones go in the cell the server
-  // gave them. Until it says, that's the next free one down XP's columns,
-  // which is what it'll give anyway. Gone ones are taken away, and every
-  // name, picture and link is brought up to date.
+  // A new icon with no server cell yet takes the next free one, which is what
+  // the server will assign anyway.
   function sync() {
     const items = arrived ? disk.children("desktop") : STARTING;
     const here = new Set(items.map((item) => item.id));
@@ -109,7 +87,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
       const { app, rest } = opener(item);
       const src = iconOf(item, binFull);
       const href = `#${app}${rest ? `/${rest}` : ""}`;
-      // only what changed, so nothing reloads or redraws for nothing
+      // only what changed, to avoid reloads and repaints
       if (icon.label.textContent !== item.name) icon.label.textContent = item.name;
       if (icon.img.getAttribute("src") !== src) icon.img.src = src;
       if (icon.el.getAttribute("href") !== href) icon.el.href = href;
@@ -119,7 +97,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     arrange();
   }
 
-  // --- the grid ------------------------------------------------------------
+  // --- grid ----------------------------------------------------------------
 
   function size() {
     return {
@@ -136,9 +114,8 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   const toPixels = ([column, row]) => [EDGE + column * CELL, EDGE + row * CELL];
   const toCells = (x, y) => [Math.round(((x - EDGE) / CELL) * 100) / 100, Math.round(((y - EDGE) / CELL) * 100) / 100];
 
-  // Puts every icon in its cell. Icons whose cell fits on this screen go
-  // first, so one squeezed in from off the edge never takes their place.
-  // Icons being dragged, here or anywhere, hold no cell until they're dropped.
+  // Icons whose cell fits on screen go first, so an overflow icon never takes
+  // their place. Icons mid-drag (here or elsewhere) hold no cell.
   function arrange() {
     const { columns, rows } = size();
     const fits = (icon) => icon.home[0] < columns && icon.home[1] < rows;
@@ -160,10 +137,9 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   addEventListener("resize", arrange);
   document.fonts?.ready.then(arrange);
 
-  // --- the shared desktop's cells ------------------------------------------
+  // --- shared cells --------------------------------------------------------
 
-  // Icons this tab is dragging ignore what the server says until they're let
-  // go. The drop settles it.
+  // Icons this tab is dragging ignore the server until dropped.
   function update(state, how) {
     for (const [id, at] of Object.entries(state)) {
       if (how !== "float") cells.set(id, at);
@@ -200,8 +176,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
 
   const chosen = () => [...selected].map((icon) => icon.item);
 
-  // The selection rectangle takes any icon whose picture or label it touches.
-  // With Ctrl held it flips those instead and leaves the rest as they were.
+  // Marquee selects icons whose image or label it touches. Ctrl toggles them.
   layer.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || e.target !== layer) return;
     onBareDesktop();
@@ -247,11 +222,10 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     }, () => marquee?.remove());
   });
 
-  // --- dragging and dropping -----------------------------------------------
+  // --- drag and drop -------------------------------------------------------
 
-  // Snaps what was dragged to the grid, the icon under the pointer first,
-  // each to its nearest free cell. The cells they left count as free. An
-  // icon that's fixed in place (js/items.js isFixed) goes back to its own,
+  // Snaps each dragged icon to its nearest free cell, the grabbed one first.
+  // Cells they left count as free. Fixed icons (js/items.js isFixed) go back,
   // with XP's error.
   function drop(grabbed) {
     const { columns, rows } = size();
@@ -276,8 +250,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     if (fixed.length) refuseFixed(fixed[0].item, "move");
   }
 
-  // The Recycle Bin or folder that would take the icons if they were let go
-  // here, never one of the icons being dragged.
+  // Bin or folder icon at the point, never one being dragged.
   function targetAt(x, y) {
     for (const icon of icons.values()) {
       if (moving?.has(icon) || !(isBin(icon.item) || isFolder(icon.item))) continue;
@@ -287,9 +260,8 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     return null;
   }
 
-  // Let go on the bin or a folder. Everything dragged goes back to its cell
-  // for now (for everyone else too), then leaves the desktop once the server
-  // says so. If it says no, XP's error says why and they stay where they were.
+  // Dropped on the bin or a folder. Icons go back to their cells (for everyone)
+  // and leave once the server agrees. If it refuses, they stay, with XP's error.
   function dropInto(target) {
     const back = {};
     for (const icon of moving) if (movable(icon.item)) back[icon.item.id] = icon.home;
@@ -328,7 +300,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
         const where = {};
         for (const { one, x, y } of group) {
           put(one, x + dx, y + dy);
-          // (a fixed icon follows the pointer here, but nobody else sees it go)
+          // fixed icons move locally only
           if (movable(one.item)) where[one.item.id] = toCells(one.el.offsetLeft, one.el.offsetTop);
         }
         if (Object.keys(where).length) line.move(where);
@@ -372,11 +344,10 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     });
   }
 
-  // --- dropped in from elsewhere -------------------------------------------
+  // --- external drops ------------------------------------------------------
   //
-  // Items from a File Browser go into the desktop's folder, the Recycle Bin
-  // or a folder, wherever they're dropped. Files from your own computer are
-  // saved there for everyone (js/tasks.js says which kinds).
+  // File Browser items move to the desktop, bin or folder they're dropped on.
+  // Local files are uploaded there (js/tasks.js decides which kinds).
 
   const carrying = (e) => e.dataTransfer.types.includes(DRAGGED) || e.dataTransfer.types.includes("Files");
   let lit = null;
@@ -415,7 +386,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
 
   const XP = "/img/icons/xp";
 
-  // An icon's menu, for everything selected.
+  // Context menu for the whole selection.
   function iconMenu(icon) {
     const items = chosen();
     const single = items.length === 1 ? items[0] : null;
@@ -434,7 +405,6 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     return entries;
   }
 
-  // The desktop's own menu.
   function desktopMenu() {
     const by = (label, key) => ({ label, action: () => arrangeBy(key) });
     return [
@@ -461,9 +431,8 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     showMenu(desktopMenu(), { x: e.clientX, y: e.clientY });
   });
 
-  // Lines every icon up down XP's columns again, in this order, for
-  // everyone. The desktop's own shortcuts stay first, as XP kept My Computer
-  // and the Recycle Bin first.
+  // Lays out every icon again down the columns, in this order, for everyone.
+  // Built-in shortcuts stay first, as XP kept My Computer and the Recycle Bin.
   function arrangeBy(key) {
     const sorters = {
       name: (a, b) => a.name.localeCompare(b.name, "en-US", { numeric: true, sensitivity: "base" }),
@@ -490,7 +459,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     if (icon) startRename(icon);
   }
 
-  // --- the keyboard and renaming -------------------------------------------
+  // --- keyboard and rename -------------------------------------------------
 
   async function deleteSelected(shift = false) {
     const items = chosen();
@@ -520,8 +489,8 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
     e.preventDefault();
   });
 
-  // XP's rename box, in place of the label, with the name selected but not a
-  // file's extension. Enter or clicking away keeps the new name, Esc doesn't.
+  // XP's in-place rename. Selects the name without its extension.
+  // Enter or blur saves, Esc cancels.
   function startRename(icon) {
     if (!icon || renaming) return;
     selectOnly(icon);
@@ -568,7 +537,7 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
       }
     });
     field.addEventListener("blur", () => end(true));
-    // Presses in it stay in it. No drag, no opening, no following the link.
+    // Presses stay in the field: no drag, no open, no link.
     for (const type of ["pointerdown", "click", "dblclick", "contextmenu"]) {
       field.addEventListener(type, (e) => {
         e.stopPropagation();
@@ -587,9 +556,8 @@ export function setUpIcons({ layer, openItem, openApp, onBareDesktop }) {
   return { refresh: sync };
 }
 
-// Follows one press from pointerdown to pointerup. The element captures the
-// pointer, but the listeners are on the window, so a drag still ends if
-// someone else deletes the icon mid-drag and it leaves the page.
+// Follows one press to pointerup. Listeners are on window, not el, so the drag
+// still ends if someone else deletes the icon mid-drag.
 function track(el, down, onMove, onEnd) {
   el.setPointerCapture(down.pointerId);
   const ours = (e) => e.pointerId === down.pointerId;

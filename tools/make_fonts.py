@@ -6,14 +6,10 @@ Builds the Tahoma and DejaVu Sans Mono web fonts in public/fonts/.
     tahoma-bold-latin.woff2        Wine's Tahoma Bold, emboldened (below)
     dejavu-sans-mono-latin.woff2   DejaVu Sans Mono, subset to Latin
 
-Wine's Tahoma Bold has the bold widths and spacing but the regular
-outlines. Wine gets the bold look from bitmaps embedded for small sizes,
-which a browser never uses, so a browser draws it thin and spaced out. This
-thickens each outline the way XP's own fake bold did, by laying a copy over
-itself shifted to the right and merging the two. That doubles every
-vertical stem and leaves horizontals alone. STEM is the shift in font
-units. At 180 of 2048 it's about one pixel at 11px, so an 11px stem goes
-from one pixel to two.
+Wine's Tahoma Bold has bold widths but regular outlines. Its bold look comes
+from embedded bitmaps, which browsers ignore, so it renders thin. embolden()
+fakes it the way XP did, merging each outline with a copy shifted STEM font
+units right. That doubles vertical stems. 180 of 2048 is about 1px at 11px.
 
 Needs fonttools, brotli and skia-pathops. In a throwaway virtualenv:
 
@@ -21,8 +17,8 @@ Needs fonttools, brotli and skia-pathops. In a throwaway virtualenv:
     /tmp/fontenv/bin/pip install fonttools brotli skia-pathops
     /tmp/fontenv/bin/python tools/make_fonts.py
 
-The sources come from Debian/Ubuntu's fonts-wine and fonts-dejavu-core
-packages. The paths are below if yours differ.
+Sources are from Debian/Ubuntu's fonts-wine and fonts-dejavu-core packages.
+Change the paths below if yours differ.
 """
 from pathlib import Path
 
@@ -42,8 +38,7 @@ MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 
 STEM = 180
 
-# Google Fonts' "latin" range: ASCII, Latin-1, the common punctuation
-# (curly quotes, ellipsis, bullets), the euro, the trademark, arrows.
+# Google Fonts' "latin" subset.
 LATIN = (
     list(range(0x0000, 0x0100))
     + [0x0131, 0x0152, 0x0153, 0x02BB, 0x02BC, 0x02C6, 0x02DA, 0x02DC]
@@ -51,7 +46,7 @@ LATIN = (
     + [0x2074, 0x20AC, 0x2122, 0x2190, 0x2191, 0x2192, 0x2193, 0x2212, 0x2215, 0xFEFF, 0xFFFD]
 )
 
-# Embedded bitmaps and FontForge's own tables, none of which a browser draws.
+# Bitmap and FontForge tables, which browsers don't use.
 DROP = ["EBDT", "EBLC", "BDF ", "FFTM", "VDMX"]
 
 
@@ -62,8 +57,7 @@ def embolden(font):
     order = font.getGlyphOrder()
     thick = {}
     for name in order:
-        # Decomposed first, so an accented letter is thickened once, not
-        # once for its own copy and again inside each component.
+        # Decompose first so composite glyphs aren't thickened twice.
         outline = DecomposingRecordingPen(glyphs)
         glyphs[name].draw(outline)
         pen = TTGlyphPen(None)
@@ -73,8 +67,7 @@ def embolden(font):
     for name in order:
         glyf[name] = thick[name]
     removeOverlaps(font)
-    # The bold file's widths already make room for the thicker stems. Only
-    # the left side bearings need to follow the new outlines.
+    # Widths already fit the bold. Only the left side bearings follow the new outlines.
     hmtx = font["hmtx"]
     for name in order:
         g = glyf[name]

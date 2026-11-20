@@ -1,10 +1,7 @@
 /* ============================================================
-   techtrash.org : bsod.css
-
-   XP's blue screen: the 404 (404.html) and the under construction
-   page (under-construction/). White mono type on blue, every line
-   where XP put it, wrapping only if the screen is too narrow for
-   it. Tokens only.
+   XP's blue screen, for 404.html and under-construction/.
+   pre-wrap keeps XP's line breaks, wrapping only when too narrow.
+   Tokens only.
    ============================================================ */
 
 html { height: 100%; }

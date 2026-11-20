@@ -10,9 +10,8 @@
   <link rel="stylesheet" href="/css/xp.css">
   <link rel="stylesheet" href="/css/explorer.css">
   <script type="module">
-    // XP's Control Panel in classic view, with an icon for each thing that
-    // can be set. Display changes everyone's wallpaper. The Admin Dashboard
-    // is mine, so it only shows for the admin.
+    // XP's Control Panel, classic view.
+    // The Admin Dashboard icon only shows for the admin.
     const desktop = window.top === window ? null : window.top.desktop;
     const view = document.querySelector(".view");
     const rows = [...view.querySelectorAll(".file")];

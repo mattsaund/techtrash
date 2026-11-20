@@ -5,12 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>techtrash</title>
   <link rel="icon" href="/img/icons/xp/internet-shortcut.png">
-  <!-- The blog, for feed readers (server/feed.js). -->
+  <!-- RSS feed (server/feed.js). -->
   <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
   <script>
-    // Runs before anything paints. A visitor arrives logged on, straight into
-    // the blog, and only a tab that has logged off comes back to the Welcome
-    // screen. js/session.js does the rest.
+    // Runs before first paint. Only a tab that logged off reopens on the
+    // Welcome screen. js/session.js does the rest.
     try {
       if (sessionStorage.getItem("techtrash:logged-off")) document.documentElement.classList.add("is-logged-off");
     } catch {}
@@ -18,10 +17,9 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
   <link rel="stylesheet" href="/css/desktop.css">
-  <!-- For Paint's Open and Save As, which it puts up out here (js/file-dialog.js). -->
+  <!-- Paint puts its Open and Save As dialogs up on this page (js/file-dialog.js). -->
   <link rel="stylesheet" href="/css/explorer.css">
-  <!-- Every script the desktop loads, asked for all at once rather than one
-       level of imports at a time, so the website's window opens sooner. -->
+  <!-- Preload the whole module graph so imports don't load in waves. -->
   <link rel="modulepreload" href="/js/apps.js">
   <link rel="modulepreload" href="/js/disk.js">
   <link rel="modulepreload" href="/js/grid.js">
@@ -36,11 +34,8 @@
   <script type="module" src="/js/desktop.js"></script>
 </head>
 <body>
-  <!--
-    The desktop. The icons are what's in the shared disk's Desktop folder
-    (js/icons.js). js/desktop.js draws every window and the start menu's
-    lists (from js/apps.js).
-  -->
+  <!-- Icons come from the shared disk's Desktop folder (js/icons.js).
+       js/desktop.js draws the windows and start menu lists (js/apps.js). -->
   <main class="desktop" aria-label="Desktop" data-wallpaper="stretch">
     <nav class="desktop__icons" aria-label="Desktop icons"></nav>
 
@@ -83,7 +78,7 @@
     <div class="taskbar__tasks" role="group" aria-label="Open windows"></div>
     <div class="tray">
       <img class="tray__icon tray__lock" src="/img/icons/xp/padlock.png" alt="Locked" title="The desktop is locked: only the admin can change things on it right now." hidden>
-      <!-- Opens Date and Time Properties when clicked. -->
+      <!-- Opens Date and Time Properties. -->
       <button class="tray__clock-button" type="button" aria-label="Date and Time"><time class="tray__clock"></time></button>
     </div>
   </footer>
@@ -111,8 +106,8 @@
         <p class="logon__prompt" role="status"></p>
       </div>
       <div class="logon__divider"></div>
-      <!-- Everyone is techtrash. admin is me. It asks for a user name and
-           password, and can post (server/admin.js). -->
+      <!-- techtrash is everyone. admin is me. It logs on with a user name and
+           password (server/admin.js) and can post. -->
       <ul class="logon__users" aria-label="Users">
         <li class="logon__entry">
           <button class="logon__user" data-user="techtrash">
@@ -142,8 +137,7 @@
     <div class="logon__band logon__band--bottom"></div>
   </div>
 
-  <!-- XP tints a selected icon half and half with the selection blue. The
-       color is --select, set in css/xp.css. -->
+  <!-- Selected icon tint, half --select. The flood color is set in css/xp.css. -->
   <svg class="filters" aria-hidden="true">
     <filter id="select-tint" color-interpolation-filters="sRGB">
       <feFlood class="select-tint__flood"/>

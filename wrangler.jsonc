@@ -1,56 +1,49 @@
 {
-  // "name" has to match the Worker's name in the Cloudflare dashboard
+  // must match the Worker's name in the Cloudflare dashboard
   "name": "techtrash",
   "main": "worker.js",
   "compatibility_date": "2026-09-01",
   "assets": {
-    // the site itself, everything in public/ and nothing outside it
+    // only public/ is published
     "directory": "./public",
-    // so worker.js can answer an unknown address with public/404.html
+    // lets worker.js serve public/404.html for unknown paths
     "binding": "ASSETS"
   },
   "d1_databases": [
-    // The blog's posts, flags, comments and the site's own words, plus the
-    // first blog's topics (kept, but unused). Cloudflare creates it on the
-    // first deploy.
+    // Blog posts, flags, comments and pages, plus the first blog's unused topics.
+    // Created on first deploy.
     { "binding": "DB" }
   ],
   "kv_namespaces": [
-    // The blog's pictures and sounds. Cloudflare creates it on the first
-    // deploy. It's still called PICTURES, since that name is how the Worker
-    // finds the same store.
+    // Blog pictures and sounds. Created on first deploy.
+    // Don't rename the binding. It's how deploys find the existing namespace.
     { "binding": "PICTURES" }
   ],
   "durable_objects": {
     "bindings": [
-      // the shared desktop (the Desktop class in server/desktop.js)
+      // the shared desktop, server/desktop.js
       { "name": "DESKTOP", "class_name": "Desktop" }
     ]
   },
   "migrations": [
-    // These tell Cloudflare to create each object. Never edit or remove one,
-    // only add new ones at the end.
+    // Never edit or remove a migration. Only append new ones.
     { "tag": "v1", "new_sqlite_classes": ["Desktop"] }
   ],
-  // Workers Logs. Whatever the Worker logs, errors included, shows up under
-  // its Observability tab in the dashboard.
+  // Workers Logs, in the dashboard's Observability tab
   "observability": { "enabled": true },
   "ratelimits": [
-    // 5 admin log on tries a minute per person, so the password can't be guessed
+    // admin log on attempts per IP, against password guessing
     { "name": "LOGON_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
-    // 5 blog comments a minute per person
+    // blog comments per IP
     { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
-    // 60 changes a minute per person to the shared disk (saves, renames, deletes...)
+    // shared disk writes per IP (saves, renames, deletes...)
     { "name": "DISK_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }
   ],
-  // Emails to the admin about new comments and what visitors save on the
-  // desktop (server/notify.js), through the domain's Email Routing. The
-  // address they go to is the NOTIFY_TO secret, never in the repo (see
-  // "Deploying" in README.md).
+  // Admin emails through the domain's Email Routing (server/notify.js). The recipient
+  // is the NOTIFY_TO secret and never goes in the repo (README.md, "Deploying").
   "send_email": [
     { "name": "EMAIL" }
   ]
-  // The admin's user name and password are secrets, not settings. They're
-  // ADMIN_USERNAME and ADMIN_PASSWORD (see "Deploying" in README.md, and
-  // server/admin.js).
+  // Admin credentials are the ADMIN_USERNAME and ADMIN_PASSWORD secrets, not vars
+  // (README.md, "Deploying").
 }

@@ -9,10 +9,9 @@ that collect them:
     winXP     github.com/ShizukuIchi/winXP               (the user picture and
                                                           the start flag)
 
-The 1024px ones are far too heavy for a web page. Each is scaled down to
-SIZE, twice the biggest the site shows (48), so it stays sharp on a high
-density screen and the browser draws it smaller from there. The two from
-winXP keep their own size, and the flag is cropped to the picture itself.
+XPIcons are scaled down to SIZE, twice the largest the site shows (48), so they
+stay sharp on high-density screens. The two from winXP keep their size, and the
+flag is cropped to its content.
 
 Needs pillow. In a throwaway virtualenv:
 
@@ -71,9 +70,8 @@ ICONS = {
     "move-to.png": XPICONS + "Movetofolder.png",
     "restore.png": XPICONS + "Restore.png",
     "restore-all.png": XPICONS + "RestoreAllItems.png",
-    # More programs. Date and Time Properties (from the clock), the
-    # accessories, and Notepad++, which gets XP's script icon since it isn't
-    # XP's. The games have their own icons (tools/make_game_icons.py).
+    # More programs. Notepad++ isn't XP's, so it gets XP's script icon.
+    # The games have their own (tools/make_game_icons.py).
     "date-time.png": XPICONS + "DateandTime.png",
     "calculator.png": XPICONS + "Calculator.png",
     "command-prompt.png": XPICONS + "CommandPrompt.png",
@@ -120,8 +118,7 @@ def fetch(url):
 
 
 def shrink(image, size):
-    # Scaled with the color premultiplied by its alpha, so the see-through
-    # edges don't pick up a dark fringe from the transparent pixels' color.
+    # Premultiplied alpha, so transparent edges don't get a dark fringe.
     return image.convert("RGBa").resize((size, size), Image.LANCZOS).convert("RGBA")
 
 

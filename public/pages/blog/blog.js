@@ -1,32 +1,18 @@
-// The website. Start here.
+// Website entry point. index.html is the only page. The query string is the
+// route, read as a path. The desktop shows ?blog/liftoff as #blog/liftoff.
 //
-// It's one page, index.html, and this draws whichever page the address asks
-// for. The address reads like a path after the "?", and the desktop shows it
-// as the site's own address (#blog/liftoff, #flag/space).
+//   (none)            Home (bulletin, featured blogs)
+//   ?blog             the Blog, sorted and filtered by flag
+//   ?flag/<flag>/...  the Blog, only blogs with those flags
+//   ?pictures         every picture on the site
+//   ?about            About me
+//   ?drafts           admin's drafts
+//   ?blog/<blog>      a blog and its comments
+//   ?write            admin, new blog
+//   ?edit/<blog>      admin, edit a blog or finish a draft
 //
-//   (nothing)          Home, with the bulletin and the featured blogs
-//   ?blog              the Blog, every blog, to sort and filter by flag
-//   ?flag/<flag>/...   the Blog, only the blogs with those flags
-//   ?pictures          every picture on the site
-//   ?about             About me
-//   ?drafts            the admin's drafts
-//   ?blog/<blog>       one blog and its comments
-//   ?write             the admin, writing a new blog
-//   ?edit/<blog>       the admin, changing a blog or finishing a draft
-//
-// <blog> and <flag> are slugs (server/blog.js). Addresses from back when
-// blogs were in topics (?blog/<topic>/<post>, ?post=3) still find their way.
-//
-// Each kind of page is its own module. front.js draws the front page's
-// panels and the admin's Drafts, post.js a blog (comments.js its comments)
-// and write.js the admin's editor page (the editor itself is editor/). They
-// share site.js (addresses, the admin, the window title), frame.js (the
-// headline on every page) and own-words.js (the tagline, Home's words, the
-// bulletin and About me, edited in place). Any picture in what's written
-// opens in viewer.js.
-//
-// Each blog gets one of the six hues from its number and keeps it, on its
-// card and its page. So does each flag.
+// <blog> and <flag> are slugs (server/blog.js). Older URL forms
+// (?blog/<topic>/<post>, ?post=3) still redirect.
 
 import { framed } from "./frame.js";
 import { showDrafts, showFront } from "./front.js";
@@ -35,20 +21,18 @@ import { Gone, admin, goTo, to, whereNow } from "./site.js";
 import { api, backTo, el } from "./util.js";
 import { showPictureFromAddress, watchPictures } from "./viewer.js";
 
-// The admin's editor page, loaded only for them.
+// Admin only, loaded on demand.
 const showEditor = async (postSlug) => (await import("./write.js")).showEditor(postSlug);
 
-// ?post=3 from the first blog goes to that post's address now. Numbered
-// topics and flags (?topic=2, ?flag=1) are gone, so those go to the Blog.
+// Old numeric URLs. ?post=3 goes to its slug, ?topic=2 and ?flag=1 to the Blog.
 async function numbered(old) {
   if (!old.get("post")) return to.blog;
   const post = await api(`/api/blog/post?id=${Number(old.get("post"))}`);
   return old.has("edit") ? to.edit(post.slug) : to.post(post.slug);
 }
 
-// ?blog/<topic>/<post> from when blogs were in topics. Goes to the same blog
-// (its slug may have gotten a -2 since, if another topic had a post by the
-// same name), or else the topic's flag, or else the Blog.
+// Old ?blog/<topic>/<post> URLs. Tries the post, then the topic's flag, then the
+// Blog. The slug may have gained a -N suffix (slugs used to be per topic).
 async function fromTopic(topicSlug, postSlug) {
   const { posts } = await api("/api/blog/posts");
   const inTopic = (post) => post.flags.some((flag) => flag.slug === topicSlug);
@@ -70,7 +54,7 @@ try {
     if (location.hash.startsWith("#comment")) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
   }
   else if (first === "flag") await showFront("blog");
-  // (anyone else on an admin address gets the public page instead)
+  // non-admins on admin routes get the public page
   else if (first === "drafts") await (admin ? showDrafts() : goTo(to.blog));
   else if (first === "write") await (admin ? showEditor() : goTo(to.blog));
   else if (first === "edit" && rest.length) await (admin ? showEditor(rest.at(-1)) : goTo(to.post(rest.at(-1))));
@@ -80,9 +64,8 @@ try {
   if (!(error instanceof Gone)) await framed(null, async () => el("section", { class: "panel hue-1" }, backTo(to.blog), el("p", { textContent: error.message })));
 }
 
-// The page is up. Anything index.html asked for early that wasn't used is
-// let go (it could be out of date later on), and the sky (sky/space.js)
-// starts on its planets.
+// Drop unused early responses from index.html (they'd go stale).
+// sky/space.js waits for pagedrawn before building planets.
 window.earlyAnswers?.clear();
 window.pageDrawn = true;
 dispatchEvent(new Event("pagedrawn"));

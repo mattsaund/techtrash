@@ -1,17 +1,7 @@
 // Solitaire (Klondike), with cards of its own.
-//
-// Build the four piles at the top right up by suit, from ace to king. The
-// seven columns go down in alternating colors, and only a king can go in an
-// empty one. Click the pack to turn over one card or three (Game > Draw One
-// or Draw Three), and click it again once it's empty to start it over. Drag
-// cards to move them, and click a face-down card at the foot of a column to
-// turn it over. Double-click sends a card up to its pile, and right-click
-// sends up everything that can go.
-//
-// Scoring is XP's Standard. Sending a card up scores 10, moving one from the
-// turned-over pile to a column scores 5, and turning one face up scores 5.
-// Taking one back down costs 15, and starting the pack over costs 100, or 20
-// in Draw Three.
+// Scoring is XP's Standard: +10 to a foundation, +5 waste to tableau, +5 per
+// card turned face up, -15 foundation to tableau, -100 to recycle the stock
+// (-20 in Draw Three).
 
 import { menuBar } from "/js/menu.js";
 import { showMessage } from "/js/message.js";
@@ -41,11 +31,11 @@ let piles = null;          // { stock, waste, foundations: [4], tableau: [7] }, 
 let score = 0;
 let started = 0;           // when the first move was made, or 0
 let timer = null;
-let history = [];          // what Undo goes back to
+let history = [];          // Undo snapshots, as JSON
 let three = loadOptions().three ?? false;
 let size = { w: BASE_W, h: BASE_H, scale: 1 };
 let won = false;
-let trails = null;         // what the win's cascade painted, until the next deal
+let trails = null;         // win cascade canvas, removed on the next deal
 
 function loadOptions() {
   try {
@@ -64,7 +54,7 @@ function storeOptions() {
 const isRed = (card) => card.suit === "h" || card.suit === "d";
 const top = (pile) => cards.get(pile.at(-1));
 
-// --- the cards -------------------------------------------------------------
+// --- cards -----------------------------------------------------------------
 
 function makeCard(suit, rank) {
   const id = `${suit}${rank}`;
@@ -72,7 +62,7 @@ function makeCard(suit, rank) {
   el.className = `card${isRed({ suit }) ? " is-red" : ""}${rank > 10 ? " is-face" : ""}`;
   el.dataset.id = id;
   el.setAttribute("role", "img");
-  // A corner is the rank over the suit, the same width on every card.
+  // Rank over suit, the same width on every card.
   const corner = () => {
     const box = document.createElement("span");
     box.className = "card__corner";
@@ -135,7 +125,7 @@ function deal() {
   status();
 }
 
-// --- where everything goes -------------------------------------------------
+// --- layout ----------------------------------------------------------------
 
 function measure() {
   const across = (table.clientWidth - 2 * GAP - 6 * GAP) / 7;
@@ -147,8 +137,7 @@ function measure() {
 
 const columnX = (column) => GAP + column * (size.w + GAP);
 
-// Puts every card in place. The pack and its turned-over pile go at the top
-// left, the four piles at the top right, and the columns below.
+// Stock and waste top left, foundations top right, tableau below.
 function layout() {
   measure();
   const { w, h } = size;
@@ -172,7 +161,7 @@ function layout() {
     place(card.el, columnX(0), GAP, 1 + i);
   });
 
-  // Draw Three fans out the last three turned over.
+  // Draw Three fans out the top three.
   const fanned = three ? 3 : 1;
   piles.waste.forEach((id, i) => {
     const card = cards.get(id);
@@ -198,7 +187,7 @@ function layout() {
   piles.tableau.forEach((pile, column) => {
     slots.tableau[column] ??= slot();
     place(slots.tableau[column], columnX(column), tableauY, 0);
-    // A long column squeezes its cards closer together to fit.
+    // Squeeze long columns to fit the table's height.
     const steps = pile.slice(0, -1).map((id) => (cards.get(id).up ? FAN_UP : FAN_DOWN) * size.scale);
     const want = steps.reduce((a, b) => a + b, 0);
     const squeeze = want + h > room && want > 0 ? Math.max(0.2, (room - h) / want) : 1;
@@ -214,7 +203,7 @@ function layout() {
 
 addEventListener("resize", () => piles && layout());
 
-// --- the rules -------------------------------------------------------------
+// --- rules -----------------------------------------------------------------
 
 function canStack(card, pile) {
   const under = top(pile);
@@ -265,8 +254,7 @@ function addScore(points) {
   score = Math.max(0, score + points);
 }
 
-// Moves card `id` and everything on it to a foundation or a column.
-// Returns whether the move was allowed.
+// Moves a card and everything on it. Returns false if the move isn't allowed.
 function move(id, toKind, toIndex) {
   const [fromKind, , from] = whereIs(id);
   const card = cards.get(id);
@@ -287,7 +275,7 @@ function move(id, toKind, toIndex) {
   return true;
 }
 
-// Sends a card up to its pile, if it can go.
+// Moves a card to a foundation if one takes it.
 function sendUp(id) {
   const [kind, , pile] = whereIs(id);
   if ((kind !== "waste" && kind !== "tableau") || pile.at(-1) !== id || !cards.get(id).up) return false;
@@ -303,8 +291,7 @@ function sendAllUp() {
   }
 }
 
-// Turns over one or three cards from the pack, or turns them all back once
-// it's empty.
+// Deals one or three from the stock, or recycles the waste when the stock is empty.
 function turnOver() {
   if (won || (!piles.stock.length && !piles.waste.length)) return;
   remember();
@@ -344,9 +331,8 @@ function status() {
 
 // --- winning ---------------------------------------------------------------
 
-// The classic finish. The cards leave the piles one at a time, kings first,
-// and each bounces off down the table, painting a trail of itself on the
-// felt. A click or a key skips to the end, then it asks about dealing again.
+// The classic bouncing-cards finish. Cards leave one at a time, kings first,
+// painting trails on a canvas. A click or key skips it.
 async function celebrate() {
   won = true;
   clearInterval(timer);
@@ -358,9 +344,9 @@ async function celebrate() {
   if (answer === "Yes") deal();
 }
 
-const STEPS = 120;      // moves a second, each painted where it lands
-const GRAVITY = 0.6;    // how much faster a card falls each move, in pixels
-const BOUNCE = 0.75;    // how much of its speed it keeps off the bottom
+const STEPS = 120;      // physics steps per second, each one painted
+const GRAVITY = 0.6;    // added to dy each step, in px/step
+const BOUNCE = 0.75;    // share of speed kept off the bottom
 
 function cascade() {
   return new Promise((resolve) => {
@@ -376,17 +362,17 @@ function cascade() {
     const paint = trails.getContext("2d");
     paint.scale(scale, scale);
 
-    // The top card of each pile in turn, so the kings go first.
+    // Top card of each foundation in turn, kings first.
     const order = [];
     for (let rank = 13; rank >= 1; rank--) {
       for (const pile of piles.foundations) if (pile[rank - 1]) order.push(cards.get(pile[rank - 1]));
     }
-    let flying = null;   // { card, face, x, y, dx, dy }
+    let flying = null;   // { face, x, y, dx, dy }
     let last = performance.now();
     let owed = 0;
     let done = false;
 
-    // It sets off from where it sits on its pile, which it then leaves.
+    // Starts where the card sits, then hides the card.
     const launch = () => {
       const card = order.shift();
       if (!card) return null;
@@ -435,8 +421,8 @@ function cascade() {
   });
 }
 
-// A card's face for the cascade to paint with, drawn the way the page draws
-// it (.card in index.html), from the card's own computed look.
+// A card's face on a canvas for the cascade, from its computed style.
+// Mirrors .card in index.html.
 function faceOf(card) {
   const scale = devicePixelRatio || 1;
   const { w, h } = size;
@@ -461,7 +447,7 @@ function faceOf(card) {
   const family = look.fontFamily;
   const index = parseFloat(css.getPropertyValue("--card-index")) * em;
   const lines = parseFloat(css.getPropertyValue("--lh-card")) * em;
-  // a corner, the rank over the suit, then the same again upside down
+  // top-left corner, then the same rotated 180 degrees
   const corner = () => {
     g.font = `700 ${em}px ${family}`;
     g.textBaseline = "top";
@@ -482,7 +468,7 @@ function faceOf(card) {
   return canvas;
 }
 
-// --- the pointer -----------------------------------------------------------
+// --- pointer ---------------------------------------------------------------
 
 let press = null;   // { id, run, x, y, starts, dragging }
 
@@ -504,8 +490,8 @@ table.addEventListener("pointermove", (e) => {
   const dx = e.clientX - press.x;
   const dy = e.clientY - press.y;
   if (!press.dragging && Math.hypot(dx, dy) < DRAG) return;
-  // Capture the pointer once it's a drag, so it isn't lost off the table's
-  // edge. Any sooner and clicks would land on the table, not the card.
+  // Capture once it's a drag so it survives leaving the table. Capturing on
+  // pointerdown would retarget clicks to the table.
   if (!press.dragging) table.setPointerCapture(e.pointerId);
   press.dragging = true;
   press.run.forEach((one, i) => {
@@ -516,8 +502,7 @@ table.addEventListener("pointermove", (e) => {
   });
 });
 
-// Where a dropped card lands. Of the piles it's allowed on (other than its
-// own), the one it overlaps most.
+// Drop target is the legal pile (not its own) the card overlaps most.
 function landing(id) {
   const card = cards.get(id);
   const [, , from] = whereIs(id);
@@ -552,8 +537,7 @@ table.addEventListener("pointercancel", () => {
   layout();
 });
 
-// A click on the pack turns cards over, and a click on a face-down card at
-// a column's foot flips it.
+// Click the stock to deal, or a face-down card at a column's foot to flip it.
 table.addEventListener("click", (e) => {
   if (won) return;
   const el = e.target.closest(".card, .slot");

@@ -2,21 +2,15 @@
 """
 Builds public/img/wallpapers/ from Windows XP's own wallpapers.
 
-They're Microsoft's, the Home edition's set at 800 x 600, taken unmodified
-from real Windows installs and kept at
-github.com/WINNT-Moments/Windows-Wallpaper-Archive.
+They're Microsoft's, the Home edition's 800 x 600 set, unmodified from real
+Windows installs, kept at github.com/WINNT-Moments/Windows-Wallpaper-Archive.
 
-Twelve of them were stock photos, and bigger copies of those (1920 x 1200,
-from the photographers' own originals) were gathered for the Windows XP HD
-Wallpaper Pack (deviantart.com/windowssenpai/art/Windows-XP-HD-Wallpaper-Pack-776806652,
-mirrored at via.sudovanilla.org). Those are used instead, with their colors
-matched to XP's copies, since some have been rescanned or read with the
-wrong color profile. The other eight were made for XP and never came any
-bigger, so they're used as they are.
-
-The bigger ones are saved as WebP, which keeps them looking the same as a
-JPEG at about a third less. XP's own are kept as the JPEGs they were. Each goes
-under the file name public/js/wallpapers.js gives it.
+Twelve were stock photos. Bigger copies (1920 x 1200, from the photographers'
+originals) were gathered for the Windows XP HD Wallpaper Pack
+(deviantart.com/windowssenpai/art/Windows-XP-HD-Wallpaper-Pack-776806652,
+mirrored at via.sudovanilla.org) and are used instead, color-matched to XP's
+copies (some are rescans or use the wrong color profile) and saved as WebP. The
+other eight never came bigger and stay XP's JPEGs. Names follow public/js/wallpapers.js.
 
 Needs pillow and numpy. In a throwaway virtualenv:
 
@@ -36,9 +30,9 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "img" / "wallpapers"
 ARCHIVE = "https://raw.githubusercontent.com/WINNT-Moments/Windows-Wallpaper-Archive/main/Windows XP RTM Home Wallpapers/"
 BIGGER = "https://via.sudovanilla.org/media/wallpapers/Operating Systems/Microsoft Windows/Windows XP/"
-QUALITY = 85   # WebP's, which looks like the JPEGs' 88 did
+QUALITY = 85   # WebP at 85 looks like the old JPEGs at 88
 
-# each id on the site (public/js/wallpapers.js), with XP's file and the bigger copy's (or None)
+# id (public/js/wallpapers.js): (XP's file, the bigger copy's file or None)
 WALLPAPERS = {
     "ascent": ("Ascent.jpg", "Ascent.jpg"),
     "autumn": ("Autumn.jpg", "Autumn.jpg"),
@@ -71,12 +65,9 @@ def fetch(base, name):
 
 
 def matched(big, xp):
-    """The bigger copy with XP's colors, so a rescan or a wrong color profile
-    comes out the way XP showed it. Its brightness and two color channels
-    (YCbCr) are each shifted and stretched until their average and spread
-    match XP's copy, compared over the same 16:10 middle at the same small
-    size. The change is the same over the whole picture, so no part of it
-    changes color on its own."""
+    """The bigger copy recolored to match XP's. Each YCbCr channel's mean and
+    spread are matched to XP's copy over the same 16:10 center at 640 x 400.
+    One transform for the whole picture, so no area shifts on its own."""
     w, h = xp.size
     cut = round(w * 10 / 16)
     xp_middle = xp.crop((0, (h - cut) // 2, w, (h - cut) // 2 + cut)).resize((640, 400), Image.LANCZOS)
@@ -99,7 +90,7 @@ if __name__ == "__main__":
             picture = matched(Image.open(io.BytesIO(fetch(BIGGER, big_name))).convert("RGB"), xp)
             picture.save(path, quality=QUALITY, method=6)
         else:
-            # XP's own JPEG, byte for byte, since saving it again would only lose detail
+            # XP's JPEG byte for byte. Saving it again would only lose detail.
             picture = xp
             path.write_bytes(data)
         print(f"{path.name}: {picture.width} x {picture.height}, {path.stat().st_size} bytes")

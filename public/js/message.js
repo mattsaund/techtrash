@@ -1,18 +1,12 @@
-// XP's message box, for when something went wrong ("Error Deleting File or
-// Folder") or to ask first ("Confirm File Delete", Yes and No). Until it's
-// answered, the rest of its page is out of reach. On the desktop that's the
-// whole desktop, and in a program's window just that program, like XP. Its
-// look is .message in css/xp.css.
+// XP's message box. Modal to its page: the whole desktop, or one program's
+// window, like XP. Styles: .message in css/xp.css.
 //
-// showMessage({ title, text, icon, buttons, doc }) gives back a promise of
-// the button that answered it ("Yes"), or null if it was closed (its close
-// button, or Esc).
-//   icon     one of ICONS, "error" if not given
-//   buttons  their labels, ["OK"] if not given. The first is the default,
-//            the one Enter presses. A button's first letter presses it too,
-//            like XP's (Y, N).
-//   doc      the page to put it on, if not this one. Paint puts its own on
-//            the desktop's, since its look would clash with XP's.
+// showMessage({ title, text, icon, buttons, doc }) resolves to the pressed
+// button's label, or null if closed (close button or Esc).
+//   icon     a key of ICONS, default "error"
+//   buttons  labels, default ["OK"]. The first is the default. A button's
+//            first letter presses it, like XP.
+//   doc      page to show it on (Paint uses the desktop's, its own look would clash)
 
 const XP = "/img/icons/xp";
 const ICONS = {
@@ -56,7 +50,7 @@ export function showMessage({ title, text, icon = "error", buttons = ["OK"], doc
     return button;
   });
 
-  // Everything else on the page goes inert while it's up, then back to how it was.
+  // Everything else goes inert while it's up, then back to its own state.
   const behind = [...doc.body.children];
   const wasInert = behind.map((el) => el.inert);
   const hadFocus = doc.activeElement;

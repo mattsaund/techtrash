@@ -1,22 +1,7 @@
-// The desktop. It draws the start menu from js/apps.js and opens each app
-// in its own window (an iframe) that it moves, resizes, stacks, minimizes
-// and maximizes. Icons are js/icons.js, logging on is js/session.js and the
-// shared disk is js/disk.js.
-//
-// Every visit opens the blog, maximized. The desktop behind it is the
-// easter egg, and its line to the server (js/shared.js) only opens once
-// someone actually uses it.
-//
-// Windows are each visitor's own. Everything else is shared, so everyone
-// sees the same icons, disk and wallpaper.
-//
-// The address follows the window in front (techtrash.org/#files is the File
-// Browser), so whatever's in front can always be copied and shared. The
-// blog's front page is the plain techtrash.org.
-//
-// Only geometry is set from here (position, size, stacking order), plus the
-// wallpaper. Everything else about how things look is a class in css/, and
-// every length comes from css/tokens.css.
+// The desktop: start menu, taskbar and app windows (iframes).
+// Windows are per visitor. Icons, disk and wallpaper are shared, but the
+// socket (js/shared.js) only opens once someone uses the desktop.
+// Only geometry and the wallpaper are set inline. The rest is css/ classes and tokens.
 
 import { APPS, GROUPS, HOME, PLACES, SHORTCUTS, findApp } from "./apps.js";
 import { disk } from "./disk.js";
@@ -36,9 +21,9 @@ const WINDOW_H = num("--window-h");
 const MIN_W = num("--window-min-w");
 const MIN_H = num("--window-min-h");
 const TITLE_H = num("--title-h");
-const FRAME = num("--frame");                 // a window's frame, left, right and bottom
-const KEEP = num("--sp-48");                  // how much of a window always stays on screen
-const FIRST = {                               // where the first window opens, clear of the icons
+const FRAME = num("--frame");                 // frame width: left, right and bottom
+const KEEP = num("--sp-48");                  // px of a window always kept on screen
+const FIRST = {                               // first window's spot, clear of the icons
   x: num("--icon-cell") + num("--sp-24"),
   y: num("--sp-24"),
 };
@@ -54,10 +39,10 @@ const template = document.getElementById("window-template");
 const lock = document.querySelector(".tray__lock");
 
 const stack = [];   // open windows, back to front
-let front = null;   // the active window, or null when the desktop is
-let cascade = 0;    // how many title bars down and across the next window opens
-let made = 0;       // windows ever opened, to give each its own ids
-let clipboard = []; // the ids Cut has put aside (js/tasks.js)
+let front = null;   // active window, or null for the bare desktop
+let cascade = 0;    // next window's offset, in title bars
+let made = 0;       // windows ever opened, for unique ids
+let clipboard = []; // item ids from Cut (js/tasks.js)
 
 function make(tag, className, parent) {
   const el = document.createElement(tag);
@@ -73,20 +58,17 @@ function picture(src, className, parent) {
   return img;
 }
 
-// What the programs in the windows reach as window.top.desktop (they're
-// pages on the same site). It opens other apps and what's on the disk, and
-// holds the disk and the clipboard. Set before anything opens.
+// API for the apps' pages, as window.top.desktop (same origin).
+// Set before any window opens.
 window.desktop = {
   open: (id, rest) => open(id, rest),
   openItem: (item) => openItem(item),
-  // A program closing its own window (File > Exit). It asks first if there's
-  // something unsaved, unless the program already asked (ask: false).
+  // For File > Exit. ask: false when the program already asked about unsaved work.
   close(inner, { ask = true } = {}) {
     const win = stack.find((w) => w.frame.contentWindow === inner);
     if (win) close(win, { ask });
   },
-  // A program sizing its window to what's in it, as Mines does for each
-  // level. width and height are its page's, and the frame goes around that.
+  // Sizes a window to its page (Mines, per level). width and height exclude the frame.
   fit(inner, width, height) {
     const win = stack.find((w) => w.frame.contentWindow === inner);
     if (!win) return;
@@ -106,18 +88,16 @@ window.desktop = {
   },
 };
 
-// --- the line to the shared desktop ----------------------------------------
+// --- socket ----------------------------------------------------------------
 
-// The line comes up the first time anything on the desktop's own page is
-// pressed (not the blog inside its window), or an app other than the blog
-// opens.
+// Connect on the first input on this page, or when a non-blog app opens.
+// Input inside the blog's iframe doesn't reach here.
 const wake = () => line.wake();
 addEventListener("pointerdown", wake, { capture: true, once: true });
 addEventListener("keydown", wake, { capture: true, once: true });
 
-// Passes every change to the disk on to every window, as a "diskchange"
-// event on its page. Its detail is { items, gone, all }, { settings } or
-// { clipboard }.
+// Forwards disk changes to every window as a "diskchange" event.
+// detail is { items, gone, all }, { settings } or { clipboard }.
 function tellWindows(detail) {
   for (const win of stack) {
     try {
@@ -128,30 +108,27 @@ function tellWindows(detail) {
 }
 disk.watch(tellWindows);
 
-// --- the wallpaper and the lock --------------------------------------------
+// --- wallpaper and lock ----------------------------------------------------
 
-// The wallpaper is everyone's, so it comes from the disk's settings (the
-// shape is in js/wallpapers.js). A picture on the disk only shows while it's
-// still there.
+// Shared wallpaper, from the disk's settings (shape in js/wallpapers.js).
+// A disk picture shows only while it still exists.
 function showWallpaper() {
   const { wallpaper, locked, url: sent } = disk.settings();
   const image = wallpaper?.image ?? "";
-  // (a picture on the disk, before the disk's here, is where it was last time)
+  // Before the disk loads, a disk picture uses its last known URL.
   const url = wallpaperUrl(image, disk.item(image.slice(5))) || (image.startsWith("file:") && !disk.loaded() ? sent ?? "" : "");
   const value = url ? `url("${url}")` : "none";
   if (desktop.style.getPropertyValue("--wallpaper-image") !== value) desktop.style.setProperty("--wallpaper-image", value);
   if (wallpaper?.color) desktop.style.setProperty("--wallpaper-color", wallpaper.color);
   else desktop.style.removeProperty("--wallpaper-color");
   desktop.dataset.wallpaper = wallpaper?.position ?? "stretch";
-  // The tray's padlock shows while only the admin can change things.
+  // Tray padlock shows while the desktop is locked.
   lock.hidden = !locked;
 }
 disk.watch(showWallpaper);
 
-// The wallpaper comes in a moment after the website itself has loaded (its
-// pictures too, most of the time), so it never slows that down: this
-// browser's last one first, then the shared one, asked for without opening
-// the line. It's there by the time anyone looks.
+// Wallpaper waits until after the website's load so it never slows it down.
+// This browser's last one first, then the shared one via disk.peek() (no socket).
 function afterLoad(work) {
   const later = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(work, { timeout: 4000 }) : work()), 1500);
   if (document.readyState === "complete") later();
@@ -164,7 +141,7 @@ afterLoad(() => {
 
 // --- launchers -------------------------------------------------------------
 
-// Clicking the bare desktop puts every window in the background, like XP.
+// Clicking the bare desktop deactivates every window, like XP.
 const icons = setUpIcons({
   layer: iconBox,
   openItem,
@@ -172,10 +149,8 @@ const icons = setUpIcons({
   onBareDesktop: () => activate(null),
 });
 
-// The start menu has programs, then documents, on the left, and the website,
-// then places on the disk and the Control Panel, on the right. Right-clicking
-// a program (or the blog) offers XP's Send To > Desktop (create shortcut),
-// which is how a shortcut that's been thrown away comes back.
+// A start menu entry. Its right-click Send To > Desktop is how a deleted
+// shortcut comes back.
 function startItem(list, { title, icon }, id, rest = "") {
   const li = make("li", "", list);
   const item = make("a", "start-menu__item", li);
@@ -220,8 +195,7 @@ for (const app of APPS) {
 rule(programs);
 for (const shortcut of SHORTCUTS) startItem(programs, shortcut, shortcut.app, shortcut.rest);
 
-// All Programs, at the foot of the left column. Every program, with
-// Accessories and Games in folders of their own, like XP.
+// All Programs, with Accessories and Games as submenus like XP.
 const allButton = startMenu.querySelector(".start-menu__all");
 function allPrograms() {
   const entry = (app) => ({ label: app.title, icon: app.icon, action: () => { showStart(false); open(app.id); } });
@@ -262,8 +236,7 @@ function showStart(show) {
 
 startButton.addEventListener("click", () => showStart(startMenu.hidden));
 
-// A press anywhere else closes it. All Programs' menus count as part of it,
-// though they're drawn outside it.
+// Close on a press outside. All Programs' menus (.menu--pop) count as inside.
 document.addEventListener("pointerdown", (e) => {
   if (startMenu.hidden || startMenu.contains(e.target) || startButton.contains(e.target) || e.target.closest(".menu--pop")) return;
   showStart(false);
@@ -276,20 +249,17 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Log Off asks first (js/session.js). Logging off closes every window, as
-// XP closed every program.
+// Log Off closes every window (js/session.js asks first).
 const session = setUpSession({
   closeAll: () => [...stack].forEach((win) => close(win, { ask: false })),
-  // A different user may do different things (the admin can post and
-  // manage the desktop), so every open window starts over as them, and so
-  // does the line.
+  // Permissions differ by user, so a user change reconnects the socket and
+  // reloads every window.
   onUser: async (user, { changed }) => {
     disk.admin = user === "admin";
     adminPlaces.forEach((li) => { li.hidden = !disk.admin; });
     if (!changed) return;
     line.again();
-    // Every window starts over as the new user. One with unsaved work asks
-    // first, and stays as it is on Cancel.
+    // Unsaved work asks first. Cancel keeps that window as it is.
     for (const win of [...stack]) {
       if (await letsGo(win)) win.frame.contentWindow?.location.reload();
     }
@@ -302,9 +272,8 @@ startMenu.querySelector("[data-ask-log-off]").addEventListener("click", () => {
 
 // --- windows ---------------------------------------------------------------
 
-// Opens an app, somewhere in it (rest: "?folder=pictures"), or brings its
-// window to the front if it's open there already. A multi app opens a new
-// window for anything it hasn't got open.
+// Opens an app at rest ("?folder=pictures"), or brings its window to the front.
+// A multi app gets a window per rest.
 function open(id, rest = "", { maximized = false } = {}) {
   const app = findApp(id);
   if (!app) return null;
@@ -321,7 +290,7 @@ function open(id, rest = "", { maximized = false } = {}) {
   return win;
 }
 
-// Opens something on the disk in the app that opens it (js/items.js).
+// Opens a disk item in its app (js/items.js opener).
 function openItem(item) {
   const { app, rest } = opener(item);
   open(app, rest);
@@ -343,16 +312,14 @@ function create(app, rest, maximized) {
   el.querySelector(".title-bar__icon").src = app.icon;
   el.classList.toggle("is-fixed", fixed);
 
-  // A window that opens maximized still gets a place of its own for when
-  // it's restored.
+  // rect is the restored size, even when opening maximized.
   const win = { app, el, frame, task, rest, maximized: maximized && !fixed, rect: firstRect(app) };
   const rename = (text) => {
     title.textContent = label.textContent = text;
     frame.title = task.title = text;
   };
   rename(app.title);
-  // The page's own icon in the title bar and on the taskbar, if it has one
-  // (the File Browser shows its folder's).
+  // The page's own icon if it has one (the File Browser shows its folder's).
   const reicon = (page) => {
     const src = page.querySelector("link[rel=icon]")?.href ?? app.icon;
     for (const img of [el.querySelector(".title-bar__icon"), task.querySelector(".task__icon")]) {
@@ -360,10 +327,8 @@ function create(app, rest, maximized) {
     }
   };
 
-  // The page inside sets the title (Notepad's is "credits.txt - Notepad"),
-  // and the address follows it around its own app. Each page is hooked once,
-  // as soon as it says it's here (js/app.js, on DOMContentLoaded), or else
-  // when it's loaded.
+  // Mirrors the page's title, icon and address. Hooked once per page, on
+  // DOMContentLoaded via js/app.js, or on load as a fallback.
   let hooked = null;
   win.hook = () => {
     const inner = frame.contentWindow;
@@ -372,15 +337,12 @@ function create(app, rest, maximized) {
     hooked = page;
     rename(page.title || app.title);
     reicon(page);
-    // The page can change its title and icon without loading again, as the
-    // blog does once it knows which blog it's showing.
+    // Title and icon can change without a reload (the blog does).
     new MutationObserver(() => {
       rename(page.title || app.title);
       reicon(page);
     }).observe(page.head, { subtree: true, childList: true, characterData: true, attributes: true });
-    // Its address too. A page that changes it without loading again fires
-    // "addresschange", as the blog's Blog does when flags are picked, and the
-    // File Browser does from folder to folder.
+    // So can the URL. Pages fire "addresschange" when they change it in place.
     const follow = () => {
       const path = inner.location.pathname + inner.location.search;
       win.rest = path.startsWith(app.url) ? path.slice(app.url.length) : "";
@@ -437,10 +399,8 @@ function create(app, rest, maximized) {
   return win;
 }
 
-// Each new window opens one title bar down and across from the last, and
-// starts over at the top when the next one wouldn't fit. Its size is XP's
-// 640 x 480, or the app's own (Explorer's, a dialog's), shrunk to fit a small
-// screen.
+// Cascades new windows one title bar down and across, back to the top when one
+// wouldn't fit. Size is app.size or XP's 640 x 480, clamped to the screen.
 function firstRect(app) {
   const { width, height } = desktop.getBoundingClientRect();
   const w = Math.min(app.size ? num(app.size[0]) : WINDOW_W, width);
@@ -462,8 +422,7 @@ function firstRect(app) {
   };
 }
 
-// A phone has no room to move windows around, so there every window fills
-// the screen like a maximized one.
+// On a phone every window fills the screen.
 function place(win) {
   const full = win.maximized || phone.matches;
   const s = win.el.style;
@@ -480,7 +439,7 @@ function place(win) {
   }
 }
 
-// Enough of the title bar always stays on screen to grab it again.
+// Keep enough of the title bar on screen to grab it.
 function keepOnScreen(rect) {
   const { width, height } = desktop.getBoundingClientRect();
   rect.x = Math.min(Math.max(rect.x, KEEP - rect.w), width - KEEP);
@@ -509,8 +468,7 @@ function resize(win, edge, down) {
   });
 }
 
-// Follows one drag from pointerdown to pointerup, calling onMove for every
-// step in between.
+// Follows one drag, calling onMove until pointerup.
 function follow(down, onMove) {
   const target = down.currentTarget;
   down.preventDefault();
@@ -553,9 +511,7 @@ function maximize(win, on) {
   place(win);
 }
 
-// A program with something unsaved asks first, as XP's Notepad did ("Do you
-// want to save the changes?"). Its page sets window.mayClose, which settles
-// false to stay open. Logging off doesn't ask.
+// A page with unsaved work sets window.mayClose, which resolves false to stay open.
 async function close(win, { ask = true } = {}) {
   if (ask && !(await letsGo(win))) return;
   if (!stack.includes(win)) return;
@@ -565,8 +521,7 @@ async function close(win, { ask = true } = {}) {
   if (front === win) activate(topmost());
 }
 
-// Whether a window's page lets it go. False if it has unsaved work and the
-// answer to its question is Cancel.
+// False only when the page's mayClose says stay. Errors let it close.
 async function letsGo(win) {
   try {
     return (await win.frame.contentWindow?.mayClose?.()) !== false;
@@ -575,16 +530,14 @@ async function letsGo(win) {
   }
 }
 
-// --- the address -----------------------------------------------------------
+// --- address ---------------------------------------------------------------
 //
-// The front window's place goes in the site's address. Another app's is
-// #<app>/<where in it> (#notepad/?file=credits.txt). The website's own pages
-// read like paths (?blog/liftoff, ?pictures), so the address shows them as
-// they are (#blog/liftoff, #pictures), and its front page is the plain
-// address.
+// The hash follows the front window: #<app>/<rest> (#notepad/?file=credits.txt).
+// The website's rests are paths (?blog/liftoff) and show bare (#blog/liftoff).
+// Its front page has no hash.
 
-// "?blog/liftoff" as "blog/liftoff", or null if it isn't a path (an old
-// ?post=3, which the site sends on to its new address)
+// "?blog/liftoff" -> "blog/liftoff". Null for a real query (the old ?post=3,
+// which the site redirects).
 function siteHash(rest) {
   if (!rest) return "";
   return rest.startsWith("?") && !/[=&]/.test(rest) ? rest.slice(1) : null;
@@ -599,20 +552,19 @@ function address() {
   if (hash !== location.hash) history.replaceState(null, "", hash || location.pathname);
 }
 
-// What the address asks for, as { app, rest }. #files and #notepad/... are
-// those apps. Anything else is a place on the website (#blog/liftoff), and
-// so is the old way of saying one (#blog/?post=3).
+// The hash as { app, rest }. #files and #notepad/... are apps. Anything else
+// is a website path (#blog/liftoff), or the old #blog/?post=3.
 function fromAddress() {
   const m = location.hash.match(/^#([\w-]+)(?:\/(.*))?$/);
   if (!m) return { app: HOME, rest: "" };
   const app = findApp(m[1]);
   if (app && app !== HOME) return { app, rest: m[2] ?? "" };
-  // the old way, #blog/?post=3, and #blog/ for the front page (#blog alone is the Blog)
+  // Old #blog/?post=3, or #blog/ for the front page. Bare #blog is the Blog page.
   if (app === HOME && (m[2] === "" || m[2]?.startsWith("?"))) return { app: HOME, rest: m[2] };
   return { app: HOME, rest: siteRest(location.hash.slice(1)) };
 }
 
-// The address catches up once the window's page has loaded (see create).
+// The hash catches up once the page loads (see create).
 function openFromAddress() {
   const { app, rest } = fromAddress();
   open(app.id, rest);
@@ -620,11 +572,10 @@ function openFromAddress() {
 
 addEventListener("hashchange", openFromAddress);
 
-// --- focus and the window size ---------------------------------------------
+// --- focus and resize ------------------------------------------------------
 
-// Focus going into a window's page (a click, or Tab) brings that window to
-// the front and closes the start menu. This page only hears that it lost
-// focus, so it looks at where focus went once it's settled.
+// Focus moving into an iframe only blurs this page. Once it settles, bring
+// the focused window to the front.
 addEventListener("blur", () => {
   showStart(false);
   setTimeout(() => {
@@ -641,9 +592,8 @@ addEventListener("resize", () => {
 });
 phone.addEventListener("change", () => stack.forEach(place));
 
-// --- the clock -------------------------------------------------------------
+// --- clock -----------------------------------------------------------------
 
-// Clicking it brings up Date and Time Properties, like XP.
 const clock = document.querySelector(".tray__clock");
 document.querySelector(".tray__clock-button").addEventListener("click", () => open("datetime"));
 function tick() {
@@ -655,13 +605,13 @@ function tick() {
 tick();
 setInterval(tick, 10000);
 
-// A page in a window saying it's here (js/app.js).
+// Called by js/app.js on DOMContentLoaded.
 function arrived(inner) {
   stack.find((w) => w.frame.contentWindow === inner)?.hook();
 }
 
-// Every visit opens the website, maximized. An address on it (#blog/liftoff)
-// opens it there, and one for another app (#files) opens that app in front.
+// Every visit opens the website maximized, at the hash if it's a website path.
+// Another app's hash (#files) opens that app in front.
 function arrive() {
   const { app, rest } = fromAddress();
   open(HOME.id, app === HOME ? rest : "", { maximized: true });

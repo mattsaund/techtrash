@@ -1,14 +1,7 @@
-// The desktop page's copy of the shared disk (server/disk.js), minus the
-// files' bytes. The whole disk comes down the line when it connects
-// (js/shared.js), then every change anyone makes. Programs use this same copy
-// as window.top.desktop.disk, so one connection serves them all. They hear
-// about changes through a "diskchange" event on their own window (sent by
-// js/desktop.js), and the desktop's own parts use disk.watch.
-//
-// Every change is a request to the server. If it says no (the desktop is
-// locked, or the change isn't allowed), the DiskError's message goes straight
-// into XP's message box. The answer carries what changed, so whoever made the
-// change sees it at once, and everyone else gets it down the line.
+// The desktop page's copy of the shared disk (server/disk.js), metadata only.
+// Filled over the socket (js/shared.js). Programs share it as window.top.desktop.disk
+// and get "diskchange" events from js/desktop.js. One connection serves them all.
+// Changes are HTTP requests. A DiskError's message goes straight into XP's message box.
 
 import { line } from "./shared.js";
 import { TEXT, fileUrl } from "./items.js";
@@ -21,17 +14,15 @@ export class DiskError extends Error {
   }
 }
 
-const items = new Map();     // every item, by id
-const inFolder = new Map();  // folder id to the ids of what's in it
-const gone = new Set();      // ids that are gone for good
+const items = new Map();     // by id
+const inFolder = new Map();  // folder id -> ids of its children
+const gone = new Set();      // deleted ids, so late updates can't bring them back
 const watchers = new Set();
 let settings = { wallpaper: null, locked: false };
 let fromServer = false;
 let loaded = false;
-// The last shared settings this browser got, in localStorage, so the desktop
-// can put up the wallpaper before the line opens. Only the wallpaper's used,
-// and url, where its picture is (for a picture on the disk, which can't be
-// found until the disk is here).
+// Last settings seen, in localStorage, so the wallpaper shows before the socket
+// opens. url is kept because a disk picture can't be resolved until the disk loads.
 const SEEN = "techtrash:settings";
 try {
   const seen = JSON.parse(localStorage.getItem(SEEN));
@@ -50,9 +41,8 @@ function notify(change) {
   }
 }
 
-// A change from the server, down the line or in a request's answer. The same
-// change can arrive both ways, in either order, so an item older than the
-// one already here is skipped, and anything gone stays gone.
+// A change from the socket or a response. The same change can arrive both
+// ways, in either order, so older items are skipped and gone stays gone.
 function apply({ items: changed = [], gone: removed = [], all = false }) {
   if (all) {
     items.clear();
@@ -93,8 +83,8 @@ function changeSettings(next) {
 line.on("disk", apply);
 line.on("settings", (message) => changeSettings(message.settings));
 
-// One request to /api/disk/. Resolves to the answer, or throws a DiskError
-// with the server's words for what went wrong.
+// One /api/disk/ request. Applies the response's changes at once (other tabs
+// get them over the socket). Throws a DiskError with the server's message.
 async function call(method, path, body, type) {
   let response;
   try {
@@ -125,10 +115,10 @@ async function fetchFile(item) {
 }
 
 export const disk = {
-  // Settles once the whole disk is here. loaded() says so right away.
+  // Resolves once the whole disk is here. loaded() is the sync check.
   ready,
   loaded: () => loaded,
-  // Whether this tab is the admin's (js/desktop.js keeps it up to date).
+  // True in the admin's tab. Kept current by js/desktop.js.
   admin: false,
 
   // --- reading -------------------------------------------------------------
@@ -141,7 +131,7 @@ export const disk = {
     for (let item = items.get(id); item && chain.length < 32; item = items.get(item.parent)) chain.unshift(item);
     return chain;
   },
-  // Is it in the Recycle Bin, or in a folder that is?
+  // In the Recycle Bin, directly or nested.
   inBin(id) {
     for (let item = items.get(id), steps = 0; item && steps < 32; item = items.get(item.parent), steps++) {
       if (item.parent === "recycle") return true;
@@ -150,10 +140,8 @@ export const disk = {
   },
   binFull: () => (inFolder.get("recycle")?.size ?? 0) > 0,
   settings: () => settings,
-  // The shared settings without opening the line, so the wallpaper can come
-  // in while the website's in front. url is where its picture is, worked
-  // out by the server (a picture on the disk needs the disk to say). The
-  // line's own settings take over once it opens.
+  // Settings over HTTP, without opening the socket. The server resolves url
+  // for a disk picture. The socket's settings win once it connects.
   async peek() {
     if (fromServer) return;
     try {
@@ -162,8 +150,7 @@ export const disk = {
       if (response.ok && answer.settings && !fromServer) changeSettings({ ...answer.settings, url: answer.url });
     } catch {}
   },
-  // Calls fn(change) on every change, with { items, gone, all } or
-  // { settings }. Gives back a function that stops it.
+  // fn(change) gets { items, gone, all } or { settings }. Returns an unsubscribe.
   watch(fn) {
     watchers.add(fn);
     return () => watchers.delete(fn);
@@ -172,9 +159,9 @@ export const disk = {
   blob: async (item) => (await fetchFile(item)).blob(),
 
   // --- changing ------------------------------------------------------------
-  // Each gives back the item as it is now (or nothing, for what's gone).
+  // Each resolves to the updated item (nothing for what's gone).
   makeFolder: async (parent, name) => (await send("POST", "folder", { parent, name })).items[0],
-  // A shortcut to an app, by its id (js/apps.js).
+  // app is an id from js/apps.js.
   makeShortcut: async (parent, app) => (await send("POST", "shortcut", { parent, type: app })).items[0],
   // kind is "text", "picture" or "sound", and data is a string or a Blob.
   makeFile: async (parent, name, data, kind = "text") =>
@@ -182,8 +169,7 @@ export const disk = {
   save: async (id, data) => (await call("PUT", `file?${query({ id })}`, data, "application/octet-stream")).items[0],
   rename: async (id, name) => (await send("PATCH", `item?${query({ id })}`, { name })).items[0] ?? items.get(id),
   move: async (id, parent) => (await send("PATCH", `item?${query({ id })}`, { parent })).items[0] ?? items.get(id),
-  // Into the Recycle Bin. Something already in the bin is deleted for good,
-  // and so is anything the admin deletes with forGood.
+  // To the Recycle Bin. Permanent if already in it, or with forGood (admin only).
   remove: (id, forGood = false) => call("DELETE", `item?${query({ id })}${forGood ? "&for-good" : ""}`),
   restore: async (id) => (await call("POST", `restore?${query({ id })}`)).items[0],
   empty: () => call("POST", "empty"),

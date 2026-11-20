@@ -1,69 +1,31 @@
-// The blog's server side. It keeps posts, flags, comments and pages.
+// Blog API. Posts, flags, comments and pages live in D1 (DB), uploads in KV (PICTURES).
+// Post bodies are editor HTML, sanitized by the client before sending and again before display
+// (public/pages/blog/content.js). Slugs are unique and follow title changes. URLs are #blog/<slug>.
 //
-//   post     a blog, with a title, a body, flags, comments on or off,
-//            whether it's a draft, and its place among the featured blogs on
-//            Home if the admin starred it. The body is HTML from the editor, cleaned
-//            by the page before it's sent and again before it's shown
-//            (public/pages/blog/content.js). A draft is the admin's alone
-//            until it's published. Turning comments off keeps the ones
-//            already there and stops new ones.
-//   flag     a label on posts, like Space or Computers. A post can have any
-//            number and the Blog filters by them. A flag is made the first
-//            time a post uses it and goes when no post does.
-//   comment  anyone's, on a published post or as a reply to another comment,
-//            so comments form threads. Just a name and plain text.
-//   page     one of the site's own pages the admin writes (Home's words, the
-//            bulletin at the top of Home, About me, the tagline under the
-//            headline, the footer's words, and the footer's blinkies). Just a
-//            body, like a post's.
+// Uploads are "blog/<name>" at /blog/img/<name> and "sound/<name>" at /blog/sound/<name>. Public once
+// a published post or a page uses one, admin-only before that, so draft media stays private even
+// if the URL is guessed. Deleted once nothing uses them.
 //
-// Each post has a slug, its title made fit for an address ("Daft Punk's
-// best" is daft-punks-best). It's unique across the blog so addresses can
-// read #blog/<post>, and it follows the title when the title changes.
-//
-// Everything is in the D1 database DB, and the tables are made the first
-// time they're needed. Uploaded pictures are in the KV store PICTURES under
-// "blog/<name>", served at /blog/img/<name>. Sounds are there too under
-// "sound/<name>", served at /blog/sound/<name> a part at a time as a player
-// asks, so it can skip ahead.
-//
-// Anyone gets a picture or sound once it's in something that's up (a
-// published blog or one of the site's own pages). Until then, in a draft or
-// in nothing yet, only the admin does. That keeps a draft's pictures and
-// sounds as private as the draft, even from someone who guesses the address.
-// A file is deleted once nothing on the site shows it anymore.
-//
-// Anyone can read, drafts aside, and anyone can comment while a post's
-// comments are on (5 a minute per person, COMMENT_LIMITER).
-//
-//   GET    /api/blog/posts[?limit=]      published posts, newest first, each with its
-//                                        opening words, first picture, flags and
-//                                        comment count (?limit= for the newest few)
-//   GET    /api/blog/posts?featured      the starred ones, in the admin's order
-//   GET    /api/blog/post?slug= | ?id=   a post with its flags and comments (a draft
-//                                        only for the admin)
-//   GET    /api/blog/flags               the flags published posts have, with counts
-//                                        (the admin gets every flag)
-//   GET    /api/blog/pictures            every picture posted to the site, newest
-//                                        first, each with where it's from
-//   GET    /api/blog/page?name=          the body of home, bulletin, about, tagline,
-//                                        footer or blinkies
-//                                        ("" until it's written, or once it's taken down)
+// Public, drafts aside. Comments are limited by COMMENT_LIMITER (5/min per IP).
+//   GET    /api/blog/posts[?limit=]      published posts, newest first, with excerpt,
+//                                        cover picture, flags and comment count
+//   GET    /api/blog/posts?featured      starred posts, in the admin's order
+//   GET    /api/blog/post?slug= | ?id=   a post with its flags and comments
+//   GET    /api/blog/flags               flags on published posts, with counts (admin sees all)
+//   GET    /api/blog/pictures            pictures in published posts and pages, newest first
+//   GET    /api/blog/page?name=          home, bulletin, about, tagline, footer or blinkies
+//                                        ("" until written)
 //   POST   /api/blog/comments            { post, parent, name, body }
 //
-// Everything else is the admin's. worker.js checks that with server/admin.js,
-// and this file checks the drafts itself.
-//
-//   GET    /api/blog/posts?drafts        every draft, listed the same way
+// Admin-only, checked in worker.js. Drafts are checked here.
+//   GET    /api/blog/posts?drafts        drafts, same shape
 //   POST   /api/blog/posts               { title, body, flags, comments, draft }
-//   PUT    /api/blog/post?id=            any of { title, body, flags, comments, draft,
-//                                        featured }
-//   PUT    /api/blog/featured            { ids }, the featured blogs in their new order
-//   DELETE /api/blog/post?id=            the post and its comments (and any pictures
-//                                        or sounds nothing else shows)
-//   POST   /api/blog/pictures            a form with a picture, returns its address
-//   POST   /api/blog/sounds?name=        the sound file as the body, returns its address
-//   DELETE /api/blog/comment?id=         blanks the comment, but its replies stay
+//   PUT    /api/blog/post?id=            any of { title, body, flags, comments, draft, featured }
+//   PUT    /api/blog/featured            { ids }, the whole featured list in order
+//   DELETE /api/blog/post?id=            the post, its comments and its unused uploads
+//   POST   /api/blog/pictures            form with a "picture" file, returns its URL
+//   POST   /api/blog/sounds?name=        the file as the raw body, returns its URL
+//   DELETE /api/blog/comment?id=         blanks it, replies stay
 //   PUT    /api/blog/page?name=          { body }
 
 import { isAdmin } from "./admin.js";
@@ -75,12 +37,12 @@ const MAX_LENGTH = { title: 120, flag: 40, flags: 20, body: 500_000, name: 40, c
 const MAX_PICTURE_BYTES = 10 * 1024 * 1024;
 const MAX_SOUND_BYTES = 20 * 1024 * 1024;   // under KV's 25 MiB per value
 const PICTURES = "blog/";
-const FIRST_PICTURES = "topics/";   // where the first blog kept a topic's picture
+const FIRST_PICTURES = "topics/";   // legacy, the first blog's topic pictures
 const SOUNDS = "sound/";
 export const PICTURE_NAME = /^[\w-]+\.(?:png|jpg|gif|webp|avif)$/;
 export const SOUND_NAME = /^[\w-]+\.(?:mp3|m4a|aac|ogg|wav|flac)$/;
 
-// --- the tables ------------------------------------------------------------------
+// --- schema ----------------------------------------------------------------------
 
 const POSTS = `(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,7 +57,7 @@ const POSTS = `(
   featured INTEGER
 )`;
 
-// Made the first time they're needed, once per Worker instance.
+// Once per isolate. Cleared on failure so the next call retries.
 let schemaReady;
 export function ensureSchema(env) {
   schemaReady ??= (async () => {
@@ -138,11 +100,8 @@ export function ensureSchema(env) {
   return schemaReady;
 }
 
-// Reads skip setting up the tables, since they're nearly always there and
-// each check is another trip to the database. Only if the database turns out
-// to be missing a table or a column (a brand new one, or one from an older
-// blog) does a read set them up and try again. A read can always be tried
-// twice. Writes set up first (ensureSchema), since a write can't.
+// Reads skip ensureSchema (extra D1 round trips). On "no such table/column",
+// set up the schema and retry once. Writes call ensureSchema first since they can't be retried.
 export async function reading(env, work) {
   try {
     return await work();
@@ -154,11 +113,8 @@ export async function reading(env, work) {
 }
 const readOnly = (handler) => (request, env, ...rest) => reading(env, () => handler(request, env, ...rest));
 
-// The blog before this one (September and October 2026) kept posts under
-// topics, and the very first kept them as plain text, without the columns
-// added since. CREATE TABLE IF NOT EXISTS leaves an old table as it is, so
-// this brings it up to date. Two Worker instances can race here. Adding a
-// column that's already there fails, and the loser leaves it to the other.
+// Upgrades older databases: the first blog (plain-text posts) and the topics blog (Sep to Oct 2026).
+// CREATE TABLE IF NOT EXISTS never adds columns. Isolates can race, so "duplicate column" is ignored.
 async function upgrade(env) {
   const columns = async (table) => {
     const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
@@ -172,8 +128,7 @@ async function upgrade(env) {
   if (!posts.has("updated")) await env.DB.prepare("ALTER TABLE posts ADD COLUMN updated INTEGER").run().catch(alreadyThere);
   if (!posts.has("featured")) await env.DB.prepare("ALTER TABLE posts ADD COLUMN featured INTEGER").run().catch(alreadyThere);
   if (!posts.has("comments_open")) {
-    // Plain-text posts become HTML, in the same batch as the new column so
-    // it only ever happens once.
+    // Same batch as the new column, so the plain-text conversion runs exactly once.
     const { results } = await env.DB.prepare("SELECT id, body FROM posts").all();
     await env.DB.batch([
       env.DB.prepare("ALTER TABLE posts ADD COLUMN comments_open INTEGER NOT NULL DEFAULT 1"),
@@ -184,11 +139,8 @@ async function upgrade(env) {
   await everySlugItsOwn(env);
 }
 
-// Takes posts out of topics. Each topic becomes a flag of the same name on its
-// posts, along with any flags the topic had back when topics had them. Every
-// post stays published, dated from when it was posted. The topics themselves
-// (descriptions, pictures) stay in the topics table, unused. One batch, so it
-// all happens or none of it does.
+// Topics become flags on their posts (plus old topic_flags). Every post is published,
+// dated when it was created. The topics table stays, unused. One batch, all or nothing.
 async function outOfTopics(env) {
   const { results: tables } = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
   const topicFlags = tables.some((table) => table.name === "topic_flags");
@@ -208,9 +160,8 @@ async function outOfTopics(env) {
   ]);
 }
 
-// Gives every post a slug of its own. A post without one (from before slugs)
-// or sharing one with an older post (slugs used to be per topic) gets its
-// title's, with -2, -3... on the end until no other post has it.
+// Dedupes slugs before posts_slug_unique is created. Missing ones (pre-slug posts) and
+// duplicates (slugs were per topic) get the title's slug plus -2, -3...
 async function everySlugItsOwn(env) {
   const { results } = await env.DB.prepare("SELECT id, title, slug FROM posts ORDER BY id").all();
   const held = new Set(results.map((post) => post.slug).filter(Boolean));
@@ -236,7 +187,7 @@ async function everySlugItsOwn(env) {
 function slugify(title, fallback) {
   const slug = title
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")   // the accents NFKD took off their letters
+    .replace(/[\u0300-\u036f]/g, "")   // combining accents split off by NFKD
     .toLowerCase()
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
@@ -246,8 +197,7 @@ function slugify(title, fallback) {
   return slug || fallback;
 }
 
-// A post's slug, from its title, with -2, -3... on the end if another post
-// (not the one with this id) already has it.
+// Title's slug, plus -2, -3... if another post (not id) has it.
 async function postSlug(env, title, id = null) {
   const base = slugify(title, "post");
   for (let n = 1; ; n++) {
@@ -256,8 +206,7 @@ async function postSlug(env, title, id = null) {
   }
 }
 
-// A first-blog post as HTML that looks the way it did then. Blank lines make
-// paragraphs, line ends make line breaks, and links are clickable.
+// First-blog plain text as HTML. Blank lines make paragraphs, newlines <br>, and URLs links.
 function textToHtml(text) {
   const escaped = text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   return escaped
@@ -269,7 +218,7 @@ function textToHtml(text) {
     .join("");
 }
 
-// --- small things ----------------------------------------------------------------
+// --- helpers ---------------------------------------------------------------------
 
 function cleanText(value, max) {
   return typeof value === "string" ? value.replace(/\r\n?/g, "\n").trim().slice(0, max) : "";
@@ -287,7 +236,7 @@ async function readForm(request) {
   return request.formData().catch(() => null);
 }
 
-// What the blog accepts, going by a file's first bytes (server/media.js).
+// Allowed upload types, as sniffed by mediaType().
 const PICTURE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"]);
 const isSound = (found) => found?.type.startsWith("audio/");
 
@@ -304,7 +253,7 @@ function fileName(original, ext, fallback) {
   return `${base || fallback}-${crypto.randomUUID().slice(0, 6)}.${ext}`;
 }
 
-// Stores a picture from a form's file field. Returns { name } or { error }.
+// Returns { name } or { error }.
 async function storePicture(env, file) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.length > MAX_PICTURE_BYTES) return { error: apiError(413, "That picture is too big (10 MB at most).") };
@@ -314,7 +263,7 @@ async function storePicture(env, file) {
   try {
     await env.PICTURES.put(PICTURES + name, bytes, { metadata: { type: image.type } });
   } catch {
-    // most likely the free plan's 1,000 writes a day or 1 GB of storage has run out
+    // likely the free plan's KV limits (1,000 writes a day, 1 GB)
     return { error: apiError(503, "Pictures are full right now. Try again tomorrow.") };
   }
   return { name };
@@ -322,10 +271,8 @@ async function storePicture(env, file) {
 
 const hasFile = (value) => value instanceof Blob && value.size > 0;
 
-// Who may have an uploaded picture or sound. Anyone, once it's in a published
-// blog or one of the site's own pages. Before that only the admin, so they can
-// see a draft's and what they've only just added. Returns its cache-control,
-// or null for a 404 that looks the same whether the file exists or not.
+// Public once a published post or a page uses it, admin-only before that.
+// Returns the Cache-Control value, or null for a 404 that doesn't reveal whether the file exists.
 async function mayHave(admin, env, address) {
   if (admin) return "private, max-age=3600";
   const shown = await reading(env, () => env.DB.prepare(
@@ -336,9 +283,8 @@ async function mayHave(admin, env, address) {
 
 const notFound = () => new Response("not found", { status: 404 });
 
-// A picture. A picture's name never gets other bytes, so the store keeps a
-// copy near whoever's reading it for a day (cacheTtl). That's only ever
-// read once mayHave has said yes.
+// Names never get new bytes, so KV can cache at the edge for a day (cacheTtl).
+// Only read after mayHave allows it.
 export async function servePicture(name, request, env) {
   const cache = await mayHave(await isAdmin(request, env), env, `/blog/img/${name}`);
   if (!cache) return notFound();
@@ -354,8 +300,7 @@ export async function servePicture(name, request, env) {
   });
 }
 
-// A sound, whole or just the part a player asks for (Range: bytes=...), so it
-// can start partway in.
+// Supports Range requests so players can seek.
 export async function serveSound(name, request, env) {
   const cache = await mayHave(await isAdmin(request, env), env, `/blog/sound/${name}`);
   if (!cache) return notFound();
@@ -369,11 +314,10 @@ export async function serveSound(name, request, env) {
   return sendPart(request, found.value.byteLength, headers, (start, end) => found.value.slice(start, end + 1));
 }
 
-// The addresses of uploaded pictures and sounds a post's (or a page's) body
-// shows, /blog/img/<name> and /blog/sound/<name>.
+// Upload paths (/blog/img/<name>, /blog/sound/<name>) in a post or page body.
 const filesIn = (body) => [...(body ?? "").matchAll(/\/blog\/(?:img\/[\w-]+\.(?:png|jpg|gif|webp|avif)|sound\/[\w-]+\.(?:mp3|m4a|aac|ogg|wav|flac))/g)].map((m) => m[0]);
 
-// Deletes the files that no post (drafts included) or page shows anymore.
+// Deletes uploads no post (drafts included) or page uses anymore.
 async function dropUnused(env, addresses) {
   for (const address of new Set(addresses)) {
     const used = await env.DB.prepare(
@@ -389,22 +333,20 @@ async function dropUnused(env, addresses) {
 const decodeEntities = (text) =>
   text.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, name) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " " })[name]);
 
-// The start of a post's words, as plain text, for a list of posts.
+// Plain-text opening of a post, for cards and the feed.
 export function excerpt(html, length = 220) {
   const text = decodeEntities(html
-    .replace(/<a\b[^>]*href="\/blog\/sound\/[^"]*"[^>]*>.*?<\/a>/gi, " ")   // a sound's name says nothing on its own
-    .replace(/<\/?(?:p|h\d|li|ul|ol|blockquote|pre|br|hr|table|tr|td|th|img)\b[^>]*>/gi, " ")   // between lines
-    .replace(/<[^>]*>/g, ""))   // inside a line
-    .replace(/https?:\/\/\S+/g, "")   // a player's link says nothing on its own
+    .replace(/<a\b[^>]*href="\/blog\/sound\/[^"]*"[^>]*>.*?<\/a>/gi, " ")   // sound links (just a file name)
+    .replace(/<\/?(?:p|h\d|li|ul|ol|blockquote|pre|br|hr|table|tr|td|th|img)\b[^>]*>/gi, " ")   // block tags become spaces
+    .replace(/<[^>]*>/g, ""))   // inline tags are dropped
+    .replace(/https?:\/\/\S+/g, "")   // URLs (player links) mean nothing as text
     .replace(/\s+/g, " ")
     .trim();
   // cut at a word and drop the trailing punctuation, so "back...", not "back...."
   return text.length > length ? `${text.slice(0, length).replace(/\s+\S*$/, "").replace(/[\s.,;:!?-]+$/, "")}...` : text;
 }
 
-// The uploaded pictures a post's (or a page's) body shows, in order, as
-// { url, alt }. Pictures from elsewhere on the web aren't the site's, so
-// they're left out.
+// Uploaded pictures in a body, in order, as { url, alt }. External images are skipped.
 function uploadedPicturesIn(html) {
   return [...html.matchAll(/<img\b[^>]*>/gi)]
     .map(([tag]) => ({ url: tag.match(/\ssrc="([^"]*)"/i)?.[1] ?? "", alt: decodeEntities(tag.match(/\salt="([^"]*)"/i)?.[1] ?? "") }))
@@ -413,9 +355,8 @@ function uploadedPicturesIn(html) {
 
 // --- flags -----------------------------------------------------------------------
 
-// { postId: [{ id, name, slug }, ...] } for the posts asked about. It reads
-// every post's flags (a short list) instead of naming each post, since D1
-// takes at most 100 bound values per query.
+// { postId: [{ id, name, slug }, ...] }. Reads every post_flags row instead of binding the ids,
+// since D1 allows at most 100 bound parameters per query.
 export async function flagsOf(env, postIds) {
   const byPost = Object.fromEntries(postIds.map((id) => [id, []]));
   if (postIds.length === 0) return byPost;
@@ -427,8 +368,7 @@ export async function flagsOf(env, postIds) {
   return byPost;
 }
 
-// Sets exactly these flags (by name, any case) on a post, making any that
-// don't exist yet and dropping any flag no post has anymore.
+// Replaces a post's flags (names, any case). Creates new flags and deletes unused ones.
 function setFlags(env, postId, names) {
   const now = Date.now();
   return env.DB.batch([
@@ -448,7 +388,7 @@ export const listFlags = readOnly(async (request, env) => {
         WHERE post_flags.flag_id = flags.id AND posts.draft = 0) AS count
      FROM flags ORDER BY flags.name COLLATE NOCASE`,
   ).all();
-  // only the admin sees a flag that's only on drafts
+  // flags used only by drafts are admin-only
   const admin = await isAdmin(request, env);
   return fresh({ flags: results.filter((flag) => admin || flag.count > 0).map((flag) => ({ ...flag, slug: slugify(flag.name, "flag") })) });
 });
@@ -468,7 +408,6 @@ export const listPosts = readOnly(async (request, env) => {
      FROM posts WHERE draft = ?${featured ? " AND featured IS NOT NULL" : ""} ORDER BY ${order}${limit ? " LIMIT ?" : ""}`,
   ).bind(drafts ? 1 : 0, ...(limit ? [limit] : [])).all();
   const flags = await flagsOf(env, results.map((post) => post.id));
-  // each post as a card, with its opening words, first picture and flags
   return fresh({
     posts: results.map(({ start, ...post }) => ({
       ...post, excerpt: excerpt(start, 160), cover: uploadedPicturesIn(start)[0]?.url ?? null, flags: flags[post.id],
@@ -494,8 +433,7 @@ export const getPost = readOnly(async (request, env) => {
   });
 });
 
-// Whatever of { title, body, flags, comments, draft, featured } a request sends,
-// cleaned. Flags are names, and case doesn't matter.
+// The sent subset of { title, body, flags, comments, draft, featured }, cleaned.
 async function postInput(request) {
   const input = await readJson(request, MAX_LENGTH.body * 2 + 10_000);
   if (!input) return null;
@@ -509,7 +447,7 @@ async function postInput(request) {
     const names = (Array.isArray(input.flags) ? input.flags : [])
       .map((name) => cleanText(name, MAX_LENGTH.flag).replace(/\s+/g, " "))
       .filter(Boolean);
-    // the same flag twice (in any case) keeps the first spelling
+    // case-insensitive dedupe, first spelling wins
     const once = new Map();
     for (const name of names) if (!once.has(name.toLowerCase())) once.set(name.toLowerCase(), name);
     out.flags = [...once.values()].slice(0, MAX_LENGTH.flags);
@@ -517,7 +455,7 @@ async function postInput(request) {
   return out;
 }
 
-// A draft just needs a title. A published post needs words too.
+// Drafts need a title. Published posts also need a body.
 function checkPost(post) {
   if (!post.title) return apiError(400, "A blog needs a title.");
   if (!post.draft && !post.body.trim()) return apiError(400, "A blog needs something in it before it goes up.");
@@ -556,16 +494,15 @@ export async function updatePost(request, env) {
   const problem = checkPost(next);
   if (problem) return problem;
   const slug = next.title === before.title ? before.slug : await postSlug(env, next.title, id);
-  // It's dated the first time it goes up, and that date stays.
+  // set on first publish, never changed
   const published = before.published ?? (next.draft ? null : Date.now());
-  // "changed" is only for edits to its words while it's up, not for switching
-  // comments or for edits made while it was a draft.
+  // updated only tracks title or body edits while published
   const edited = !before.draft && !next.draft && (next.title !== before.title || next.body !== before.body);
   await env.DB.prepare(
     `UPDATE posts SET title = ?, slug = ?, body = ?, draft = ?, comments_open = ?, published = ?${edited ? ", updated = ?" : ""} WHERE id = ?`,
   ).bind(next.title, slug, next.body, next.draft, next.comments, published, ...(edited ? [Date.now()] : []), id).run();
   if (input.flags) await setFlags(env, id, input.flags);
-  // A newly starred blog goes at the end of the featured ones.
+  // newly starred posts go last
   if (input.featured === true && before.featured === null) {
     await env.DB.prepare("UPDATE posts SET featured = (SELECT COALESCE(MAX(featured), 0) + 1 FROM posts) WHERE id = ?").bind(id).run();
   } else if (input.featured === false) {
@@ -576,8 +513,7 @@ export async function updatePost(request, env) {
   return fresh({ id, slug, draft: next.draft });
 }
 
-// The featured blogs in a new order, from Home. ids is every one of them, in
-// order, and a blog left out isn't featured anymore.
+// Reorder from Home. ids is the whole featured list, and posts left out are unstarred.
 export async function saveFeatured(request, env) {
   await ensureSchema(env);
   const input = await readJson(request, 10_000);
@@ -606,9 +542,8 @@ export async function deletePost(request, env) {
 
 // --- pictures --------------------------------------------------------------------
 
-// Every picture posted to the site, newest first. That's the ones in published
-// posts and the site's own pages, each once, with where it's from. The
-// footer's pictures and blinkies are part of the site, so they're left out.
+// Uploaded pictures in published posts and pages, newest first, each once, with their source.
+// The footer and blinkies are site decoration, so they're skipped.
 export const listPictures = readOnly(async (request, env) => {
   const [posts, pages] = await Promise.all([
     env.DB.prepare(
@@ -616,7 +551,6 @@ export const listPictures = readOnly(async (request, env) => {
     ).all(),
     env.DB.prepare("SELECT name AS id, body, updated AS created FROM pages WHERE instr(body, '/blog/img/') > 0 AND name NOT IN ('footer', 'blinkies')").all(),
   ]);
-  // where a picture is, as { kind, id, title } plus a post's slug
   const from = (kind, row) => ({ kind, id: row.id, title: row.title ?? PAGES[row.id], ...(row.slug ? { slug: row.slug } : {}) });
   const found = [];
   for (const [kind, rows] of [["post", posts.results], ["page", pages.results]]) {
@@ -629,7 +563,6 @@ export const listPictures = readOnly(async (request, env) => {
   return fresh({ pictures: found.filter(({ url }) => !seen.has(url) && seen.add(url)) });
 });
 
-// A picture for anywhere in a post.
 export async function uploadPicture(request, env) {
   const form = await readForm(request);
   if (!form || !hasFile(form.get("picture"))) return apiError(400, "No picture came through. Try again.");
@@ -640,9 +573,8 @@ export async function uploadPicture(request, env) {
 
 // --- sounds ----------------------------------------------------------------------
 
-// A sound for anywhere in a post. The file is the request's body, not a form,
-// since parsing a form costs a big file more time than the free plan allows.
-// Its name comes in the address (?name=). Answers with the sound's address.
+// Raw body, not a form. Parsing a big multipart form takes more CPU than the free plan allows.
+// The file name comes in ?name=.
 export async function uploadSound(request, env) {
   const tooBig = apiError(413, "That sound is too big (20 MB at most).");
   if (Number(request.headers.get("content-length")) > MAX_SOUND_BYTES) return tooBig;
@@ -655,7 +587,7 @@ export async function uploadSound(request, env) {
   try {
     await env.PICTURES.put(SOUNDS + name, bytes, { metadata: { type: sound.type } });
   } catch {
-    // most likely the free plan's 1,000 writes a day or 1 GB of storage has run out
+    // likely the free plan's KV limits (1,000 writes a day, 1 GB)
     return apiError(503, "There's no room for sounds right now. Try again tomorrow.");
   }
   return fresh({ url: `/blog/sound/${name}` }, 201);
@@ -668,7 +600,7 @@ export async function createComment(request, env, ctx) {
   if (!success) return apiError(429, "That's a lot of comments. Wait a minute, then try again.");
   const input = await readJson(request, 20_000);
   if (!input) return apiError(400, "That didn't come through. Try again.");
-  // A field people never see. Only a bot fills it in.
+  // honeypot, hidden from people
   if (input.website) return apiError(400, "That didn't come through. Try again.");
   const name = cleanText(input.name, MAX_LENGTH.name);
   const body = cleanText(input.body, MAX_LENGTH.comment);
@@ -688,7 +620,7 @@ export async function createComment(request, env, ctx) {
     `INSERT INTO comments (post_id, parent_id, name, body, is_admin, created) VALUES (?, ?, ?, ?, ?, ?)
      RETURNING id, parent_id, name, body, is_admin, deleted, created`,
   ).bind(post.id, parent?.id ?? null, name, body, admin ? 1 : 0, Date.now()).first();
-  // The admin hears about it by email (server/notify.js), unless it's theirs.
+  // email the admin, unless it's their own comment
   if (!admin) {
     const { hostname, origin } = new URL(request.url);
     const said = parent ? "replied to a comment on" : "commented on";
@@ -698,7 +630,7 @@ export async function createComment(request, env, ctx) {
   return fresh(comment, 201);
 }
 
-// Blanks the comment but keeps it as "deleted", so its replies keep their place.
+// Soft delete. The blanked row keeps its replies in place.
 export async function deleteComment(request, env) {
   await ensureSchema(env);
   await env.DB.prepare("UPDATE comments SET deleted = 1, name = '', body = '' WHERE id = ?").bind(idParam(request)).run();
@@ -707,7 +639,7 @@ export async function deleteComment(request, env) {
 
 // --- pages -----------------------------------------------------------------------
 
-// The site's own pages the admin writes, by name, with their titles.
+// Admin-written pages, name to title.
 const PAGES = { home: "Home", bulletin: "Bulletin", about: "About me", tagline: "Tagline", footer: "Footer", blinkies: "Blinkies" };
 const pageName = (request) => {
   const name = new URL(request.url).searchParams.get("name");

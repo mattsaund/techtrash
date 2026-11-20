@@ -11,10 +11,7 @@
   <link rel="stylesheet" href="/css/explorer.css">
   <script type="module" src="files.js"></script>
 </head>
-<!--
-  The File Browser, XP's Explorer over the shared disk. files.js fills all
-  of this in.
--->
+<!-- File Browser, XP's Explorer over the shared disk. files.js fills it in. -->
 <body class="app explorer">
   <nav class="menu-bar" aria-label="Menu"></nav>
   <div class="toolbar">
@@ -38,7 +35,7 @@
     <span class="status-bar__field status-bar__field--size" data-size></span>
   </footer>
 
-  <!-- XP's half-and-half blue tint on a selected icon, as on the desktop (css/xp.css). -->
+  <!-- XP's 50/50 blue tint on selected icons (css/xp.css). -->
   <svg class="filters" aria-hidden="true">
     <filter id="select-tint" color-interpolation-filters="sRGB">
       <feFlood class="select-tint__flood"/>

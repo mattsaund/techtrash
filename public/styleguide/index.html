@@ -10,11 +10,8 @@
   <link rel="stylesheet" href="/styleguide/guide.css">
 </head>
 <body>
-  <!--
-    Every rule on the site, drawn with the kit itself. The table values
-    are read from css/tokens.css when the page loads, so this page can't
-    drift from the file it documents.
-  -->
+  <!-- Drawn with the kit itself. Token values are read from css/tokens.css
+       on load, so the tables can't drift. -->
   <main class="guide">
 
     <nav class="guide__icons" aria-label="Desktop icons">
@@ -311,7 +308,7 @@ Notepad is the mono face at body size. It wraps at the window's edge, not at the
       </div>
     </section>
 
-    <!-- a message (js/message.js puts these up over the desktop) -->
+    <!-- message box (js/message.js) -->
     <section class="window message" id="message" aria-labelledby="message-title">
       <header class="title-bar">
         <h2 class="title-bar__text" id="message-title">Error Deleting File or Folder</h2>
@@ -343,7 +340,7 @@ Notepad is the mono face at body size. It wraps at the window's edge, not at the
   </footer>
 
   <script>
-    // Fill each [data-token] cell with that token's value from tokens.css.
+    // Fill each [data-token] cell with its value from tokens.css.
     const root = getComputedStyle(document.documentElement);
     for (const cell of document.querySelectorAll("[data-token]")) {
       const value = root.getPropertyValue(cell.dataset.token).trim();

@@ -2,14 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- Nothing loads from anywhere but this site. Otherwise JS Paint could
-       reach out (its About box checks for news, and it can load a picture
-       from an address or send one to Imgur). -->
+  <!-- Same origin only, so JS Paint can't fetch news, load URLs or upload to Imgur. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; font-src 'self'">
   <title>untitled - Paint</title>
   <script src="/js/app.js"></script>
-  <!-- JS Paint's files live in jspaint/ (tools/make_paint.py copies them
-       there), and this base lets them find each other. -->
+  <!-- JS Paint's relative paths resolve against jspaint/ (copied by tools/make_paint.py). -->
   <base href="/programs/paint/jspaint/">
   <link rel="icon" href="/img/icons/xp/paint.png">
   <meta name="viewport" content="width=device-width, user-scalable=no">
@@ -24,11 +21,9 @@
   <script type="module" src="src/theme.js"></script>
 </head>
 <!--
-  Paint. It's JS Paint (jspaint/, MS Paint remade for the web by Isaiah
-  Odhner, MIT) in a window, saving and opening on the shared disk (paint.js).
-  JS Paint draws everything into this page itself. The scripts and their
-  order follow JS Paint's own index.html, minus the parts that aren't copied
-  (tools/make_paint.py lists them).
+  Paint is JS Paint (jspaint/, MS Paint remade for the web by Isaiah Odhner,
+  MIT). paint.js connects it to the shared disk. Scripts and their order
+  follow JS Paint's index.html, minus what tools/make_paint.py doesn't copy.
 -->
 <body>
   <script src="lib/jquery-3.4.1.min.js"></script>
@@ -46,7 +41,7 @@
   <script src="lib/os-gui/MenuBar.js"></script>
   <script src="lib/imagetracer_v1.2.5.js"></script>
 
-  <!-- Not deferred, so JS Paint's text is ready before the rest of it. -->
+  <!-- Classic script, so localization runs before the modules. -->
   <script src="src/app-localization.js"></script>
 
   <script type="module" src="src/msgbox.js"></script>
@@ -77,7 +72,7 @@
   <script type="module" src="src/menus.js"></script>
   <script type="module" src="src/speech-recognition.js"></script>
   <script defer src="src/app-state.js"></script>
-  <!-- The shared disk, hooked in before JS Paint starts. -->
+  <!-- Before src/app.js, so the disk hooks and menu changes are in place. -->
   <script type="module" src="/programs/paint/paint.js"></script>
   <script type="module" src="src/app.js"></script>
   <script type="module" src="src/konami.js"></script>

@@ -1,32 +1,7 @@
-// The admin's editor, for blogs and the site's own words (own-words.js). The
-// rich text box looks just like the post will. Its buttons are the browser's
-// own editing (execCommand), and on top of that it handles:
-//
-//   - Pictures, from the button, a paste or a drop, uploaded as they go. Click
-//     one to say what's in it and where it sits (across the column, or small
-//     on the left, middle or right with words around it).
-//   - Players. A video or song link alone on a line becomes one (content.js
-//     knows which sites), and sound files upload and play in the site's own
-//     player (sound.js).
-//   - Up and Down buttons for pictures and players, and corners to resize
-//     them by (resizer.js).
-//   - Markdown files, from the .md button or a drop.
-//   - Pastes from other pages, which keep their bold, lists and links but
-//     are cleaned like a post. The browser's own styling goes as soon as it
-//     shows up (marks.js), so what's shown is what's saved.
-//   - A column of lines that behaves the same in every browser (lines.js),
-//     and its own Undo and Redo (history.js).
-//
-// It can also write in Markdown, drawn live the way Obsidian does
-// (live-markdown.js), or in plain HTML. Switching carries the post over, and
-// whatever Markdown can't say (a hue, a picture's place or width) stays as
-// HTML in it. Pictures and players go in from all three.
-//
-// createEditor(html, { onChange, onTitle, onProblem, short }) returns
-// { element, html(), empty(), focus() }. html() is the post as it'll be
-// saved. onTitle(title) gets a Markdown file's title, onProblem(text) gets
-// what went wrong (a failed upload, say, since the box's footer only shows
-// the word count), and short makes the box a line or two tall.
+// The admin's editor for posts and the site's own words (own-words.js). Three modes:
+// WYSIWYG rich text on execCommand, live Markdown (live-markdown.js) and raw HTML.
+// Switching converts the post, and what Markdown can't express (hues, a picture's
+// place or width) stays inline HTML.
 
 import {
   clean, embedPlayers, fromMarkdown, htmlToMarkdown, loadMarkdown, markdownToHtml, PICTURE_PLACES, playerElement, playerFor,
@@ -39,16 +14,15 @@ import { createLiveMarkdown } from "./live-markdown.js";
 import { cssVar, dropStyles, escape, HUES, inert, insertHtml, tidy, tidyHtml } from "./marks.js";
 import { setUpCorners } from "./resizer.js";
 
-// the blocks the Lines buttons can tell the cursor is in
+// blocks the Lines buttons can detect the cursor in
 const BLOCKS = new Set(["P", "H2", "H3", "H4", "PRE", "BLOCKQUOTE", "LI"]);
 const PLAYERS = "YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok, Spotify, SoundCloud, Apple Music, or a link to a video or sound file";
 const isMarkdown = (file) => /\.(?:md|markdown|mdown|mkd)$/i.test(file.name) || file.type === "text/markdown";
 const isPicture = (file) => file.type.startsWith("image/");
 const isSound = (file) => file.type.startsWith("audio/") || /\.(?:mp3|m4a|aac|ogg|oga|wav|flac)$/i.test(file.name);
 
-// The cursor's place in a box as a count of characters into its text, and
-// back again (for Undo and Redo). skip(node) leaves out text that isn't the
-// writer's.
+// Cursor to a character offset in the box's text and back, for undo snapshots.
+// skip(node) excludes text that isn't the writer's.
 function caretIn(box) {
   const selection = getSelection();
   if (!selection.rangeCount || !box.contains(selection.focusNode)) return null;
@@ -96,13 +70,12 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     "data-placeholder": "Write something...",
     spellcheck: true,
   });
-  // (Firefox only takes these once the box has the cursor. Before that, Enter
-  // after a heading makes a <div>.)
+  // Firefox ignores these until the box is focused (else Enter after a heading makes a <div>).
   area.addEventListener("focus", useParagraphs);
   const modes = el("div", { class: "editor__modes", role: "group", "aria-label": "Write in" });
   const tools = el("div", { class: "editor__tools", role: "toolbar", "aria-label": "Formatting" });
   const sourceTools = el("div", { class: "editor__tools", role: "toolbar", "aria-label": "Put in", hidden: true });
-  // the HTML mode's text box
+  // HTML mode
   const source = el("textarea", {
     class: `editor__source${short ? " editor__area--short" : ""}`, hidden: true, spellcheck: true, "aria-label": "The post, as text",
   });
@@ -113,7 +86,6 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   const picturePicker = el("input", { type: "file", accept: "image/*", multiple: true, hidden: true });
   const markdownPicker = el("input", { type: "file", accept: ".md,.markdown,.mdown,.mkd,text/markdown", hidden: true });
   const soundPicker = el("input", { type: "file", accept: "audio/*,.mp3,.m4a,.aac,.ogg,.oga,.wav,.flac", multiple: true, hidden: true });
-  // the Markdown mode, drawn live (live-markdown.js)
   const markdown = createLiveMarkdown({
     short,
     onChange: () => {
@@ -137,12 +109,11 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     el("div", { class: "editor__foot meta" }, count),
     picturePicker, markdownPicker, soundPicker);
 
-  let mode = "rich";   // or "markdown" or "html" (see setMode)
+  let mode = "rich";   // or "markdown" or "html", see setMode()
 
   // --- where the cursor is -------------------------------------------------------
 
-  // Where the cursor last was in the box, so a button (or a field above it)
-  // can put it back first.
+  // Last selection in the box. Buttons and fields restore it before acting.
   let saved = null;
   document.addEventListener("selectionchange", () => {
     const selection = getSelection();
@@ -165,11 +136,10 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   const restore = () => select(saved);
   const here = () => (getSelection().rangeCount ? getSelection().getRangeAt(0).cloneRange() : saved);
 
-  // Keeps the box's lines in shape (lines.js).
   const lines = setUpLines(area, { select, pick: (item) => pick(item), picked: () => picked, changed: () => changed() });
   const { lineOf } = lines;
 
-  // the `tag` element the cursor is in, if any
+  // closest ancestor of the saved cursor matching tag
   function inside(tag) {
     let node = saved?.startContainer;
     while (node && node !== area) {
@@ -185,8 +155,6 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     return null;
   };
 
-  // After any change, tidy the lines (lines.js) and take a snapshot for Undo
-  // once the changes stop for a moment.
   function changed() {
     if (mode === "rich") {
       lines.settle();
@@ -196,8 +164,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     onChange();
   }
 
-  // Undo and Redo for the box. A snapshot keeps players as their links, so
-  // they come back working, plus where the cursor was.
+  // Snapshots store players as links, so a restore rebuilds working players.
   const history = createHistory(
     () => ({ content: snapshot(), caret: caretIn(area) }),
     (state) => {
@@ -217,15 +184,14 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     for (const node of copy.querySelectorAll(".is-picked")) node.classList.remove("is-picked");
     return copy.innerHTML;
   }
-  // each player back to the line with its link, the way a post keeps it
+  // players back to <p><a> links, as a post stores them
   function playersAsLinks(copy) {
     for (const box of copy.querySelectorAll("[data-address]")) {
       box.replaceWith(el("p", { "data-width": box.dataset.width }, el("a", { href: box.dataset.address, textContent: box.dataset.title || box.dataset.address })));
     }
   }
 
-  // After the browser's own edits, turn its markup into ours, and count the
-  // words a moment after the typing stops.
+  // Normalize markup after every native edit. The word count is debounced.
   let counting;
   area.addEventListener("input", () => {
     lines.settleLines();
@@ -241,7 +207,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
       count.textContent = plural(words((mode === "markdown" ? markdown.text() : source.value).replace(/<[^>]*>|[#*_`>|-]/g, " ")), "word");
       return;
     }
-    // (minus a player's own words, like its link or a sound's name and time)
+    // minus player UI text (link, sound title and time)
     const players = [...area.querySelectorAll(".embed")].reduce((n, box) => n + words(box.innerText), 0);
     count.textContent = plural(words(area.innerText) - players, "word");
   };
@@ -252,7 +218,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     changed();
   };
 
-  // Toggles the cursor's line between a paragraph and a block like a heading.
+  // Toggles the cursor's line between <p> and tag.
   const block = (tag) => {
     const now = tag === "blockquote" ? inside("blockquote") : currentBlock();
     run("formatBlock", now?.nodeName === tag.toUpperCase() ? "p" : tag);
@@ -268,17 +234,15 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
       document.execCommand("insertText", false, code.textContent);
     } else {
       const text = getSelection().toString();
-      if (!text) return;   // only for selected words
+      if (!text) return;   // needs a selection
       insertHtml(`<code>${escape(text)}</code>`);
     }
     changed();
   }
 
-  // Puts a block (a player, a divider) on its own line after the cursor's,
-  // or in place of the cursor's line if it's empty, with a line after it to
-  // keep typing on.
+  // Inserts a block after the cursor's line, or in place of it if empty, plus a line to type on.
   function insertBlock(node, at = saved) {
-    // (a cursor in the box itself, between two lines, means the line before)
+    // a cursor in the box itself (between lines) means the line before
     const line = at?.startContainer === area ? area.childNodes[Math.max(0, at.startOffset - 1)] ?? null : lineOf(at?.startContainer);
     if (isEmptyParagraph(line)) line.replaceWith(node);
     else if (line) line.after(node);
@@ -292,11 +256,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
 
   // --- players -------------------------------------------------------------------
 
-  // A player in the box. It's the real player, so you can see it's the right
-  // video, with a bar under it showing its link and its buttons. The post
-  // keeps only the link, plus the player's width if it has its own and a
-  // sound's name as the link's words. Click the bar to pick it and drag its
-  // corners to resize it.
+  // A live player with an edit bar. The post keeps only the link, plus data-width if sized
+  // and a sound's title as the link text (playersAsLinks).
   function playerBlock(player, address, width = null, title = null) {
     const box = sizePlayer(playerElement(player, title), width);
     box.contentEditable = "false";
@@ -324,14 +285,14 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   function addPlayer(address) {
     const player = playerFor(address);
     if (!player) return `That isn't a link I can play. Try ${PLAYERS}.`;
-    // a link on a line of its own becomes the player
+    // a link alone on a line becomes the player
     if (mode === "markdown") typeIn(`\n\n${address}\n\n`);
     else if (mode === "html") typeIn(`\n<p>${escape(address)}</p>\n`);
     else insertBlock(playerBlock(player, address));
     return null;
   }
 
-  // A player's link typed on a line of its own turns into the player on Enter.
+  // A media link typed alone on a line becomes a player on Enter.
   area.addEventListener("keyup", (e) => {
     if (e.key !== "Enter") return;
     const before = lineOf(here()?.startContainer)?.previousElementSibling;
@@ -342,8 +303,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     }
   });
 
-  // Moves a picture or a player up or down a line. A picture with words beside
-  // it first gets a line of its own.
+  // Up or down a line. A picture sharing its line with text gets its own line first.
   function move(item, up) {
     const line = lineOf(item);
     const alone = line === item || (line.matches("p") && !line.textContent.trim() && line.querySelectorAll("img").length === 1);
@@ -392,9 +352,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
 
   // --- sounds --------------------------------------------------------------------
 
-  // Sound files go in at the cursor, each on a line of its own, upload as
-  // they go and play in the site's own player. A sound is named after its
-  // file until it's renamed (click the player).
+  // Each sound uploads, then goes in as its own player line, titled after its file name.
   async function addSounds(files, at) {
     for (const file of files) {
       try {
@@ -418,7 +376,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     soundPicker.value = "";
   });
 
-  // Files pasted or dropped in. The pictures go in first, then the sounds.
+  // Pasted or dropped files. Pictures go in before sounds.
   async function addFiles(files, at) {
     const pictures = files.filter(isPicture);
     const sounds = files.filter(isSound);
@@ -426,7 +384,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     if (sounds.length) await addSounds(sounds, pictures.length ? here() : at);
   }
 
-  // A field to rename a picked sound (click its player to pick it).
+  // Rename field for a picked sound.
   const soundName = el("input", { class: "editor__field", placeholder: "What's it called?", "aria-label": "What the sound is called" });
   soundName.addEventListener("input", () => {
     if (!picked?.matches(".embed--sound")) return;
@@ -440,20 +398,18 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   });
   soundRow.append(el("span", { class: "editor__label", textContent: "Sound" }), soundName);
 
-  // Click a picture to say what's in it (for people who can't see it), where
-  // it sits and how big it is. A player gets picked too (by its bar), for its
-  // size.
+  // Picking a picture shows its alt, place and size controls. Players are picked by their bar.
   let picked = null;
   const alt = el("input", { class: "editor__field", placeholder: "What's in it? (read out to people who can't see it)", "aria-label": "What's in the picture" });
   alt.addEventListener("input", () => {
     if (!picked?.matches("img")) return;
     picked.alt = alt.value;
     if (markdown.owns(picked)) pick(markdown.pictureChanged(picked));
-    // (not changed(), which would tidy the lines while the cursor's in here)
+    // not changed(), which would settle the lines while focus is in this field
     if (mode === "rich") history.soon();
     onChange();
   });
-  // (a one-line field, so Enter does nothing rather than send a form it's in)
+  // Enter must not submit the surrounding form
   alt.addEventListener("keydown", (e) => {
     if (e.key === "Enter") e.preventDefault();
   });
@@ -466,7 +422,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
       if (markdown.owns(img)) img = markdown.pictureChanged(img);
       else if (beside(img)) {
         lines.keepBeside(img, true);
-        // the cursor goes right after it, to type beside it
+        // cursor right after it, ready to type beside it
         const after = document.createRange();
         after.setStartAfter(img);
         after.collapse(true);
@@ -493,7 +449,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   });
   const pictureUp = el("button", { class: "tool", type: "button", textContent: "Up", title: "Up a line" });
   const pictureDown = el("button", { class: "tool", type: "button", textContent: "Down", title: "Down a line" });
-  // (in Markdown, its whole line moves)
+  // in Markdown the whole line moves
   pictureUp.addEventListener("click", () => (markdown.owns(picked) ? pick(markdown.moveLine(picked, true)) : move(picked, true)));
   pictureDown.addEventListener("click", () => (markdown.owns(picked) ? pick(markdown.moveLine(picked, false)) : move(picked, false)));
   pictureRow.append(
@@ -520,9 +476,8 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
       button.setAttribute("aria-pressed", String(place ? picture.classList.contains(place) : !PICTURE_PLACES.some((p) => picture.classList.contains(p))));
     }
   }
-  // Put the cursor beside what's clicked, not on it. In Firefox a clicked
-  // picture gets selected (so typing would replace it), and a clicked divider
-  // leaves the cursor in no line at all.
+  // Keep the cursor beside a clicked item. Firefox selects a clicked picture (typing would
+  // replace it) and leaves the cursor outside any line after a click on an hr.
   area.addEventListener("click", (e) => {
     const item = e.target.closest("img, .embed, hr");
     pick(item);
@@ -541,12 +496,11 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
 
   // --- sizes ---------------------------------------------------------------------
 
-  // Resize corners for the picked picture or player (resizer.js). In
-  // Markdown, the new size goes into its line once the drag ends.
+  // In Markdown the new size is written into the source line when the drag ends.
   const corners = setUpCorners(element, {
     picked: () => picked,
     hidden: () => mode === "html",
-    // the column's width, the most anything in it can be
+    // content width, the max size
     column: () => {
       if (markdown.owns(picked)) return markdown.column();
       const look = getComputedStyle(area);
@@ -558,7 +512,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     },
   });
 
-  // --- Markdown ------------------------------------------------------------------
+  // --- Markdown files ------------------------------------------------------------
 
   async function addMarkdown(file, at) {
     let md;
@@ -586,7 +540,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     markdownPicker.value = "";
   });
 
-  // --- the ask row (a link, or a player's link) ----------------------------------
+  // --- URL prompt row ------------------------------------------------------------
 
   function askFor(what, start, done) {
     const field = el("input", { class: "editor__field", type: "url", value: start, placeholder: "https://", "aria-label": what });
@@ -637,12 +591,12 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     });
   }
 
-  // --- the buttons ---------------------------------------------------------------
+  // --- toolbar and shortcuts -----------------------------------------------------
 
   const states = [];
   function tool(label, title, action, { css = "", state } = {}) {
     const button = el("button", { class: `tool ${css}`, type: "button", title, "aria-label": title, textContent: label });
-    // so clicking it leaves the cursor where it is in the box
+    // keep focus and the selection in the box
     button.addEventListener("mousedown", (e) => e.preventDefault());
     button.addEventListener("click", action);
     if (state) states.push([button, state]);
@@ -710,7 +664,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     }
   });
 
-  // (Undo and Redo from elsewhere, like the browser's menu or a phone's shake)
+  // undo and redo from the browser's menu or a phone's shake
   area.addEventListener("beforeinput", (e) => {
     if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") return;
     e.preventDefault();
@@ -747,7 +701,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   });
   area.addEventListener("drop", (e) => {
     const files = [...e.dataTransfer.files];
-    if (files.length === 0) return;   // dragged words, left to the browser
+    if (files.length === 0) return;   // text drags stay native
     e.preventDefault();
     const at = rangeAt(e.clientX, e.clientY) ?? saved;
     const file = files.find(isMarkdown);
@@ -755,7 +709,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     else addFiles(files, at);
   });
 
-  // A file dropped next to the box would replace the page, post and all.
+  // A file dropped outside the box would navigate to it and lose the post.
   for (const type of ["dragover", "drop"]) {
     document.addEventListener(type, (e) => {
       if (e.dataTransfer?.types.includes("Files") && !area.contains(e.target)) e.preventDefault();
@@ -772,7 +726,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     return range && area.contains(range.startContainer) ? range : null;
   }
 
-  // --- in and out ----------------------------------------------------------------
+  // --- load and save -------------------------------------------------------------
 
   function setHtml(value) {
     area.innerHTML = clean(value) || "<p><br></p>";
@@ -788,8 +742,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     return !area.textContent.trim() && !area.querySelector("img, hr, .embed");
   }
 
-  // The post as it'll be saved, as clean HTML. From the rich text box,
-  // players go back to their links and the browser's marks become a post's.
+  // The post as saved: cleaned HTML from whichever mode is active.
   function html() {
     if (mode === "markdown") return clean(tidyHtml(markdownToHtml(markdown.text())));
     if (mode === "html") return clean(tidyHtml(source.value));
@@ -799,9 +752,9 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     return clean(tidy(copy).innerHTML);
   }
 
-  // --- Rich text, Markdown, HTML -------------------------------------------------
+  // --- modes ---------------------------------------------------------------------
 
-  // Types text into the Markdown or HTML box at its cursor.
+  // Inserts text at the cursor in Markdown or HTML mode.
   function typeIn(text) {
     if (mode === "markdown") return markdown.insert(text);
     source.focus();
@@ -809,7 +762,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
     source.dispatchEvent(new Event("input"));
   }
 
-  // HTML with a line break after each block, to read and edit by hand.
+  // newline after each block, for editing by hand
   const readable = (value) => value.replace(/(<\/(?:p|h[2-4]|ul|ol|li|blockquote|pre|table|thead|tbody|tr)>|<hr>)(?!\n)/g, "$1\n");
 
   async function setMode(next) {
@@ -856,8 +809,7 @@ export function createEditor(start, { onChange = () => {}, onTitle = () => {}, o
   source.addEventListener("dragover", (e) => {
     if (e.dataTransfer.types.includes("Files")) e.preventDefault();
   });
-  // (the HTML box takes pictures and sounds. A Markdown file goes in from
-  // Rich text or Markdown.)
+  // pictures and sounds only. Markdown files go in from the other modes.
   source.addEventListener("drop", (e) => {
     const files = [...e.dataTransfer.files];
     if (files.length === 0) return;

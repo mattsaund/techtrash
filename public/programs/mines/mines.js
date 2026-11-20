@@ -1,10 +1,6 @@
-// Mines. Open every tile that doesn't have a mine under it. A number says
-// how many of the eight tiles around it do. Right-click (or long press) to
-// flag a tile, and click a number whose mines are all flagged to open the
-// rest around it. The first tile opened never has a mine.
-//
-// Game picks Beginner, Intermediate or Expert, and the window resizes to fit
-// the field. Best times are kept in this browser.
+// Mines. Right-click or long press flags. Clicking a number whose mines are
+// all flagged opens the rest around it. The first click is always safe.
+// The window resizes to fit the level. Best times stay in this browser.
 
 import { menuBar } from "/js/menu.js";
 import { showMessage } from "/js/message.js";
@@ -24,7 +20,7 @@ const clock = document.querySelector("[data-time]");
 
 let saved = load();
 let level = LEVELS[saved.level] ? saved.level : "beginner";
-let cells = [];        // { mine, open, flag, n, el }
+let cells = [];        // { mine, open, flag, n (mines around), el }
 let started = 0;       // when the first tile was opened, or 0
 let timer = null;
 let over = false;
@@ -43,8 +39,7 @@ function store() {
   } catch {}
 }
 
-// A counter's three digits: "007", or "-05" once more tiles are flagged than
-// there are mines.
+// Counter digits: "007", or "-05" with more flags than mines.
 function three(n) {
   const held = Math.max(-99, Math.min(999, n));
   return held < 0 ? `-${String(-held).padStart(2, "0")}` : String(held).padStart(3, "0");
@@ -98,7 +93,7 @@ function fit() {
   desktop?.fit(window, game.offsetWidth, bar.offsetHeight + game.offsetHeight);
 }
 
-// Lays the mines once the first tile's opened, never on it or next to it.
+// Lays mines on the first open, keeping that tile and its neighbors clear.
 function lay(first) {
   const keep = new Set([first, ...neighbors(first)]);
   const spots = cells.map((_, i) => i).filter((i) => !keep.has(i));
@@ -129,8 +124,7 @@ function paint(cell) {
   el.setAttribute("aria-label", cell.flag ? "Flagged" : cell.open ? (cell.n ? String(cell.n) : "Empty") : "Hidden");
 }
 
-// Opens a tile and spreads out from any empty one. Returns false if it hit
-// a mine.
+// Flood-fills out from empty tiles. Returns false on a mine.
 function open(i) {
   const queue = [i];
   while (queue.length) {
@@ -151,7 +145,7 @@ function press(i) {
   if (cell.flag) return;
   if (!started) lay(i);
   if (cell.open) {
-    // A number whose mines are all flagged opens the rest around it.
+    // Chording. A number with all its mines flagged opens the rest around it.
     const around = neighbors(i);
     if (cell.n && around.filter((j) => cells[j].flag).length === cell.n) {
       for (const j of around) if (!open(j)) return;
@@ -218,15 +212,14 @@ function bestTimes() {
   return showMessage({ title: "Best Times", text: `The best times on this computer:\n\n${lines.join("\n")}`, icon: "information" });
 }
 
-// --- the pointer and the keys ----------------------------------------------
+// --- pointer and keys ------------------------------------------------------
 
 const indexOf = (e) => (e.target.closest(".tile") ? Number(e.target.closest(".tile").dataset.i) : -1);
 
-// A long press flags a tile on a phone. Android turns one into a right-click
-// on its own, but an iPhone doesn't, so it's timed here too. Whatever click
-// or right-click follows the press is ignored, so it doesn't count twice.
+// Long press flags on touch. Android fires contextmenu for it but iOS doesn't,
+// so it's timed here, and the click or contextmenu after it is ignored.
 const LONG_PRESS_MS = 500;
-let held = null;   // { timer, x, y, at } while a finger's down, at once it flagged
+let held = null;   // { timer, x, y, at }, at = when it flagged
 board.addEventListener("pointerdown", (e) => {
   const i = indexOf(e);
   if (e.pointerType !== "touch" || i === -1) return;
@@ -253,7 +246,7 @@ board.addEventListener("contextmenu", (e) => {
   if (i !== -1 && !justHeld()) flag(i);
 });
 
-// Arrows move between tiles, Space or Enter opens one, and F flags it.
+// Arrows move, F flags. Space and Enter click the tile's button, which opens it.
 board.addEventListener("keydown", (e) => {
   const i = indexOf(e);
   if (i === -1) return;

@@ -3,17 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- XP's Internet Explorer titled its window "<the page> - Microsoft
-       Internet Explorer". site.js keeps it that way as the page changes. -->
+  <!-- IE-style title. site.js titled() keeps it updated. -->
   <title>Techtrash - Microsoft Internet Explorer</title>
-  <!-- The blog, for feed readers (server/feed.js). -->
+  <!-- RSS (server/feed.js). -->
   <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
   <script>
-    // What this page is about to ask the server for, asked for now while its
-    // scripts are still on the way. util.js api() takes each answer from
-    // here the first time it's wanted. The paths match blog.js's.
+    // Start this route's API requests before the modules load.
+    // api() uses each response once. URLs must match the modules' calls.
     (() => {
-      if (window.top === window) return;   // (it's off to the desktop, js/app.js)
+      if (window.top === window) return;   // js/app.js redirects to the desktop
       let path = [];
       try {
         path = decodeURIComponent(location.search.slice(1)).split("/").filter(Boolean);
@@ -32,8 +30,7 @@
   <script src="/js/app.js"></script>
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/pages/blog/site.css">
-  <!-- Everything the page loads, asked for all at once rather than one
-       level of imports at a time. -->
+  <!-- Preload the whole module graph instead of one import level at a time. -->
   <link rel="preload" href="/fonts/paper-mono.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/pages/blog/sky/cosmos/planet.js" as="script">
   <link rel="modulepreload" href="/pages/blog/site.js">
@@ -53,18 +50,16 @@
   <script type="module" src="/pages/blog/blog.js"></script>
 </head>
 <body>
-  <!-- The planets and stars, drawn by space.js with cosmos.js. -->
+  <!-- Planets and stars (sky/space.js). -->
   <div class="sky" aria-hidden="true"></div>
 
-  <!-- blog.js draws the page here, with the headline on top and a panel
-       (Home, the Blog, Pictures, About me), a blog or the admin's editor. -->
+  <!-- blog.js renders the route here. -->
   <main class="page wrap" id="page">
     <p class="meta">Loading...</p>
   </main>
 
-  <!-- footer.js adds the admin's own words and blinkies above the line.
-       The credits are a text file that opens in the desktop's Notepad
-       (js/app.js opens the window). The feed opens in its own tab. -->
+  <!-- footer.js adds the footer words and blinkies above the line.
+       credits.txt opens in the desktop's Notepad (js/app.js). -->
   <footer class="foot wrap">
     <p class="foot__line">
       <span><span class="copyleft" role="img" aria-label="Copyleft">©</span> Matthew Saunders</span>
@@ -73,16 +68,15 @@
     </p>
   </footer>
 
-  <!-- The headline panel on top of every page (frame.js). -->
+  <!-- Headline panel. frame.js clones it onto every page. -->
   <template id="hero">
     <section class="panel">
       <h1 class="title" aria-label="Techtrash">
         <span aria-hidden="true"><span class="title__letter hue-1">T</span><span class="title__letter hue-2">e</span><span class="title__letter hue-3">c</span><span class="title__letter hue-4">h</span><span class="title__letter hue-5">t</span><span class="title__letter hue-6">r</span><span class="title__letter hue-1">a</span><span class="title__letter hue-2">s</span><span class="title__letter hue-3">h</span></span>
       </h1>
-      <!-- The tagline until one's written. server/feed.js has the same line. -->
+      <!-- Default tagline. Keep in sync with server/feed.js. -->
       <p class="lede">My own little corner of the internet.</p>
-      <!-- Which panel shows under the headline. frame.js fills in the
-           current one. -->
+      <!-- Panel buttons. frame.js sets aria-current on the current one. -->
       <div class="button-row">
         <a class="button hue-5" href="./" data-view="home">Home</a>
         <a class="button hue-4" href="?blog" data-view="blog">Blog</a>

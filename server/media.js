@@ -1,8 +1,6 @@
-// What kind of file some bytes are, and sending part of one. The blog and
-// the shared disk both use these.
+// File type sniffing and Range responses, used by the blog and the disk.
 
-// Read from the first bytes, never the name or what the browser claims.
-// Gives back { ext, type }, or null if it's nothing we know.
+// From magic bytes, never the name or the client's Content-Type. { ext, type }, or null if unknown.
 export function mediaType(bytes) {
   const ascii = (start, end) => String.fromCharCode(...bytes.subarray(start, end));
   if (bytes[0] === 0x89 && ascii(1, 4) === "PNG") return { ext: "png", type: "image/png" };
@@ -11,9 +9,9 @@ export function mediaType(bytes) {
   if (ascii(0, 2) === "BM") return { ext: "bmp", type: "image/bmp" };
   if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return { ext: "webp", type: "image/webp" };
   if (ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12))) return { ext: "avif", type: "image/avif" };
-  // An MP3 starts with its tags, or right on a frame (sync bits plus a layer).
+  // MP3 starts with an ID3 tag or a frame sync with a nonzero layer
   if (ascii(0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0 && (bytes[1] & 0x06) !== 0)) return { ext: "mp3", type: "audio/mpeg" };
-  // Plain AAC has the same sync bits and no layer.
+  // ADTS AAC has the same sync and layer 00
   if (bytes[0] === 0xff && (bytes[1] & 0xf6) === 0xf0) return { ext: "aac", type: "audio/aac" };
   if (ascii(4, 8) === "ftyp" && ["M4A ", "M4B ", "mp42", "mp41", "isom", "iso2", "dash"].includes(ascii(8, 12))) return { ext: "m4a", type: "audio/mp4" };
   if (ascii(0, 4) === "OggS") return { ext: "ogg", type: "audio/ogg" };
@@ -22,9 +20,7 @@ export function mediaType(bytes) {
   return null;
 }
 
-// Answers a request for a file of `size` bytes with the part it asked for
-// (Range: bytes=...), so a player can start partway in. read(start, end)
-// gives that part's bytes, end included.
+// Single-range responses (Range: bytes=...) so players can seek. read(start, end) is inclusive.
 export function sendPart(request, size, headers, read) {
   headers = { ...headers, "accept-ranges": "bytes" };
   const asked = request.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);

@@ -1,9 +1,6 @@
-// The Command Prompt. Its C: drive is the shared disk (js/paths.js), so
-// whatever's done here is done for everyone. MD makes a folder anyone can
-// see, DEL throws a file in the Recycle Bin, and so on.
-//
-// HELP lists the commands. As on XP, Up and Down go back through what's been
-// typed, Tab finishes a name and Ctrl+C drops the line.
+// Command Prompt. C: is the shared disk (js/paths.js), so changes here are everyone's.
+// DEL and RD send things to the Recycle Bin.
+// History (Up/Down), Tab completion and Ctrl+C work as on XP.
 
 import { programNamed } from "/js/apps.js";
 import { LIMITS, isSound, isText } from "/js/items.js";
@@ -20,8 +17,8 @@ const input = document.querySelector(".console__in");
 const KEEP_LINES = 2000;
 
 let cwd = HOME;
-const typed = [];      // what's been run, oldest first
-let back = 0;          // how far back Up has gone
+const typed = [];      // command history, oldest first
+let back = 0;          // history offset from the end, 0 for a blank line
 let busy = false;
 
 // --- the screen ------------------------------------------------------------
@@ -40,7 +37,7 @@ function showPrompt() {
 
 // --- words -----------------------------------------------------------------
 
-// Splits a line into words, keeping "quoted words" together.
+// Splits on whitespace, keeping "quoted words" together.
 const words = (text) => (text.match(/"[^"]*"|\S+/g) ?? []).map((word) => word.replace(/^"(.*)"$/, "$1"));
 const pad = (text, width) => String(text).padStart(width);
 const number = (n) => n.toLocaleString("en-US");
@@ -57,13 +54,13 @@ function stamp(ms) {
   return `${two(d.getMonth() + 1)}/${two(d.getDate())}/${d.getFullYear()}  ${two(hours)}:${two(d.getMinutes())} ${d.getHours() < 12 ? "AM" : "PM"}`;
 }
 
-// Turns a name with * and ? wildcards into a regex.
+// Wildcard name (* and ?) to a case-insensitive regex.
 function pattern(text) {
   const source = text.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
   return new RegExp(`^${source}$`, "i");
 }
 
-// The items a name matches (wildcards and all), and the folder they're in.
+// Items a name matches (wildcards allowed), and their folder.
 function matching(text) {
   const parts = text.split("\\");
   const name = parts.pop();
@@ -73,7 +70,7 @@ function matching(text) {
   return { folder, found: contents(folder).filter((entry) => entry.item && (test.test(entry.name) || test.test(entry.item.name))).map((entry) => entry.item) };
 }
 
-// Free space on the whole disk, music's share included.
+// Free bytes on the whole disk, music quota included.
 const bytesFree = () => LIMITS.bytes + LIMITS.music - disk.all().reduce((sum, item) => sum + (item.kind === "file" ? item.size : 0), 0);
 
 // --- the commands ----------------------------------------------------------
@@ -260,7 +257,7 @@ const COMMANDS = {
     const files = found.filter((item) => item.kind === "file");
     if (!files.length) return print(NO_FILE);
     const to = resolve(target, cwd);
-    // into a folder under the same names, or one file to a new name
+    // Into a folder keeping names, or one file to a new name.
     const intoFolder = folderOf(to);
     const parts = target.split("\\");
     const newName = intoFolder ? null : parts.pop();
@@ -302,7 +299,7 @@ const COMMANDS = {
     if (place.item) desktop.openItem(place.item);
     else desktop.open("files", "?folder=desktop");
   },
-  // a program, maybe on a file, as in "notepad todo.txt"
+  // A program with an optional file, as in "notepad todo.txt".
   run(app, arg) {
     const place = arg && resolve(arg, cwd);
     if (arg && !place?.item) return print(NO_FILE);
@@ -349,7 +346,7 @@ const COMMANDS = {
     desktop.close(window);
   },
 };
-// XP's other names for the same commands
+// XP's aliases
 Object.assign(COMMANDS, { chdir: COMMANDS.cd, mkdir: COMMANDS.md, rmdir: COMMANDS.rd, erase: COMMANDS.del, rename: COMMANDS.ren });
 
 async function run(line) {
@@ -373,7 +370,7 @@ async function run(line) {
       print("operable program or batch file.");
     }
   } catch (error) {
-    // the disk's refusals, printed in its own words
+    // Disk refusals, printed as-is.
     print(error.message ?? String(error));
   }
   print();
@@ -381,7 +378,7 @@ async function run(line) {
 
 // --- the keyboard ----------------------------------------------------------
 
-// Tab finishes the last word with the first name here that starts with it.
+// Tab completes the last word with the first matching name.
 function finish() {
   const value = input.value;
   const at = value.lastIndexOf(" ") + 1;
@@ -425,7 +422,7 @@ input.addEventListener("keydown", async (e) => {
   }
 });
 
-// A click anywhere focuses the prompt, unless it was to select text.
+// Clicking focuses the input, unless it's selecting text.
 screen.addEventListener("click", () => {
   if (!getSelection().toString()) input.focus({ preventScroll: true });
 });

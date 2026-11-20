@@ -1,15 +1,7 @@
-// Every app page loads this first thing in its <head>.
-//
-// Opened on its own (a search result, a shared link), a page sends the
-// visitor to the desktop with itself open at the same place.
-// /programs/notepad/?file=credits.txt becomes /#notepad/?file=credits.txt,
-// and /pages/blog/?blog/liftoff becomes /#blog/?blog/liftoff, which the
-// desktop tidies into /#blog/liftoff.
-//
-// Inside its window, it tells the desktop it's here on DOMContentLoaded, so
-// the title and address don't wait for every picture and player to load.
-// A link to another app opens that app's window, a link elsewhere on the
-// site replaces the whole desktop, and a link off the site opens a new tab.
+// Loaded first in every app page's <head>. Opened top-level, redirects to the
+// desktop with itself open (/programs/notepad/?file=x becomes /#notepad/?file=x).
+// In a window, reports in on DOMContentLoaded so the title doesn't wait for media.
+// App links open a window, other site links replace the desktop, external ones a new tab.
 (() => {
   const where = (path) => {
     const m = path.match(/^\/(?:pages|programs)\/([\w-]+)\/(.*)$/);
@@ -36,7 +28,7 @@
     }
     const to = where(link.pathname);
     if (!to) {
-      // Unless it has its own target, like the files Notepad links to.
+      // Keep a link's own target (Notepad's file links).
       if (!link.target) link.target = "_top";
       return;
     }

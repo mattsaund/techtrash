@@ -6,10 +6,8 @@
   <title>Untitled - Notepad</title>
   <script src="/js/app.js"></script>
   <script>
-    // A site file from public/files/, like ?file=credits.txt. Its name goes
-    // in the title right away so the window's title bar has it from the
-    // start. Files on the shared disk are ?id=, and notepad.js names those
-    // once the disk loads.
+    // ?file=credits.txt is a site file from public/files/. Set the title now
+    // so the window's title bar shows it at once. notepad.js titles ?id= files.
     const asked = new URLSearchParams(location.search).get("file");
     window.siteFile = asked && /^[\w.-]+\.txt$/.test(asked) ? asked : null;
     if (window.siteFile) document.title = `${window.siteFile} - Notepad`;
@@ -18,7 +16,6 @@
   <link rel="stylesheet" href="/css/xp.css">
   <link rel="stylesheet" href="/css/explorer.css">
   <style>
-    /* The text box, edge to edge under the menu bar, in the mono font. */
     .notepad__text {
       flex: 1;
       min-height: 0;
@@ -38,8 +35,8 @@
   <script type="module" src="notepad.js"></script>
 </head>
 <!--
-  XP's Notepad, for text files on the shared disk. It also shows the site's
-  own files (like credits.txt) read-only. notepad.js does the rest.
+  XP's Notepad, for text files on the shared disk.
+  Site files (?file=credits.txt) open read-only.
 -->
 <body class="app notepad">
   <nav class="menu-bar" aria-label="Menu"></nav>

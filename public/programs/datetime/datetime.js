@@ -1,9 +1,6 @@
-// Date and Time Properties, what the clock in the corner opens. Time Zone
-// shows this computer's, and Internet Time's Update Now really checks this
-// computer's clock against techtrash.org's.
-//
-// It's this visitor's own clock, not the shared desktop's, and a website
-// can't set it. So Apply just gets XP's refusal.
+// Date and Time Properties, opened from the taskbar clock. Shows the visitor's
+// own clock and zone. A page can't set the system time, so Apply always gets
+// XP's refusal. Update Now really compares against the server clock.
 
 import { showMessage } from "/js/message.js";
 
@@ -18,9 +15,9 @@ const days = document.querySelector("[data-days]");
 const timeBox = document.querySelector("[data-time]");
 const apply = document.querySelector("[data-apply]");
 
-let picked = new Date();   // the day shown and picked
-let setTime = null;        // a time set here, which stops the clock (or null)
-let part = 0;              // hours, minutes, seconds or AM/PM (0 to 3), for the spin buttons
+let picked = new Date();   // selected day
+let setTime = null;        // edited time, which stops the clock (null when live)
+let part = 0;              // spin target, 0 to 3 for hours, minutes, seconds, AM/PM
 
 // --- tabs ------------------------------------------------------------------
 
@@ -66,7 +63,7 @@ function drawMonth() {
   }
 }
 
-// Another month or year. Keeps the day, or the month's last if it's shorter.
+// Keeps the day of the month, clamped to the new month's length.
 function moveTo(year, month) {
   const last = new Date(year, month + 1, 0).getDate();
   picked = new Date(year, month, Math.min(picked.getDate(), last));
@@ -86,7 +83,7 @@ yearBox.addEventListener("change", () => {
   moveTo(year, picked.getMonth());
 });
 
-// The arrow keys move the picked day, as in XP's calendar.
+// Arrow keys move the selected day, as in XP's calendar.
 days.addEventListener("keydown", (e) => {
   const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
   if (!step) return;
@@ -113,7 +110,7 @@ function drawClock() {
   if (document.activeElement !== timeBox) timeBox.value = timeText(time);
 }
 
-// The clock face's marks, one per minute and bigger ones on the hours.
+// 60 tick marks, bigger on the hours.
 const marks = document.querySelector("[data-marks]");
 for (let i = 0; i < 60; i++) {
   const hour = i % 5 === 0;
@@ -156,7 +153,7 @@ timeBox.addEventListener("keydown", (e) => {
   part = partAt(timeBox.selectionStart);
   step(e.key === "ArrowUp" ? 1 : -1);
 });
-// Takes a typed time if it reads as one, or else puts the shown time back.
+// Takes a typed time if it parses, else restores the shown one.
 timeBox.addEventListener("change", () => {
   const m = timeBox.value.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap])\.?m?\.?$/i);
   if (!m) {
@@ -173,13 +170,12 @@ for (const button of document.querySelectorAll("[data-step]")) {
   button.addEventListener("click", () => step(Number(button.dataset.step)));
 }
 
-// The clock ticks unless a time has been set here. That one stands still
-// until Apply, as on XP.
+// An edited time stays frozen until Apply, as on XP.
 setInterval(drawClock, 1000);
 
 // --- the time zone ---------------------------------------------------------
 
-// "(GMT-08:00) Pacific Standard Time", as XP's list wrote them.
+// XP's zone label, "(GMT-08:00) Pacific Standard Time".
 function zoneName() {
   const date = new Date();
   const long = new Intl.DateTimeFormat("en-US", { timeZoneName: "long" }).formatToParts(date).find((p) => p.type === "timeZoneName")?.value ?? "";
@@ -198,9 +194,8 @@ document.querySelector("[data-zone]").append(zoneOption);
 
 // --- Internet Time ---------------------------------------------------------
 
-// Compares techtrash.org's clock (/api/time in worker.js) with this one at
-// the moment it answered, taken as halfway between asking and hearing back.
-// The result is worded like XP's.
+// Compares with the server clock (/api/time in worker.js), assuming it
+// answered halfway through the round trip. Wording follows XP's.
 document.querySelector("[data-sync]").addEventListener("click", async () => {
   const note = document.querySelector("[data-synced]");
   note.textContent = "Please wait while Windows synchronizes with techtrash.org...";
@@ -221,7 +216,7 @@ document.querySelector("[data-sync]").addEventListener("click", async () => {
 
 // --- OK, Cancel, Apply -----------------------------------------------------
 
-// Always XP's refusal, word for word.
+// Any change gets XP's refusal, word for word.
 async function save() {
   if (apply.disabled) return true;
   await showMessage({ title: "Date and Time", text: "You do not have the proper privilege level to change the System Time." });

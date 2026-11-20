@@ -1,11 +1,7 @@
-// Run, from the start menu. It takes a program by its XP name (notepad,
-// mspaint, calc, cmd, explorer, control...), with a file or folder after it
-// if it opens one ("notepad todo.txt"). It also takes a web address, which
-// opens in a new tab, or a path on the shared disk (js/paths.js), like
-// My Documents or C:\Documents and Settings\techtrash\Desktop\x.txt.
-//
-// Like XP, it remembers what's been run (in this browser) for the list under
-// the box.
+// Start > Run. Takes an XP program name (notepad, mspaint, cmd...) with an
+// optional file ("notepad todo.txt"), a web address (opens in a new tab), or a
+// disk path (js/paths.js) like C:\Documents and Settings\techtrash\Desktop\x.txt.
+// Remembers past entries for the dropdown, like XP.
 
 import { programNamed } from "/js/apps.js";
 import { openDialog } from "/js/file-dialog.js";
@@ -32,7 +28,7 @@ function remember(text) {
   } catch {}
 }
 
-// Opens what's typed. Returns false if there's nothing by that name.
+// Returns false if nothing matches.
 function run(text) {
   if (/^https?:\/\//i.test(text)) {
     window.top.open(text, "_blank", "noopener");

@@ -1,17 +1,7 @@
-// What a post is made of. The body is HTML, from the editor
-// (editor/editor.js) or a Markdown file. DOMPurify cleans it down to the
-// short list of tags below before it's saved and again every time it's
-// shown, so nothing in it can ever run, whatever ends up in the database.
-//
-// A paragraph that's only a link to a video, a song or an album becomes a
-// player (playerFor has the list). Sound files, like one uploaded in the
-// editor (a link with its name as the text), get the site's own player,
-// sound.js. The post only stores the link and the player is drawn when it's
-// shown, so a post never holds anything but words and pictures.
-//
-// Pictures and players can be given a width by dragging in the editor. A
-// picture keeps it as width="" (pixels), a player as data-width="" on its
-// link's paragraph. Neither ever gets wider than the column.
+// Post bodies. DOMPurify cleans them on save and again on every render, so
+// nothing stored is trusted. A paragraph that's only a media link renders as a
+// player (only the link is stored). Widths are px, as width on <img> and
+// data-width on a player's <p>. site.css caps both at the column.
 
 import { soundPlayer } from "./sound.js";
 import DOMPurify from "./vendor/purify.js";
@@ -24,17 +14,15 @@ const TAGS = [
 ];
 const ATTRS = ["href", "src", "alt", "title", "class", "start", "width", "data-width"];
 
-// The only classes a post may use, for the six hues, where a picture sits
-// and a paragraph's alignment. site.css draws them.
+// Class allowlist (hues, picture placement, alignment). Styled in site.css.
 export const PICTURE_PLACES = ["pic--left", "pic--center", "pic--right"];
 const CLASSES = new Set([
   "hue-1", "hue-2", "hue-3", "hue-4", "hue-5", "hue-6", ...PICTURE_PLACES, "align-center", "align-right",
-  // a line that starts below any floated pictures before it
+  // clears floated pictures above it
   "under-pic",
 ]);
 
-// Links go to the web, an email address or somewhere on this site. Pictures
-// come from the web or this site, never from inside the page (data:).
+// http(s), mailto, same-site paths, # and ?. Blocks data:, javascript: and //host.
 const SAFE_ADDRESS = /^(?:https?:|mailto:|\/(?!\/)|#|\?)/i;
 
 purify.addHook("uponSanitizeAttribute", (node, data) => {
@@ -43,14 +31,13 @@ purify.addHook("uponSanitizeAttribute", (node, data) => {
     if (!data.attrValue) data.keepAttr = false;
   }
   if (data.attrName === "src" && !SAFE_ADDRESS.test(data.attrValue.trim())) data.keepAttr = false;
-  // a width is whole pixels, and only on a picture or a player's paragraph
+  // widths are whole px, only on <img> or a player's <p>
   if (data.attrName === "width" && (node.nodeName !== "IMG" || !widthOf(data.attrValue))) data.keepAttr = false;
   if (data.attrName === "data-width" && (node.nodeName !== "P" || !widthOf(data.attrValue))) data.keepAttr = false;
 });
 
-// DOMPurify checks most attribute values against SAFE_ADDRESS. A list's start
-// and a width aren't addresses, so they're exempt. data-width is the only
-// data- attribute allowed.
+// DOMPurify tests attribute values against SAFE_ADDRESS. start and the widths
+// aren't URLs, so they're exempt. data-width is the only data- attribute.
 const CONFIG = {
   ALLOWED_TAGS: TAGS,
   ALLOWED_ATTR: ATTRS,
@@ -59,31 +46,27 @@ const CONFIG = {
   ALLOW_DATA_ATTR: false,
 };
 
-// A width as a post keeps it, in whole pixels, or null.
+// Whole px (1 to 9999) or null.
 export function widthOf(value) {
   const width = /^\s*\d{1,4}\s*$/.test(value ?? "") ? Number(value) : 0;
   return width > 0 ? width : null;
 }
 
-// A line with no words and no picture. Spaces, no-break spaces and the
-// editor's zero-width ones don't count as words. An empty paragraph is a
-// blank line put in on purpose. An empty heading, quote or code block is
-// just a gap.
+// A block with no text and no picture. Whitespace, nbsp and the editor's
+// zero-width spaces don't count as text.
 const LINE_KINDS = "p, h1, h2, h3, h4, h5, h6, blockquote, pre";
 export const blankLine = (node) => node?.nodeType === Node.ELEMENT_NODE && node.matches(LINE_KINDS)
   && !node.textContent.replace(/[\s\u00a0\u200b]/g, "") && !node.querySelector("img");
 
-// The cleaned HTML, as a fragment of this page.
+// Sanitized DocumentFragment.
 function cleanFragment(html) {
   const body = purify.sanitize(html, { ...CONFIG, RETURN_DOM_FRAGMENT: true });
   for (const img of body.querySelectorAll("img:not([src])")) img.remove();
-  // a span that doesn't color anything is only in the way
+  // classless spans do nothing, unwrap them
   for (const span of body.querySelectorAll("span:not([class])")) span.replaceWith(...span.childNodes);
-  // A blank line between a post's lines is there on purpose, so it stays as
-  // a <p> with a <br> in it. That makes it one line high however it came (an
-  // empty <p></p> has no height, an empty heading only a heading's gap).
-  // Blank lines inside a quote or a list go, and so do any at the start or
-  // end of the post.
+  // Blank lines are intentional. Normalize each to <p><br></p> so it's one line
+  // high (an empty <p> has no height). Drop blank lines inside quotes and lists,
+  // and trim them from both ends of the post.
   for (const line of body.querySelectorAll(LINE_KINDS)) {
     if (!blankLine(line)) continue;
     if (line.parentNode !== body) {
@@ -101,19 +84,19 @@ function cleanFragment(html) {
   return body;
 }
 
-// The cleaned HTML, as a string to save.
+// Sanitized HTML string, for saving.
 export function clean(html) {
   const box = document.createElement("div");
   box.append(cleanFragment(html));
   return box.innerHTML.trim();
 }
 
-// A post's body ready for the page, cleaned and with its players.
+// Sanitized fragment for display, with players embedded.
 export function renderBody(html) {
   const body = cleanFragment(html);
   embedPlayers(body, (player, address, width, title) => sizePlayer(playerElement(player, title), width));
   for (const img of body.querySelectorAll("img")) img.loading = "lazy";
-  // a wide table scrolls on its own, rather than the page
+  // wide tables scroll inside a wrapper, not the page
   for (const table of body.querySelectorAll("table")) {
     const scroll = document.createElement("div");
     scroll.className = "table-scroll";
@@ -125,12 +108,11 @@ export function renderBody(html) {
 
 // --- players ---------------------------------------------------------------------
 
-// A sound uploaded in the editor lives at /blog/sound/<name>.
+// Uploaded sound URL. Name pattern matches server/blog.js SOUND_NAME.
 export const SOUND_FILE = /^\/blog\/sound\/[\w-]+\.(?:mp3|m4a|aac|ogg|wav|flac)$/;
 
-// { player, address, width, title } if a paragraph is nothing but a playable
-// link. That's a bare address (linked or not) or an uploaded sound linked by
-// its name. width is the player's own or null, and title is a sound's name.
+// { player, address, width, title } if p is only a playable link, else null.
+// Playable means a bare URL (linked or not) or an uploaded sound linked by name.
 export function playerIn(p) {
   if ([...p.children].some((child) => !child.matches("a, br"))) return null;
   const text = p.textContent.trim();
@@ -148,8 +130,8 @@ export function playerIn(p) {
   return player && { player, address, width, title: player.kind === "sound" ? soundTitle(address) : null };
 }
 
-// A sound file's name from its address, so .../One%20More%20Time.mp3 is
-// "One More Time". An uploaded one also loses its random -3f9a1c.
+// .../One%20More%20Time.mp3 becomes "One More Time". Uploaded files also drop
+// their random -3f9a1c suffix.
 function soundTitle(address) {
   let name = address.split(/[?#]/)[0].split("/").pop() ?? "";
   try {
@@ -159,7 +141,7 @@ function soundTitle(address) {
   return (SOUND_FILE.test(address) ? name.replace(/-[\da-f]{6}$/, "") : name).replace(/[-_]+/g, " ").trim() || "Sound";
 }
 
-// Swaps each paragraph that's a player's link for make(player, address, width, title).
+// Replaces each player paragraph with make(player, address, width, title).
 export function embedPlayers(root, make) {
   for (const p of root.querySelectorAll("p")) {
     const found = playerIn(p);
@@ -175,13 +157,8 @@ function seconds(value) {
   return m ? (Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0)) * 60 + Number(m[3] ?? 0) : 0;
 }
 
-// The player for a link as { name, kind, src }, or null. kind is video
-// (16:9), tall (9:16), song, list (an album or playlist), file (a video file)
-// or sound (a sound file, in the site's own player).
-//
-// Videos are YouTube, Vimeo, Dailymotion, Twitch, Streamable, Loom, TikTok and
-// any .mp4, .webm, .ogv, .mov or .m4v. Music is Spotify, SoundCloud, Apple
-// Music, any .mp3, .m4a, .ogg, .oga, .wav or .flac, and uploaded sounds.
+// { name, kind, src } for an embeddable link, or null. kind is video (16:9),
+// tall (9:16), song, list (album or playlist), file (video file) or sound.
 export function playerFor(address) {
   if (SOUND_FILE.test(address)) return { name: "Sound", kind: "sound", src: address };
   let url;
@@ -257,8 +234,7 @@ export function playerFor(address) {
   return null;
 }
 
-// Sets a player's own width (null for the column's) and keeps it as
-// data-width, like its paragraph does. site.css caps it at the column.
+// Player width in px, or null for the column. Mirrored to data-width like its <p>.
 export function sizePlayer(box, width) {
   if (width) {
     box.style.width = `${width}px`;
@@ -270,7 +246,7 @@ export function sizePlayer(box, width) {
   return box;
 }
 
-// The player itself. title is a sound's name.
+// Builds the player. title is only used for sounds.
 export function playerElement(player, title = null) {
   const box = document.createElement("figure");
   box.className = `embed embed--${player.kind}`;
@@ -299,8 +275,8 @@ export function playerElement(player, title = null) {
 
 // --- Markdown --------------------------------------------------------------------
 
-// Markdown to HTML (marked) and back (turndown), for Markdown files and the
-// editor's Markdown view. Both load on demand, so call loadMarkdown() first.
+// marked (Markdown to HTML) and turndown (back) load lazily.
+// Call loadMarkdown() first.
 let marked;
 let turndown;
 export async function loadMarkdown() {
@@ -309,23 +285,22 @@ export async function loadMarkdown() {
     import("./vendor/marked.js"), import("./vendor/turndown.js"), import("./vendor/turndown-plugin-gfm.js"),
   ]);
   marked = markedModule.marked;
-  // (a <br> is just a newline, since newlines are line breaks here, see markdownToHtml)
+  // <br> becomes a plain newline, since markdownToHtml uses breaks: true
   turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-", emDelimiter: "*", hr: "---", br: "" });
   turndown.use(gfm);
-  // What Markdown can't say (a hue, where a picture sits, a picture's or a
-  // player's width, alignment, underline) stays as HTML, which Markdown allows.
+  // Classes and widths have no Markdown syntax, so those elements stay HTML.
   turndown.addRule("classes", {
     filter: (node) => ["SPAN", "IMG", "P", "H2", "H3", "H4"].includes(node.nodeName)
       && (Boolean(node.getAttribute("class")) || node.hasAttribute("width") || node.hasAttribute("data-width")),
     replacement: (content, node) => (["SPAN", "IMG"].includes(node.nodeName) ? node.outerHTML : `\n\n${node.outerHTML}\n\n`),
   });
   turndown.addRule("underline", { filter: ["u"], replacement: (content) => `<u>${content}</u>` });
-  // (an empty line with a class, like one under a picture, stays as HTML)
+  // a blank line with a class (like under-pic) is left to the "classes" rule
   turndown.addRule("emptyLine", {
     filter: (node) => node.nodeName === "P" && !node.getAttribute("class") && blankLine(node),
     replacement: () => `\n\n${EMPTY}\n\n`,
   });
-  // "- one" the way people type lists, not turndown's "-   one"
+  // "- one", not turndown's "-   one"
   turndown.addRule("listItem", {
     filter: "li",
     replacement: (content, node, options) => {
@@ -338,24 +313,20 @@ export async function loadMarkdown() {
   });
 }
 
-// Markdown code fences. A line of ``` or ~~~ opens one (fenceOpens returns the
-// marks), and a line of at least as many of the same mark closes it. Nothing
-// inside is Markdown.
+// Code fences. fenceOpens returns the opening ``` or ~~~ run, and a line of at
+// least as many of the same mark closes it.
 export const fenceOpens = (line) => line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1] ?? null;
 export const fenceCloses = (line, fence) => /^\s{0,3}[`~]+\s*$/.test(line) && line.trim()[0] === fence[0] && line.trim().length >= fence.length;
 
-// Each blank line in a post is one more blank line in its Markdown. One blank
-// line is just the break between paragraphs, as in any Markdown, and each
-// extra one is a line of space (see emptyLinesStay). Turndown can't write a
-// run of them, so each is a placeholder mark until it's done.
+// Each blank line in a post is one extra empty Markdown line (emptyLinesStay
+// reverses it). Turndown collapses runs of them, so EMPTY stands in until the end.
 const EMPTY = "\uE000";
 export const htmlToMarkdown = (html) => turndown.turndown(html)
   .replace(new RegExp(`${EMPTY}\n\n`, "g"), "\n")
   .replace(new RegExp(`\n*${EMPTY}\n*`, "g"), "");
 
-// ...and back. Each blank line past the first becomes a blank line in the
-// post (plain Markdown squashes any number of them into one paragraph break).
-// Not inside code.
+// The reverse. Each empty line past the first becomes a &nbsp; paragraph, since
+// Markdown collapses them. Skips code fences.
 function emptyLinesStay(text) {
   const out = [];
   let fence = null;
@@ -378,10 +349,8 @@ function emptyLinesStay(text) {
   return out.join("\n");
 }
 
-// A line of dashes (or =) right under some words is Markdown's other way to
-// write a heading. The editor draws a line of dashes as a divider, which is
-// what it usually means, so a blank line goes in above it to keep it one (and
-// above a line of =, which then shows as words). Not inside code.
+// "---" or "===" under text is a setext heading. The editor means a divider, so
+// add a blank line above it (a === line then stays text). Skips code fences.
 function dividersStayDividers(text) {
   let fence = null;
   const out = [];
@@ -395,17 +364,14 @@ function dividersStayDividers(text) {
   return out.join("\n");
 }
 
-// The post's title is its only top heading, so a Markdown "#" heading moves
-// down a level. A newline is a line break, as in Obsidian, since the editor
-// writes Markdown a line to a row and a row should stay a row.
+// The post title is the only h1, so # becomes h2 (h5 and h6 become h4).
+// breaks: true because the editor writes one Markdown line per row.
 export const markdownToHtml = (text) => marked.parse(dividersStayDividers(emptyLinesStay(text)), { gfm: true, breaks: true, async: false })
   .replace(/<(\/?)h1\b/g, "<$1h2")
   .replace(/<(\/?)h[56]\b/g, "<$1h4");
 
-// A Markdown file as { title, html, missing }. title comes from a leading
-// "# A title" or the front matter's title, html is the clean body, and
-// missing counts the pictures that were files on the writer's computer,
-// which can't come along.
+// A Markdown file as { title, html, missing }. title is from front matter or a
+// leading "# heading". missing counts local-file pictures, which clean() drops.
 export async function fromMarkdown(text) {
   await loadMarkdown();
   let title = "";

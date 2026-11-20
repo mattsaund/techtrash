@@ -1,13 +1,7 @@
-// The File Browser, XP's Explorer over the shared disk. It shows one folder
-// (?folder=<id>, My Documents by default) with XP's menus, toolbar, address
-// bar, blue task pane and the folder's contents. The Recycle Bin is this same
-// page at ?folder=recycle, with its own tasks.
-//
-// Clicks, keys and drags work as on XP. Pictures, text files and (for the
-// admin) music dragged in from your own computer get saved for everyone.
-//
-// The disk is the desktop's (window.top.desktop.disk, js/disk.js), so
-// anyone's changes show up here as they happen.
+// File Browser, XP's Explorer over the shared disk. ?folder=<id>, default "documents".
+// The Recycle Bin is this page at ?folder=recycle, with its own tasks.
+// Drops from the visitor's computer are saved for everyone. Music is admin-only.
+// Uses the desktop's disk (js/disk.js), so others' changes show up live.
 
 import { folderDialog } from "/js/file-dialog.js";
 import { DRAGGED, bytesText, dateText, editor, fileUrl, iconOf, isFolder, isPicture, isShortcut, isSound, isSpecial, nameParts, renamable, sizeText, sortItems, typeName } from "/js/items.js";
@@ -17,8 +11,7 @@ import { clipboard, deleteItems, emptyBin, makeNew, movable, moveItems, renameIt
 
 const XP = "/img/icons/xp";
 
-// Null when the page is opened on its own. js/app.js is already sending it
-// to the desktop then.
+// Null when opened on its own. js/app.js redirects to the desktop then.
 const desktop = window.top === window ? null : window.top.desktop;
 const disk = desktop?.disk;
 
@@ -30,24 +23,24 @@ const addressIcon = document.querySelector(".address__field img");
 const favicon = document.querySelector("link[rel=icon]");
 const toolbar = document.querySelector(".toolbar");
 
-let here = "documents";   // the folder shown
+let here = "documents";   // current folder id
 const back = [];          // for Back
 const ahead = [];         // for Forward
 let mode = null;          // "thumbnails", "icons", "details", or null for the folder's default
 let sortBy = "name";
 const selected = new Set();   // ids
-let lead = null;          // the item with the keyboard's dotted outline
-let anchor = null;        // where a Shift range starts
+let lead = null;          // keyboard focus, the dotted outline
+let anchor = null;        // Shift-range start
 let renaming = null;
-let stale = false;        // the disk changed mid-rename, so redraw after
-let above = null;         // the shown folder's parent, in case it's deleted
+let stale = false;        // disk changed mid-rename, redraw after
+let above = null;         // parent of the shown folder, fallback if it's deleted
 
 const inBin = () => here === "recycle";
 const item = (id) => disk.item(id);
 const picked = () => [...selected].map(item).filter(Boolean);
 const viewMode = () => mode ?? (here === "pictures" ? "thumbnails" : "icons");
 
-// --- going places ----------------------------------------------------------
+// --- navigation ------------------------------------------------------------
 
 function go(folderId, { record = true } = {}) {
   const folder = item(folderId);
@@ -88,11 +81,10 @@ function goForward() {
 
 const goUp = () => item(here)?.parent && go(item(here).parent);
 
-// An item's path as the address bar shows it, like My Documents\Stuff.
+// Address bar path, like My Documents\Stuff.
 const pathText = (id) => disk.path(id).map((one) => one.name).join("\\");
 
-// Finds the folder a typed address names. It can start at any of the
-// desktop's own folders, so My Pictures\Trips works without the full path.
+// Resolves a typed address from any special folder, so My Pictures\Trips works.
 function find(path) {
   const parts = path.split(/[\\/]+/).map((part) => part.trim().toLowerCase()).filter(Boolean);
   if (!parts.length) return null;
@@ -130,7 +122,7 @@ function picture(src, className, parent) {
   return img;
 }
 
-// Where a thrown-away item came from (the bin's Original Location).
+// The bin's Original Location.
 const cameFrom = (one) => (one.wasIn && item(one.wasIn) ? pathText(one.wasIn) : "Desktop");
 
 function draw() {
@@ -251,7 +243,7 @@ function drawPane(folder) {
       task(list, "Move the selected items", `${XP}/move-to.png`, () => moveTo(chosen));
       task(list, "Delete the selected items", `${XP}/delete.png`, () => deleteItems(chosen));
     }
-    // XP's Music Tasks show in My Music and anywhere else with music.
+    // XP shows Music Tasks in My Music and any folder with music.
     const songs = chosen.filter(isSound);
     if (here === "music" || disk.children(here).some(isSound)) {
       const music = box("Music Tasks");
@@ -260,7 +252,7 @@ function drawPane(folder) {
     }
   }
 
-  // Other Places lists the parent folder, then the desktop's own folders.
+  // Parent folder first, then the special folders.
   const others = box("Other Places");
   const places = [folder.parent, "desktop", "documents", "pictures", "music", "recycle"];
   const shown = new Set([here]);
@@ -337,8 +329,8 @@ view.addEventListener("pointerdown", (e) => {
     if (!selected.has(id)) choose(id);
     return;
   }
-  // A press on something already selected might start a drag of the whole
-  // selection, so it only becomes the sole selection on a plain click.
+  // Pressing a selected item may start a drag of the whole selection,
+  // so only a click narrows the selection to it.
   if (selected.has(id) && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     lead = id;
     row.addEventListener("click", () => choose(id), { once: true });
@@ -364,7 +356,7 @@ function open(one) {
 
 // --- the keyboard ----------------------------------------------------------
 
-// How many items sit in a row, so Up and Down can jump a whole row.
+// Items per row, so Up and Down move a whole row.
 function across() {
   const rows = [...view.querySelectorAll(".file[data-id]")];
   if (viewMode() === "details" || rows.length < 2) return 1;
@@ -411,7 +403,7 @@ view.addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-// --- doing things ----------------------------------------------------------
+// --- actions ---------------------------------------------------------------
 
 async function makeAndRename(kind) {
   const made = await makeNew(here, kind);
@@ -440,8 +432,8 @@ function paste() {
   clipboard.paste(here);
 }
 
-// XP's rename box, over the name, with the extension left unselected.
-// Enter or clicking away keeps the new name, and Esc cancels.
+// XP's inline rename, with the extension left unselected.
+// Enter or blur keeps the name, Esc cancels.
 function startRename(id) {
   const row = view.querySelector(`.file[data-id="${CSS.escape(id)}"]`);
   const one = item(id);
@@ -611,12 +603,10 @@ function setUpMenus() {
 
 // --- dragging --------------------------------------------------------------
 
-// Is the drag carrying items from a File Browser (this one or another) or
-// files from your own computer?
+// True for items from any File Browser or files from the visitor's computer.
 const carrying = (e) => e.dataTransfer.types.includes(DRAGGED) || e.dataTransfer.types.includes("Files");
 
-// Where a drop would land. That's the folder (or Recycle Bin shortcut) under
-// the pointer, or else this folder.
+// Folder or Recycle Bin shortcut under the pointer, else the current folder.
 function dropTarget(e) {
   const row = e.target.closest?.(".file[data-id]");
   const under = row && item(row.dataset.id);
@@ -677,8 +667,7 @@ function start() {
   toolbar.querySelector("[data-go=up]").addEventListener("click", goUp);
   const views = toolbar.querySelector("[data-views]");
   views.addEventListener("click", () => showMenu(viewEntries(), { below: views }));
-  // Redraw on anyone's change. If this folder was deleted for good, go to
-  // the one it was in.
+  // If this folder was deleted for good, go to its parent, else My Documents.
   addEventListener("diskchange", (e) => {
     if (e.detail.settings) return;
     if (!item(here)) return go(item(above) ? above : "documents", { record: false });

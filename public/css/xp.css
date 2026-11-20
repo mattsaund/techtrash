@@ -1,11 +1,6 @@
-/* The XP kit. Base elements plus the windows, buttons, fields, menus,
-   taskbar and desktop icons every page and app is built from. Load it
-   after tokens.css. No raw values here. If a rule needs a number or a
-   color tokens.css doesn't have, add it there first.
-
-   Two XP habits hold everywhere. The hand cursor is only for links
-   (buttons, menus, icons and title bars keep the arrow, as in XP), and
-   nothing animates, so hover and press states change instantly. */
+/* The XP kit. Base elements and the components every page and app uses.
+   Load after tokens.css. Tokens only. As in XP, only links get the hand
+   cursor, and nothing animates. */
 
 /* --- reset ------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -37,8 +32,7 @@ a:hover { color: var(--link-hover); }
 
 ::selection { background: var(--select); color: var(--select-ink); }
 
-/* XP's focus rectangle, one dotted pixel. Controls that draw their own
-   (push buttons, icons) move it inside themselves below. */
+/* XP's dotted focus rectangle. Buttons and icons draw theirs inside. */
 :focus-visible { outline: var(--hairline) dotted var(--focus); outline-offset: var(--sp-2); }
 
 /* Screen reader only. */
@@ -48,10 +42,8 @@ a:hover { color: var(--link-hover); }
 }
 
 /* --- app page ----------------------------------------------
-   Every app (a page like the blog, a program like the File Browser) is
-   its own HTML page, shown in a window's body through an iframe. Its
-   <body class="app"> fills the window, and a .doc directly inside it
-   fills the rest and scrolls. */
+   Each app is its own page in a window's iframe. <body class="app">
+   fills the window, and a child .doc fills the rest and scrolls. */
 html:has(> body.app) { height: 100%; }
 body.app {
   display: flex;
@@ -68,9 +60,8 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
      <div class="window__body">  the content
      <footer class="status-bar"> optional
 
-   Inset shadows draw the blue frame, and the title bar is pulled out
-   over the side frames so it runs edge to edge like XP's. The window
-   doesn't place itself. That's up to the page or the window manager. */
+   The frame is inset shadows, and the title bar's negative margin runs
+   it edge to edge. The page or desktop.js positions the window. */
 .window {
   display: flex;
   flex-direction: column;
@@ -117,8 +108,7 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
 
 /* --- caption buttons ---------------------------------------
    <button class="caption caption--min|max|close" aria-label="...">
-   The glyph and the gradient are separate background layers, so a
-   state only swaps the gradient. */
+   Glyph and gradient are separate background layers. */
 .caption {
   width: var(--caption);
   height: var(--caption);
@@ -160,7 +150,7 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
   overflow: auto;
   padding: var(--sp-12);
 }
-/* For a body that's all one document or canvas, edge to edge. */
+/* No padding, for a body that's one document or canvas. */
 .window__body--flush { padding: 0; }
 
 .status-bar {
@@ -181,9 +171,7 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
 }
 
 /* --- document ----------------------------------------------
-   Reading text, anything longer than a label (Notepad's, a program's).
-   The one place --fs-body is the default. It's paper, sunk into the
-   window by a field's edge like Notepad's or Internet Explorer's page. */
+   Reading text. The one place --fs-body is the default. */
 .doc {
   padding: var(--sp-16) var(--sp-24) var(--sp-24);
   background: var(--paper);
@@ -214,14 +202,13 @@ body.app > .doc { flex: 1; min-height: 0; overflow: auto; }
 .doc hr { border: 0; border-top: var(--hairline) solid var(--face-shadow); }
 .doc .meta { color: var(--ink-muted); }
 
-/* Notepad. The same paper in the mono face, with no measure. */
+/* Notepad. Mono, no measure. */
 .doc--mono { font-family: var(--font-mono); white-space: pre-wrap; }
 .doc--mono > * { max-width: none; }
 
 /* --- push button -------------------------------------------
-   <button class="button">, or an <a> that should look like one.
-   .button--default is the one Enter presses, so it keeps the blue glow
-   even without focus. */
+   <button class="button"> or <a class="button">. .button--default is
+   the one Enter presses, so it keeps the blue glow without focus. */
 .button {
   display: inline-flex;
   align-items: center;
@@ -254,10 +241,8 @@ a.button:hover { color: var(--ink); }
 .button-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 
 /* --- fields ------------------------------------------------
-   Every text field on the site is an XP field, so the elements are
-   styled directly and need no class. XP gave fields no focus ring (the
-   caret was the cue), so focus turns the border selection blue
-   instead, which a keyboard user can actually see. */
+   Styled by element, no class needed. XP fields had no focus ring, so
+   focus turns the border blue for keyboard users. */
 input:where(:not([type]), [type="text"], [type="search"], [type="password"],
             [type="email"], [type="url"], [type="tel"], [type="number"]),
 textarea,
@@ -321,11 +306,9 @@ fieldset {
 legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 
 /* --- menu --------------------------------------------------
-   A drop-down or context menu. Paper, not face, with the only drop
-   shadow XP had. js/menu.js pops one up (.menu--pop) wherever it's
-   asked for. Each <button class="menu__item"> has a mark (a tick, a dot
-   or a picture), the label, the shortcut, and an arrow if it opens a
-   submenu. .is-default is the bold one, .is-active the highlighted one. */
+   Drop-down and context menus. js/menu.js pops them up as .menu--pop.
+   A .menu__item is a mark (tick, dot or icon), label, keys and an
+   arrow for a submenu. */
 .menu {
   padding: var(--sp-2);
   list-style: none;
@@ -379,8 +362,8 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 .menu__rule { margin: var(--sp-2) 0; border-top: var(--hairline) solid var(--face-shadow); }
 
 /* --- layer -------------------------------------------------
-   Holds a message box or dialog over the whole page until it's
-   answered. Centered, over everything but the Welcome screen. */
+   Modal holder for a message box or dialog. Only the Welcome screen
+   sits above it. */
 .layer {
   position: fixed;
   inset: 0;
@@ -391,9 +374,8 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 }
 
 /* --- message box -------------------------------------------
-   <section class="window message">, shown in a .layer by js/message.js.
-   A title bar (just its close button), .message__body (the icon, then
-   the text) and .message__foot (OK, centered), as XP laid them out. */
+   <section class="window message"> in a .layer, from js/message.js.
+   Title bar, .message__body (icon, text) and .message__foot (buttons). */
 .message { max-width: 100%; }
 .message__body {
   display: flex;
@@ -406,10 +388,8 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 .message__foot { display: flex; justify-content: center; gap: var(--sp-8); padding: var(--sp-8) var(--sp-12) var(--sp-12); }
 
 /* --- toolbar -----------------------------------------------
-   <div class="toolbar"> of <button class="tool">, each a picture and
-   maybe a word. Flat until hovered, like XP's Explorer buttons. A
-   <span class="toolbar__rule"> goes between groups, and .tool--drop
-   has a drop-down arrow after its word. */
+   <div class="toolbar"> of <button class="tool">, flat until hovered.
+   <span class="toolbar__rule"> between groups. .tool--drop adds an arrow. */
 .toolbar {
   display: flex;
   align-items: center;
@@ -452,7 +432,7 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   background: var(--tool-rule);
 }
 
-/* An address bar. "Address", then a field with a picture in it. */
+/* Address bar. A label, then a field with an icon in it. */
 .address {
   display: flex;
   align-items: center;
@@ -479,8 +459,7 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 
 /* --- tabs --------------------------------------------------
    <div class="tabs" role="tablist"> of <button class="tab" role="tab"
-   aria-selected>, over the .tab-panel it opens. The picked tab joins
-   its panel. A picked or hovered tab wears XP's orange along its top. */
+   aria-selected>, over a .tab-panel. The selected tab joins its panel. */
 .tabs { display: flex; padding: 0 var(--sp-2); }
 .tab {
   position: relative;
@@ -529,18 +508,15 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
   z-index: var(--z-tip);
 }
 
-/* XP tints a selected icon half and half with the selection blue. A
-   page that shows icons includes the filter (<svg class="filters">)
-   and uses it as url(#select-tint). */
+/* Selected icon tint, half --select. A page with icons includes
+   <svg class="filters"> and uses url(#select-tint). */
 .select-tint__flood { flood-color: var(--select); }
 .filters { position: absolute; width: 0; height: 0; }
 
 /* --- desktop icon ------------------------------------------
    <a class="icon"><img class="icon__img"><span class="icon__label">
-   A white label with XP's drop shadow. Selected or focused, the label
-   turns selection blue and loses the shadow. A long label stops at two
-   lines so every icon fits its grid cell, and shows in full over
-   whatever's below while selected, as in XP. */
+   Labels clamp to two lines to fit the grid cell, and show in full
+   while selected, as in XP. */
 .icon {
   display: flex;
   flex-direction: column;
@@ -578,9 +554,7 @@ legend { padding: 0 var(--sp-2); color: var(--group-ink); }
 }
 .icon:focus-visible .icon__label { outline: var(--hairline) dotted var(--select-ink); }
 
-/* --- taskbar -----------------------------------------------
-   Start, the window buttons and the tray, fixed to the bottom of the
-   screen over every window. */
+/* --- taskbar ----------------------------------------------- */
 .taskbar {
   position: fixed;
   left: 0;

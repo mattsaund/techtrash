@@ -1,8 +1,5 @@
-// The footer under every page. Above its line (the copyleft, the credits and
-// the feed) go the admin's own words and a row of blinkies, those little
-// blinking badges from the old web. The admin edits the words in place and
-// adds blinkies from their computer, then drags them into order or takes one
-// off. The server keeps both as pages (server/blog.js).
+// Footer words and blinkies (old-web badge GIFs), above the line in index.html.
+// Both are stored as pages (server/blog.js). The admin edits them in place.
 
 import { ownWords } from "./own-words.js";
 import { admin, again } from "./site.js";
@@ -11,7 +8,7 @@ import { api, el, readyPicture, sortable } from "./util.js";
 const foot = document.querySelector(".foot");
 const line = foot.querySelector(".foot__line");
 
-// A blinkie is a picture uploaded to the site, kept as an <img> in its page.
+// The blinkies page body is a run of <img>s of uploaded pictures.
 const BLINKIE = /^\/blog\/img\/[\w-]+\.(?:png|jpg|gif|webp|avif)$/;
 const addressesIn = (body) => [...body.matchAll(/<img\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]).filter((url) => BLINKIE.test(url));
 const bodyOf = (urls) => urls.map((url) => `<img src="${url}" alt="">`).join("");
@@ -21,7 +18,7 @@ async function saveBlinkies(urls) {
   await again();
 }
 
-// Draws the footer, after anything about it changes too.
+// Runs with every page draw (frame.js).
 export async function drawFooter() {
   const [words, blinkies] = await Promise.all([
     api("/api/blog/page?name=footer").catch(() => null),
@@ -35,8 +32,7 @@ export async function drawFooter() {
   foot.replaceChildren(...parts, line);
 }
 
-// The blinkies in a row, each at its own size. The admin can drag them into
-// a new order, and take one off with its ×.
+// Blinkies at native size. The admin can drag to reorder or remove one with ×.
 function blinkiesRow(page) {
   const urls = addressesIn(page.body);
   const row = el("div", { class: "blinkies" }, urls.map((url) => {
@@ -52,8 +48,7 @@ function blinkiesRow(page) {
   return row;
 }
 
-// The admin's Add blinkies button. It picks pictures off their computer
-// (animated GIFs stay as they are), puts each up, and adds them to the end.
+// Uploads picked pictures and appends them. GIFs go up as is, so they animate.
 function addBlinkies(page) {
   const picker = el("input", { type: "file", accept: "image/gif,image/png,image/webp,image/jpeg", multiple: true, hidden: true });
   const button = el("button", { class: "button", type: "button", textContent: "Add blinkies" });

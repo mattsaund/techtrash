@@ -1,14 +1,5 @@
-// The Admin Dashboard, for keeping the shared desktop in order. The tabs:
-//
-//   Desktop     the lock (only the admin can change things while it's on),
-//               how full the disk is, and the Recycle Bin
-//   Everything  every file, folder and shortcut, where it is and who made it,
-//               to open, restore, delete for good, or keep its maker out
-//   Activity    everything anyone has done, newest first
-//   Visitors    who's kept out, and letting them back in
-//
-// The server only answers the admin (the admin routes in server/desktop.js),
-// so this page is no use to anyone else even if they open it.
+// Admin Dashboard. Lock, disk usage, all items, activity log and blocked visitors.
+// Admin-only, enforced by the admin routes in server/desktop.js.
 
 import { LIMITS, bytesText, dateText, iconOf, isFolder, isSound, typeName } from "/js/items.js";
 import { showMessage } from "/js/message.js";
@@ -40,8 +31,7 @@ for (const tab of document.querySelectorAll("[data-tab]")) tab.addEventListener(
 
 // --- a table ---------------------------------------------------------------
 
-// Each column is [heading, (row) => text or a node]. One row can be picked
-// at a time.
+// Each column is [heading, (row) => text or Node]. One selected row per table.
 function table(name, columns, rows, key) {
   const box = document.querySelector(`[data-table=${name}]`);
   box.replaceChildren();
@@ -189,7 +179,7 @@ async function loadActivity(more = false) {
   try {
     const { activity: rows } = await disk.activity(more ? activity.at(-1)?.id : null);
     activity = more ? [...activity, ...rows] : rows;
-    moreToCome = rows.length === 200;
+    moreToCome = rows.length === 200;   // server page size, activity() in server/disk.js
     drawActivity();
   } catch (error) {
     await complain("Admin Dashboard", error);
@@ -259,8 +249,7 @@ async function start() {
   drawEverything();
   drawActivity();
   drawVisitors();
-  // Redraws as the disk changes, and reloads the activity a second after the
-  // last change.
+  // Reload the activity a second after the last change.
   let soon = null;
   addEventListener("diskchange", () => {
     drawDesktop();

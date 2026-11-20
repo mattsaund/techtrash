@@ -1,12 +1,7 @@
-// Emails the admin. Once for each comment a visitor leaves on a blog
-// (server/blog.js), and at most every few minutes about what visitors have
-// saved on the XP desktop (server/desktop.js), all in one email.
-//
-// It goes out through Cloudflare's Email Routing (the EMAIL binding in
-// wrangler.jsonc), from techtrash@<the site's domain>, to the address in the
-// NOTIFY_TO secret, so the address is never in this repo. Until both are
-// there it does nothing, and if sending fails the comment or the save still
-// goes through. The reason ends up in the Worker's logs.
+// Admin emails. One per visitor comment (server/blog.js), and a digest of what visitors save
+// on the desktop (server/desktop.js). Sent through Email Routing (the EMAIL binding) from
+// techtrash@<domain> to the NOTIFY_TO secret, so the address is never in the repo.
+// Does nothing until both are set. A failed send is logged and never blocks the comment or save.
 
 import { EmailMessage } from "cloudflare:email";
 
@@ -32,8 +27,8 @@ function base64(text) {
   return btoa(binary);
 }
 
-// A header's text in UTF-8 (RFC 2047), so a blog's title can hold anything
-// and still never break out of its line. Each piece fits a header line.
+// RFC 2047 encoded words, so a title can't break out of its header line.
+// 45 bytes per word keeps each under the 75-char limit.
 function encoded(text) {
   const pieces = [""];
   for (const letter of text) {
@@ -43,7 +38,7 @@ function encoded(text) {
   return pieces.map((piece) => `=?UTF-8?B?${base64(piece)}?=`).join("\r\n ");
 }
 
-// The whole email, as plain text.
+// EmailMessage takes the raw MIME text.
 function message(from, to, subject, text) {
   return [
     `From: Techtrash <${from}>`,
@@ -59,5 +54,5 @@ function message(from, to, subject, text) {
   ].join("\r\n");
 }
 
-// "Liftoff", cut short if it's long.
+// Quoted title, cut to 80 chars.
 export const quoted = (title) => `"${title.length > 80 ? `${title.slice(0, 79)}...` : title}"`;

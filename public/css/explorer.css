@@ -1,18 +1,13 @@
-/* XP's Explorer. The File Browser (programs/files/) with its blue task
-   pane and folder views, and the Open, Save As and Move Items dialogs
-   every program shares (js/file-dialog.js). Load it after xp.css.
+/* XP's Explorer. The File Browser (programs/files/) and the shared Open,
+   Save As and Move Items dialogs (js/file-dialog.js). Load after xp.css.
    Tokens only. */
 
-/* --- the window --------------------------------------------
-   Menu bar, toolbar and address bar, then the task pane and the folder
-   side by side, then the status bar. */
+/* --- the window -------------------------------------------- */
 .explorer__main { flex: 1; min-height: 0; display: flex; }
 .explorer .status-bar { padding: var(--sp-2) var(--sp-2) var(--sp-2); }
 .status-bar__field--size { flex: none; width: var(--status-w); }
 
-/* --- the task pane -----------------------------------------
-   Blue, down the left. Boxes of tasks, each a white-to-blue heading
-   over a pale blue list of links. */
+/* --- the task pane ----------------------------------------- */
 .pane {
   flex: none;
   display: flex;
@@ -59,10 +54,8 @@
 .pane__thumb { max-width: 100%; border: var(--hairline) solid var(--face-shadow); }
 
 /* --- the folder --------------------------------------------
-   .view--thumbnails, --icons or --details, of .file items. Each is a
-   picture (an icon or a thumbnail) and a name, with the rest in columns
-   in Details. Picked is [aria-selected=true], drawn like XP with the
-   name in the selection blue and the icon tinted with it. */
+   .view--thumbnails, --icons or --details, of .file items.
+   Selected is [aria-selected=true]. */
 .view {
   flex: 1;
   min-width: 0;
@@ -163,7 +156,7 @@
 .file__column:hover:not(:disabled) { background: var(--paper); }
 .file__column:disabled { color: var(--ink); }
 
-/* XP's rename box, in place of the name. */
+/* XP's in-place rename box. */
 .file__rename {
   width: 100%;
   min-height: var(--lh-ui);
@@ -186,10 +179,7 @@
 }
 
 /* --- the dialogs -------------------------------------------
-   Open and Save As have the folder to look in across the top, the
-   places down the left, the folder's files, and the name and type at
-   the bottom. Move Items has a line saying what to do, every folder,
-   and the buttons. */
+   .dialog--file is Open and Save As. .dialog--folder is Move Items. */
 .dialog { width: min(var(--dialog-w), 100%); max-height: 100%; }
 .dialog--file { height: min(var(--dialog-h), 100%); }
 .dialog--folder { width: min(var(--folder-w), 100%); height: min(var(--folder-h), 100%); }
@@ -273,9 +263,8 @@
 .dialog__gap { flex: 1; }
 
 /* --- a list, in columns ------------------------------------
-   XP's Details list view, for lists that aren't a folder (the Admin
-   Dashboard's). Face-colored headings over white rows, with the picked
-   row in the selection blue, inside a scrolling .table-box. */
+   XP's Details view for lists that aren't folders (Admin Dashboard).
+   Put the .table in a .table-box to scroll. */
 .table-box {
   flex: 1;
   min-height: 0;

@@ -20,8 +20,7 @@
     .datetime__foot { display: flex; justify-content: flex-end; gap: var(--sp-8); }
     .datetime__note { color: var(--ink); }
 
-    /* The month as XP's calendar drew it, with the picked day in the
-       selection blue. */
+    /* XP's month calendar. */
     .calendar {
       align-self: stretch;
       display: grid;
@@ -37,7 +36,7 @@
     .calendar__day { padding: var(--sp-2) 0; border: 0; background: none; color: var(--ink); }
     .calendar__day[aria-selected="true"] { background: var(--select); color: var(--select-ink); }
 
-    /* The clock. datetime.js adds the marks and turns the hands. */
+    /* datetime.js adds the tick marks and turns the hands. */
     .clock { width: var(--clock); height: var(--clock); }
     .clock__face { fill: var(--paper); stroke: var(--field-edge); }
     .clock__hour-mark { fill: var(--ink-muted); }
@@ -46,7 +45,7 @@
     .clock__hand--second { stroke: var(--select); }
     .clock__pin { fill: var(--ink); }
 
-    /* XP's spin box, a field with up and down buttons beside it. */
+    /* XP's spin box. */
     .spin { display: flex; align-items: stretch; }
     .spin input { width: var(--spin-w); text-align: center; }
     .spin__buttons { display: flex; flex-direction: column; }
@@ -66,10 +65,8 @@
   <script type="module" src="datetime.js"></script>
 </head>
 <!--
-  Date and Time Properties, what the clock in the corner opens, with XP's
-  three tabs. It's this visitor's own clock, not the shared desktop's, and a
-  website can't set it, so Apply gets XP's refusal. datetime.js does the
-  rest.
+  Date and Time Properties. Shows the visitor's own clock, which a page
+  can't set, so Apply always gets XP's refusal.
 -->
 <body class="app datetime">
   <div class="tabs" role="tablist">

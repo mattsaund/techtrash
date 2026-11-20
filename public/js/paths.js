@@ -1,24 +1,19 @@
-// The shared disk as XP's C: drive, as the Command Prompt and Run see it.
+// The shared disk as XP's C: drive, for the Command Prompt and Run.
 //
-//   C:\                                  the drive
 //   C:\Documents and Settings\techtrash  the one user everyone is
-//     Desktop                            the disk's Desktop folder
-//     My Documents                       the disk's My Documents, with My
-//                                        Pictures, My Music and the rest
+//     Desktop, My Documents              the disk's folders
 //   C:\RECYCLER                          the Recycle Bin, where XP kept it
 //   C:\Program Files, C:\WINDOWS         there, but empty
 //
-// A place is { kind, item, path }. kind is "drive", "virtual" (a made-up
-// folder), "folder", "file" or "app" (a shortcut). item is the disk item
-// (js/items.js) if it's on the disk, and path is its full DOS path. The disk
-// is the desktop's, window.top.desktop.disk.
+// A place is { kind, item, path }. kind is "drive", "virtual" (not on the disk),
+// "folder", "file" or "app" (a shortcut). item is the disk item or null.
 
 const disk = () => window.top.desktop.disk;
 
 export const HOME = "C:\\Documents and Settings\\techtrash";
 const PROFILE = { Desktop: "desktop", "My Documents": "documents" };
 
-// The made-up folders that aren't on the disk, and what's in them.
+// Virtual folders and their contents.
 const VIRTUAL = {
   "C:\\": ["Documents and Settings", "Program Files", "RECYCLER", "WINDOWS"],
   "C:\\Documents and Settings": ["techtrash"],
@@ -27,15 +22,15 @@ const VIRTUAL = {
   "C:\\WINDOWS": [],
 };
 
-// The disk's own folders, by where they are on C:.
+// Disk folders by their C: path.
 const ROOTS = { [`${HOME}\\Desktop`]: "desktop", [`${HOME}\\My Documents`]: "documents", "C:\\RECYCLER": "recycle" };
 
 const same = (a, b) => a.toLowerCase() === b.toLowerCase();
 
-// A disk item's file name. A shortcut's has XP's .lnk on the end.
+// Shortcuts get XP's .lnk extension.
 export const fileName = (item) => (item.kind === "app" ? `${item.name}.lnk` : item.name);
 
-// Where something on the disk is, as a DOS path.
+// A disk item's DOS path.
 export function pathOf(id) {
   const chain = disk().path(id);
   if (!chain.length) return "C:\\";
@@ -44,7 +39,7 @@ export function pathOf(id) {
   return [root, ...rest.map(fileName)].join("\\");
 }
 
-// What's at a full DOS path, or null.
+// The place at a full DOS path, or null.
 function at(path) {
   const clean = path.replace(/\\+$/, "") || "C:";
   if (same(clean, "C:")) return { kind: "drive", item: null, path: "C:\\" };
@@ -53,7 +48,7 @@ function at(path) {
   const root = Object.keys(ROOTS).find((key) => same(key, clean) || clean.toLowerCase().startsWith(`${key.toLowerCase()}\\`));
   if (!root) return null;
   let item = disk().item(ROOTS[root]);
-  if (!item) return null;   // (the disk isn't here yet)
+  if (!item) return null;   // disk not loaded yet
   for (const part of clean.slice(root.length).split("\\").filter(Boolean)) {
     if (item.kind !== "folder") return null;
     item = disk().children(item.id).find((one) => same(fileName(one), part) || same(one.name, part));
@@ -62,10 +57,9 @@ function at(path) {
   return { kind: item.kind === "folder" ? "folder" : item.kind === "app" ? "app" : "file", item, path: pathOf(item.id) };
 }
 
-// A path someone typed, from `cwd` (a full path). It can be absolute
-// (C:\..., \...) or relative, with . and .., in quotes or not. The bare
-// names "My Documents", "Desktop" and "Recycle Bin" work too. Gives back the
-// place, or null if nothing's there.
+// A typed path, from `cwd`. Absolute (C:\..., \...) or relative with . and ..,
+// quoted or not. Bare "My Documents", "Desktop" and "Recycle Bin" work too.
+// Null if nothing's there.
 export function resolve(typed, cwd = HOME) {
   let text = String(typed ?? "").trim().replace(/^"(.*)"$/, "$1").replace(/\//g, "\\");
   if (!text) return at(cwd);
@@ -82,8 +76,7 @@ export function resolve(typed, cwd = HOME) {
   return at(`C:\\${parts.join("\\")}`);
 }
 
-// What's in a place, disk folder or made-up one, as
-// [{ name, folder, size, modified, item }], folders first.
+// A place's listing as [{ name, folder, size, modified, item }], folders first.
 export function contents(place) {
   if (place.kind === "drive" || place.kind === "virtual") {
     const names = VIRTUAL[place.path] ?? [];
@@ -98,6 +91,5 @@ export function contents(place) {
     .sort((a, b) => (b.folder - a.folder) || a.name.localeCompare(b.name, "en-US", { numeric: true, sensitivity: "base" }));
 }
 
-// Where something new made at a place goes, as a disk folder's id. Null for
-// the made-up folders, which hold nothing.
+// Disk folder id for new items at a place. Null for virtual folders.
 export const folderOf = (place) => (place?.kind === "folder" ? place.item.id : null);

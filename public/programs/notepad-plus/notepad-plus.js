@@ -1,11 +1,7 @@
-// Notepad++, an easter egg. It opens the code this site is made of, every
-// page, script and stylesheet the browser gets. The list comes from following
-// what each page loads, so it's always what's live.
-//
-// Anything can be changed but nothing saves, since these are the site's own
-// files. Closing a file (or Notepad++) puts it back as it was. JS Paint and
-// the blog's borrowed libraries are left out because they're other people's
-// code (files/credits.txt).
+// Notepad++, an easter egg showing the site's own source as served.
+// The list is crawled from what each page loads, so it matches what's live.
+// Edits never save. Closing a file (or Notepad++) reverts it.
+// Skips vendored code (JS Paint, the blog's libraries), credited in files/credits.txt.
 
 import { APPS } from "/js/apps.js";
 import { menuBar } from "/js/menu.js";
@@ -15,7 +11,7 @@ const desktop = window.top === window ? null : window.top.desktop;
 
 const XP = "/img/icons/xp";
 const LEFT_OUT = ["/programs/paint/jspaint/", "/pages/blog/vendor/", "/pages/blog/sky/cosmos/"];
-const MOST = 250;   // the most files it'll load
+const MOST = 250;   // crawl limit, in files
 
 const tree = document.querySelector(".npp__tree");
 const list = document.querySelector(".npp__files");
@@ -31,7 +27,7 @@ const PAD = parseFloat(getComputedStyle(document.documentElement).getPropertyVal
 const files = new Map();   // "js/desktop.js" -> { path, url, words, original, open, at }
 let front = null;          // the file in the editor
 
-// --- finding the site's files ----------------------------------------------
+// --- crawling the site -----------------------------------------------------
 
 const kindOf = (path) => (path.endsWith(".css") ? "css" : path.endsWith(".html") ? "html" : "js");
 const KINDS = {
@@ -40,8 +36,8 @@ const KINDS = {
   html: { name: "Hyper Text Markup Language file", icon: `${XP}/html.png` },
 };
 
-// The paths a file loads from this site. Scripts and stylesheets for a page,
-// imports for a script, @imports for a stylesheet.
+// Same-origin paths a file loads. <script> and <link> tags in pages,
+// imports in JS, @import in CSS.
 function loads(url, words) {
   const found = [];
   const add = (ref) => {
@@ -62,8 +58,7 @@ function loads(url, words) {
   return found;
 }
 
-// "/programs/files/" becomes "programs/files/index.html", and "/" becomes
-// "index.html".
+// "/programs/files/" -> "programs/files/index.html", "/" -> "index.html"
 const named = (pathname) => pathname.replace(/^\//, "").replace(/(^|\/)$/, "$1index.html");
 
 async function discover() {
@@ -131,7 +126,7 @@ function drawTree() {
   walk(top, 1);
 }
 
-// --- colors ----------------------------------------------------------------
+// --- syntax colors ---------------------------------------------------------
 
 const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const span = (kind, s) => `<span class="t-${kind}">${escape(s)}</span>`;
@@ -140,8 +135,8 @@ const KEYWORDS = new Set(("break case catch class const continue debugger defaul
   "if import in instanceof let new return super switch this throw try typeof var void while with yield async await of true false " +
   "null undefined static get set from as").split(" "));
 
-// Each language is a list of [kind, pattern] pairs, tried in order at the
-// current spot (they're sticky). Anything none of them match stays plain.
+// [kind, sticky regex] per language, tried in order at each position.
+// Unmatched text stays plain.
 const RULES = {
   js: [
     ["comment", /\/\/[^\n]*|\/\*[\s\S]*?\*\//y],
@@ -193,8 +188,7 @@ function color(words, kind) {
   return out + escape(plain);
 }
 
-// A page is markup, but what's inside its <script> and <style> tags gets JS
-// and CSS colors.
+// Markup rules, with JS and CSS rules inside <script> and <style>.
 function colorPage(words) {
   let out = "";
   let at = 0;
@@ -208,7 +202,7 @@ function colorPage(words) {
 }
 RULES.markup = RULES.html;
 
-// --- the editor ------------------------------------------------------------
+// --- editor ----------------------------------------------------------------
 
 let pending = 0;
 function redraw() {
@@ -223,8 +217,8 @@ function redraw() {
   });
 }
 
-// Keeps the colored copy, the line numbers and the current-line bar lined up
-// with the textarea's scroll.
+// Keeps the highlight layer, line numbers and current-line bar in step with
+// the textarea's scroll.
 function follow() {
   shown.style.transform = `translate(${-text.scrollLeft}px, ${-text.scrollTop}px)`;
   margin.style.transform = `translateY(${-text.scrollTop}px)`;
@@ -249,7 +243,7 @@ function status() {
 text.addEventListener("input", redraw);
 text.addEventListener("scroll", follow);
 for (const type of ["keyup", "pointerup", "select"]) text.addEventListener(type, () => { follow(); status(); });
-// Tab types a tab, like in Notepad++, instead of moving the focus.
+// Tab inserts a tab, as in Notepad++, instead of moving focus.
 text.addEventListener("keydown", (e) => {
   if (e.key !== "Tab" || e.ctrlKey || e.metaKey || e.altKey) return;
   e.preventDefault();
@@ -307,7 +301,7 @@ function closeFile(path) {
   file.open = false;
   file.el.remove();
   file.el = null;
-  file.words = file.original;   // nothing saves, so closing drops the changes
+  file.words = file.original;   // closing discards edits
   file.at = [0, 0, 0, 0];
   if (front === file) {
     front = null;
@@ -361,7 +355,7 @@ finder.addEventListener("submit", (e) => {
   status();
 });
 
-// --- menus, the toolbar and the keys ---------------------------------------
+// --- menus, toolbar, keys --------------------------------------------------
 
 const edit = (name) => () => {
   text.focus();

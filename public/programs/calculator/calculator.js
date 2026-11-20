@@ -1,11 +1,6 @@
-// The Calculator, XP's Standard view. Sums work the way XP's did. They go
-// left to right, each operation done when the next is pressed, so 2 + 3 * 4
-// is 20. Pressing = again repeats the last one, % is a percentage of the
-// number before it, and whole numbers show their point ("5."). M shows
-// while the memory holds a number.
-//
-// XP's keys work too. Enter is =, Esc is C, Del is CE, @ is sqrt, R is 1/x,
-// F9 is +/-, and Ctrl+L, R, M and P are MC, MR, MS and M+.
+// Calculator, XP's Standard view. Evaluates left to right like XP (2 + 3 * 4 = 20).
+// Repeated = repeats the last operation, % means percent of the first operand,
+// and whole numbers show a trailing point ("5."). Key bindings match XP's.
 
 import { menuBar } from "/js/menu.js";
 import { showMessage } from "/js/message.js";
@@ -14,19 +9,18 @@ const desktop = window.top === window ? null : window.top.desktop;
 const display = document.querySelector("[data-display]");
 const memoryMark = document.querySelector("[data-memory]");
 
-let entry = "0";        // what's on the display, as typed
-let total = null;       // the number before the waiting operation
-let waiting = null;     // that operation, + - * /
-let fresh = true;       // the next digit starts a new number
-let last = null;        // [operation, number], for pressing = again
+let entry = "0";        // display text, as typed
+let total = null;       // left operand of the pending operation
+let waiting = null;     // pending operation, + - * /
+let fresh = true;       // next digit starts a new number
+let last = null;        // [operation, operand] for repeated =
 let memory = 0;
 let grouping = false;   // View > Digit grouping
-let broken = false;     // an error is showing, and the next key clears it
+let broken = false;     // error showing, next key clears it
 
 const value = () => Number(entry);
 
-// A number as XP's display showed it, with at most 15 significant digits
-// and always a point.
+// XP's display format. At most 15 significant digits, always a decimal point.
 function shown(number) {
   if (!Number.isFinite(number)) return "0.";
   let text = Math.abs(number) >= 1e16 || (number !== 0 && Math.abs(number) < 1e-15)
@@ -54,7 +48,7 @@ function fail(words) {
   fresh = true;
 }
 
-// a op b, or null after XP's error for dividing by zero
+// a op b, or null on divide by zero (fail() shows XP's error)
 function work(a, op, b) {
   if (op === "/" && b === 0) {
     fail("Cannot divide by zero.");
@@ -167,7 +161,7 @@ async function copy() {
   } catch {}
 }
 
-// Presses each character on the clipboard as a key, the way XP pasted.
+// Pastes by pressing each character as a key, like XP.
 async function paste() {
   try {
     const text = await navigator.clipboard.readText();

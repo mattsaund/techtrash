@@ -1,50 +1,33 @@
-// Keeps the rich text box (editor.js) a column of lines, where every child of
-// the box is a block (a paragraph, a heading, a list...). Browsers don't keep
-// it that way on their own, and each gets some keys wrong in its own way, so
-// after every change this:
-//
-//   - turns Firefox's <div>s and loose words into paragraphs
-//   - keeps the empty lines the writer put in, and only those
-//   - treats dividers, players and pictures alone on a line as things the
-//     cursor can't be in, and fixes Backspace and Delete next to them
-//   - keeps a line to type on at the end of the box
-//   - lets Enter, Enter get out from beside a floated picture
-//   - keeps a floated picture first in its paragraph
-//
-// setUpLines(area, { select, pick, picked, changed }) returns the functions
-// editor.js uses. select(range) puts the cursor in the box, pick(item) picks
-// a picture, a player or a divider (or nothing, given null), picked() is
-// what's picked and changed() is the editor's "something changed".
+// Normalizes the rich text box after each change: every child a block, only the writer's
+// empty lines, a line to type on at the end, floated pictures first in their paragraph.
+// Also overrides Enter, Backspace and Delete where browsers get them wrong.
 
 import { blankLine } from "../content.js";
 import { el } from "../util.js";
 
-// A line that starts below the floated pictures before it. The post keeps
-// the class, and site.css gives it clear: both.
+// Line pushed below earlier floats. Saved with the post, clear: both in site.css.
 const UNDER = "under-pic";
-// The blocks a line can be. Anything else straight in the box is loose words.
+// Valid top-level blocks. Any other child of the box is loose words.
 const LINES = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "UL", "OL", "PRE", "BLOCKQUOTE", "HR", "FIGURE", "TABLE", "DIV"]);
 
 // A floated picture, with words beside it.
 export const beside = (node) => node?.nodeName === "IMG" && (node.classList.contains("pic--left") || node.classList.contains("pic--right"));
-// No words in it (the editor's invisible spaces aren't words).
+// No text, ignoring the editor's zero-width spaces.
 export const wordless = (node) => !node.textContent.replace(/​/g, "").trim();
-// An empty paragraph, which a divider or a player can take the place of.
+// Empty <p>, which an inserted divider or player replaces.
 export const isEmptyParagraph = (node) => node?.matches?.("p") && !node.textContent.trim() && !node.querySelector("img");
-// A divider, a player, or a picture (or two) alone on its line. The cursor
-// can only be beside one of these "things", never in it.
+// A "thing": a divider, a player, or a line of only pictures.
+// The cursor can sit beside one, never inside.
 export const isThing = (node) => Boolean(node?.matches?.("hr, figure.embed")
   || (node?.matches?.("p") && node.querySelector("img") && wordless(node)));
-// A line with nothing in it. An empty heading counts too (it only lasts
-// while the cursor's on it).
+// Includes empty headings, which only last while the cursor is on them.
 const emptyLine = (node) => Boolean(node) && blankLine(node);
-// Any line but a thing, so the cursor can go on it.
 const holdsCursor = (node) => Boolean(node) && !isThing(node);
 // the picture on a thing's line nearest the cursor, or the thing itself
 const partOf = (thing, back) => (thing.matches("p") ? [...thing.querySelectorAll("img")].at(back ? -1 : 0) : thing);
 
 export function setUpLines(area, { select, pick, picked, changed }) {
-  // the line (a child of the box) a node is in
+  // the box's child that contains node
   const lineOf = (node) => {
     while (node && node.parentNode !== area) node = node.parentNode;
     return node;
@@ -52,12 +35,9 @@ export function setUpLines(area, { select, pick, picked, changed }) {
 
   // --- every line a block --------------------------------------------------------
 
-  // Firefox makes a <div> where Chrome makes a <p> (Enter after a heading),
-  // and can leave loose words straight in the box (after Select All and
-  // Delete, say). A <div> becomes a <p> and loose words go into one. Moving
-  // the words the cursor is in would lose it, so it's put back afterward.
-  // Skipped while a word is being composed (a phone keyboard, an IME), since
-  // moving things then would break it.
+  // Firefox makes a <div> on Enter after a heading, and can leave bare text in the box
+  // (Select All, Delete). Both become a <p>. Moving nodes loses the selection, so it's restored.
+  // Skipped during IME or phone keyboard composition, which DOM moves would break.
   let composing = false;
   area.addEventListener("compositionstart", () => { composing = true; });
   area.addEventListener("compositionend", () => { composing = false; });
@@ -65,7 +45,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     if (composing) return;
     const selection = getSelection();
     const ours = selection.rangeCount && area.contains(selection.anchorNode) && area.contains(selection.focusNode);
-    // a point in the box itself is kept as the line after it (null at the end)
+    // a point in the box itself is pinned to the next child (null at the end)
     const pin = (node, offset) => (node === area ? { before: area.childNodes[offset] ?? null } : { node, offset });
     const points = ours ? [pin(selection.anchorNode, selection.anchorOffset), pin(selection.focusNode, selection.focusOffset)] : [];
     const renamed = new Map();
@@ -84,7 +64,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
         }
         continue;
       }
-      // (whitespace between lines isn't loose words)
+      // whitespace between blocks doesn't count
       const loose = node.nodeType === Node.ELEMENT_NODE || (node.nodeType === Node.TEXT_NODE && (into || node.data.trim()));
       if (!loose) continue;
       if (!into) {
@@ -94,7 +74,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
       into.append(node);
       moved = true;
     }
-    // emptied completely, so put back one line with the cursor on it
+    // box emptied, so put back one line with the cursor in it
     if (!area.firstElementChild && !area.textContent.trim()) {
       const line = el("p", {}, el("br"));
       area.replaceChildren(line);
@@ -114,12 +94,9 @@ export function setUpLines(area, { select, pick, picked, changed }) {
 
   // --- empty lines ---------------------------------------------------------------
 
-  // An empty line is spacing the writer put in on purpose. Enter on an empty
-  // line makes one, and it stays and is saved a line high (clean() keeps it,
-  // except at the start or end of a post). An empty heading, quote or code
-  // block becomes an empty paragraph once the cursor leaves it, so it's a
-  // line high rather than a heading-sized gap. (Enter at the start of a
-  // heading makes an empty heading above it, which ends up an empty line.)
+  // Empty lines are deliberate spacing (clean() keeps them, except at the post's edges).
+  // Other empty blocks, like the heading Enter leaves above a heading, become an empty <p>
+  // once the cursor leaves, so they're one line high instead of a heading-sized gap.
   function emptyBlocksToLines() {
     const cursor = getSelection().anchorNode;
     for (const line of [...area.children]) {
@@ -130,8 +107,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     }
   }
 
-  // Dragging a paragraph elsewhere leaves an empty line behind that nobody
-  // put there, so it goes. Empty lines that were there before the drag stay.
+  // Dragging a paragraph away leaves an empty line behind. Drop only the new ones.
   let emptyBefore = null;
   area.addEventListener("dragstart", () => {
     emptyBefore = new Set([...area.children].filter(emptyLine));
@@ -148,18 +124,14 @@ export function setUpLines(area, { select, pick, picked, changed }) {
 
   // --- a line to type on ---------------------------------------------------------
 
-  // The box always ends on a line to type on. Otherwise there'd be nowhere
-  // for the cursor after a last thing, and a click below it would put the
-  // cursor (and whatever's typed) above it.
+  // Without a typeable last line, a click below a final thing puts the cursor above it.
   function endLine() {
     if (!area.lastElementChild || isThing(area.lastElementChild)) area.append(helperLine());
   }
 
-  // Lines the editor adds for the cursor (after an inserted divider or
-  // player, and after the box's last thing) aren't the writer's. One that's
-  // still empty once the cursor moves away goes again, unless it's the only
-  // place to type below the last thing. Enter on one makes it the writer's,
-  // like any empty line Enter makes.
+  // Lines the editor adds for the cursor (after an inserted divider or player, or a final thing).
+  // Removed once empty and the cursor leaves, unless it's the line after the last thing.
+  // Enter on one makes it the writer's.
   const helpers = new WeakSet();
   function helperLine() {
     const line = el("p", {}, el("br"));
@@ -177,8 +149,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
 
   // --- under a picture -----------------------------------------------------------
 
-  // The empty line the cursor's on, if it's beside a floated picture (Enter
-  // there moves it below the picture).
+  // The cursor's empty line, if a floated picture is beside it.
   function emptyLineBy() {
     const selection = getSelection();
     if (!selection.rangeCount || !selection.isCollapsed || !area.contains(selection.anchorNode)) return null;
@@ -193,8 +164,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     return null;
   }
 
-  // Only the first line below the pictures keeps the class. Enter copies it
-  // onto the line it makes, and the lines after are below them anyway.
+  // Only the first line below the floats keeps UNDER. Enter copies classes onto new lines.
   function settleUnder() {
     let floating = false;
     for (const line of area.children) {
@@ -211,12 +181,9 @@ export function setUpLines(area, { select, pick, picked, changed }) {
 
   // --- words beside a picture ----------------------------------------------------
 
-  // A floated picture sits beside the words after it, from its own line down.
-  // So it's kept first in its paragraph, since words typed in front of it (a
-  // click beside it puts the cursor there) would push it down as they grew.
-  // A floated picture alone on its line moves to the start of the next
-  // paragraph and its own line goes, once the cursor is off that line. carry
-  // means Left or Right was just chosen, which moves it right away.
+  // A float must stay first in its paragraph. A click beside it puts the cursor in front,
+  // and text typed there would push it down. A float alone on its line joins the next
+  // paragraph once the cursor leaves. carry (Left or Right just chosen) moves it right away.
   function keepBeside(img, carry = false) {
     const line = img.parentElement?.closest("p, li, blockquote, h2, h3, h4");
     if (!line || !area.contains(line)) return;
@@ -230,15 +197,14 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     }
     const alone = line.matches("p") && wordless(line) && [...line.querySelectorAll("img")].every(beside);
     const cursorThere = line.contains(getSelection().anchorNode);
-    // With Left or Right just chosen, skip the empty lines below it. They were
-    // the spacing under a full-width picture, and they go.
+    // on carry, empty lines below were spacing for the full-width picture. They go.
     let next = line.nextElementSibling;
     const spaces = [];
     while (carry && emptyLine(next) && !next.classList.contains(UNDER)) {
       spaces.push(next);
       next = next.nextElementSibling;
     }
-    // (not into an under-pic line, which was put below it on purpose)
+    // not into an under-pic line, which is below it on purpose
     if (alone && next?.matches("p") && !next.classList.contains(UNDER) && !wordless(next) && (carry || !cursorThere)) {
       for (const space of spaces) space.remove();
       next.prepend(...line.querySelectorAll("img"));
@@ -246,11 +212,10 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     }
   }
 
-  // --- Backspace and Delete, beside things ---------------------------------------
+  // --- Backspace and Delete ------------------------------------------------------
 
-  // The cursor's line, if the cursor is right at its start (back) or its end.
-  // A line's last <br> doesn't count, since browsers add it to give the line
-  // height.
+  // The cursor's line, if the cursor is at its start (back) or end.
+  // A trailing <br> is the browser's height filler, so it doesn't count.
   function atEdge(back) {
     const selection = getSelection();
     if (!selection.rangeCount || !selection.isCollapsed) return null;
@@ -269,22 +234,12 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     return line;
   }
 
-  // Our own Backspace (back) or Delete, as a function to run, where browsers
-  // get it wrong (or null to leave it to the browser). Browsers make a
-  // heading a paragraph when it's joined to an empty line above it, Chrome
-  // takes a picture or a player along with an empty line beside it, and
-  // Firefox throws away words, or a heading, next to a picture or a divider.
-  // So instead:
-  //   - the picked thing goes, and so does a divider the cursor is on (in
-  //     Firefox, clicking one puts it there)
-  //   - an empty line next to the cursor's line goes, and only that, so a
-  //     heading stays a heading
-  //   - the cursor's own line goes if it's empty, and the cursor moves to the
-  //     line in its place (Delete, or Backspace after a thing)
-  //   - a divider next to the line goes, and a picture or a player gets
-  //     picked, to go on a second press
-  // In a list, Backspace at the start is left to the browser, which takes
-  // the list off.
+  // Custom Backspace (back) or Delete, or null for native. Native bugs: a heading joined to
+  // an empty line above becomes a <p>. Chrome deletes a picture or player with an adjacent
+  // empty line. Firefox deletes text or a heading next to a picture or hr. Instead, remove the
+  // picked thing, an hr at the cursor (Firefox puts it there on click) or next to it, or an
+  // empty line (the neighbor first, so a heading stays a heading). An adjacent picture or
+  // player gets picked, so a second press removes it. Backspace at a list's start stays native.
   function edgeEdit(back) {
     const item = picked();
     if (item && area.contains(item)) return () => takeOut(item);
@@ -314,8 +269,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     return null;
   }
 
-  // Removes an empty line. If the cursor was on it, then() moves it somewhere.
-  // An under-pic line hands its class to the line after it.
+  // then() re-places the cursor if it was on the line. UNDER passes to the next line.
   function dropLine(line, then) {
     if (line.classList.contains(UNDER)) line.nextElementSibling?.classList.add(UNDER);
     line.remove();
@@ -323,7 +277,6 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     changed();
   }
 
-  // Puts the cursor at the start of a line, or at its end.
   function cursorTo(line, end = false) {
     const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
     let text = null;
@@ -338,8 +291,8 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     select(range);
   }
 
-  // Removes a thing, or a picked picture and its line if that's left empty.
-  // If the cursor was on what went, it moves to the line after (or before).
+  // Removes a thing, or a picture plus its line if that leaves it empty.
+  // A cursor that was in it moves to the next line, else the previous.
   function takeOut(thing) {
     pick(null);
     let gone = thing;
@@ -366,10 +319,10 @@ export function setUpLines(area, { select, pick, picked, changed }) {
 
   area.addEventListener("keydown", (e) => {
     if (e.isComposing || composing) return;
-    // (Enter on a line the editor added makes it the writer's)
+    // Enter makes a helper line the writer's
     if (e.key === "Enter") helpers.delete(lineOf(getSelection().anchorNode));
     if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      // beside a floated picture, the empty line moves below it
+      // beside a float, Enter moves the empty line below it instead
       const line = emptyLineBy();
       if (line) {
         e.preventDefault();
@@ -390,10 +343,7 @@ export function setUpLines(area, { select, pick, picked, changed }) {
     if (!["Shift", "Control", "Alt", "Meta"].includes(e.key)) pick(null);
   });
 
-  // Runs after every change. Every line becomes a block, empty headings
-  // become empty lines (except the cursor's), the editor's own empty lines
-  // go, the box ends on a line to type on, and only the first line below a
-  // picture keeps under-pic.
+  // Runs after every change.
   function settle() {
     settleLines();
     emptyBlocksToLines();

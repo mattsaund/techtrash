@@ -56,8 +56,8 @@
     .npp__find { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-4); background: var(--face); border-bottom: var(--hairline) solid var(--face-shadow); }
     .npp__find[hidden] { display: none; }
 
-    /* Line numbers down the left. The textarea sits over a colored copy of
-       its text, with its own text transparent, and the two scroll together. */
+    /* Transparent textarea over a highlighted copy of its text.
+       notepad-plus.js keeps the copy and line numbers scrolled with it. */
     .npp__code { flex: 1; min-height: 0; display: flex; background: var(--npp-paper); }
     .npp__margin, .npp__shown, .npp__text { font: 400 var(--fs-body)/var(--lh-mono) var(--font-mono); tab-size: 4; }
     .npp__margin {
@@ -110,9 +110,8 @@
   <script type="module" src="notepad-plus.js"></script>
 </head>
 <!--
-  Notepad++, an easter egg. It shows the site's own code, the very files the
-  browser is running, and anyone can change them. Nothing saves, so closing
-  it puts everything back. notepad-plus.js does the rest.
+  Notepad++, an easter egg showing the site's own files as served.
+  Edits never save. Closing a file reverts it.
 -->
 <body class="app npp">
   <nav class="menu-bar" aria-label="Menu"></nav>

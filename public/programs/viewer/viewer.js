@@ -1,10 +1,6 @@
-// The Windows Picture and Fax Viewer. Pictures on the shared disk open in it,
-// as they did on XP.
-//
-// Previous and Next go through the other pictures in the folder, and the
-// slide show runs through them all until Esc or a click. Delete asks first,
-// Edit opens Paint, and Set as Desktop Background changes everyone's
-// wallpaper. The keys are XP's.
+// Windows Picture and Fax Viewer, the default for pictures on the disk, as on XP.
+// Previous, Next and the slide show go through the picture's folder.
+// Set as Desktop Background changes everyone's wallpaper. Keys are XP's.
 
 import { fileUrl, isPicture, sortItems } from "/js/items.js";
 import { deleteItems, setAsWallpaper } from "/js/tasks.js";
@@ -20,7 +16,7 @@ const picture = document.querySelector(".viewer__picture");
 const empty = document.querySelector(".viewer__empty");
 
 let item = null;     // the picture shown
-let zoom = null;     // null to fit the window, or a scale
+let zoom = null;     // null for Best Fit, or a scale
 let showing = null;  // the slide show's timer
 
 // The pictures in this one's folder, in order.
@@ -42,7 +38,7 @@ function show(next) {
   size();
 }
 
-// Sizes the picture to fit, or scales it from its own size.
+// Best Fit is CSS (.is-fit). Otherwise scale from the natural size.
 function size() {
   stage.classList.toggle("is-fit", zoom === null);
   if (zoom === null || !picture.naturalWidth) {
@@ -54,7 +50,7 @@ function size() {
 }
 picture.addEventListener("load", size);
 
-// The scale Best Fit comes to, so zooming starts from there.
+// Best Fit's actual scale, so zooming starts from what's shown.
 function fittedScale() {
   if (!picture.naturalWidth) return 1;
   return Math.min(1, stage.clientWidth / picture.naturalWidth, stage.clientHeight / picture.naturalHeight);
@@ -132,8 +128,8 @@ document.addEventListener("keydown", (e) => {
 });
 
 function start() {
-  // Someone else's change. Show their new version, or if the picture's gone,
-  // the first one left in its folder.
+  // Someone else's change. Reload the picture, or show the folder's first one
+  // if it's gone.
   addEventListener("diskchange", (e) => {
     if (!item || e.detail.settings) return;
     const now = disk.item(item.id);

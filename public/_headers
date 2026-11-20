@@ -1,13 +1,6 @@
-# Cloudflare reads this file instead of serving it. Every file in public/
-# goes out with these headers. What worker.js answers itself (the API,
-# pictures, the feed, the 404) sets its own.
-#
-#   nosniff             a file is only ever what its type says
-#   Referrer-Policy     links off the site say which site, not which page
-#   frame-ancestors     no other site can show these pages in a frame (the
-#   X-Frame-Options     desktop framing its own windows is fine)
-#   Permissions-Policy  nothing here needs the camera, the microphone or
-#                       your location, so nothing gets them
+# Cloudflare headers for static files in public/. worker.js sets its own
+# (API, blog media, feed, 404).
+# Framing is same-origin only, since the desktop frames its own pages.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -15,9 +8,8 @@
   X-Frame-Options: SAMEORIGIN
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
-# Pictures and fonts hardly ever change, so a browser keeps them a week
-# without asking again. Pages, scripts and styles are still checked every
-# time, so a change to the site shows up straight away and never half done.
+# Images and fonts cache for a week. Everything else revalidates, so a
+# deploy never shows up half done.
 /img/*
   Cache-Control: public, max-age=604800
 /fonts/*

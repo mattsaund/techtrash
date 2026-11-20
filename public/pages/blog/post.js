@@ -1,8 +1,5 @@
-// A blog's own page, with its title, date, flags, words and comments
-// (comments.js). The admin also gets buttons to edit it, feature it on Home,
-// switch comments on or off, move it back to drafts or delete it. On a draft
-// (which only they can see) the buttons finish it, publish it or throw it
-// away.
+// A blog's page with its comments (comments.js) and the admin's buttons.
+// Drafts are admin only and have no comments panel.
 
 import { commentsPanel } from "./comments.js";
 import { renderBody } from "./content.js";
@@ -10,10 +7,9 @@ import { framed } from "./frame.js";
 import { admin, flagTags, goTo, theBlog, titled, to } from "./site.js";
 import { api, backTo, date, el, hueOf, starButton, status, twoClick } from "./util.js";
 
-// The blog whose slug is postSlug.
 export const showPost = (postSlug) => framed("blog", async () => {
   const post = await api(`/api/blog/post?slug=${encodeURIComponent(postSlug)}`).catch(async (error) => {
-    // an old ?blog/<topic> address, and that topic is a flag now
+    // old ?blog/<topic> URL, redirect if that topic is now a flag
     const { flags } = await api("/api/blog/flags").catch(() => ({ flags: [] }));
     if (flags.some((flag) => flag.slug === postSlug && flag.count > 0)) goTo(to.flags([postSlug]));
     throw error;

@@ -1,13 +1,5 @@
-// The front page's panels. One of four shows under the headline, picked by
-// its buttons.
-//
-//   Home      the bulletin, Home's words, the featured blogs beside them
-//   Blog      every blog as a card, to sort and filter by flag
-//   Pictures  every picture posted to the site
-//   About me  the site's own About page
-//
-// The admin also gets buttons to change them, and the Blog's Drafts button
-// opens a panel of their drafts (?drafts).
+// Front page panels, one under the headline at a time (Home, Blog, Pictures,
+// About me), plus the admin's Drafts (?drafts).
 
 import { renderBody } from "./content.js";
 import { framed } from "./frame.js";
@@ -16,21 +8,19 @@ import { BLOG_AT, admin, again, flagTags, moveTo, theBlog, titled, to, whereNow 
 import { api, backTo, date, el, forNow, hueOf, label, plural, sortable, starButton, twoClick } from "./util.js";
 import { openViewer, pictureHash } from "./viewer.js";
 
-// The front page, with `view` (home, blog, pictures or about) under the headline.
 const PANELS = { home: homePanel, blog: blogPanel, pictures: picturesPanel, about: aboutPanel };
 export const showFront = (view) => framed(view, PANELS[view]);
 
 // --- Home ------------------------------------------------------------------------
 
-// The bulletin across the top (if there is one), Home's words, and the
-// featured blogs down the right side.
+// Bulletin on top, Home's words, featured blogs in the side column.
 async function homePanel() {
   const [home, bulletin, { posts }] = await Promise.all([
     api("/api/blog/page?name=home"), api("/api/blog/page?name=bulletin"), api("/api/blog/posts?featured"),
   ]);
   titled("Techtrash");
   const top = bulletinSpot(bulletin);
-  // with no bulletin up, the admin's Add bulletin sits beside Edit homepage
+  // no bulletin, so the admin gets Add bulletin next to Edit homepage
   const add = admin && !bulletin.body.trim() ? el("button", { class: "button", type: "button", textContent: "Add bulletin" }) : null;
   add?.addEventListener("click", () => top.write());
   const main = el("div", { class: "home__main" }, ownWords(home, { edit: "Edit homepage", more: [add] }));
@@ -46,8 +36,7 @@ async function homePanel() {
     el("div", { class: "home" }, main, side));
 }
 
-// The blogs the admin starred, in their order, each title with its flags
-// under it. The admin can drag them into a new order, or take a star off.
+// Starred blogs in the admin's order. The admin can drag to reorder or unstar.
 function featuredList(posts) {
   if (!posts.length) return el("p", { class: "meta", textContent: admin ? "Star a blog to feature it here." : "Nothing here yet." });
   const list = el("ul", { class: "side-posts" }, posts.map((post) => {
@@ -60,9 +49,8 @@ function featuredList(posts) {
   return list;
 }
 
-// The bulletin is one thing at the top of Home that matters right now (news,
-// anything), or nothing. The admin edits it or takes it down. .write() opens
-// the editor in its place, for Add bulletin.
+// Optional notice at the top of Home. spot.write() opens the editor in its
+// place, for Add bulletin.
 function bulletinSpot(bulletin) {
   const spot = el("div", { class: "home__bulletin" });
   const write = async () => {
@@ -94,21 +82,18 @@ function bulletinSpot(bulletin) {
 
 // --- the Blog --------------------------------------------------------------------
 
-// The tab remembers how the Blog is sorted, and whether picking several flags
-// shows the blogs with any of them or all of them.
+// Per-tab sort order, and any/all matching when several flags are picked.
 const SORT = "techtrash:sort";
 const MATCH = "techtrash:match";
 
-// The Blog sorts by when each blog went up, or by its comments.
+// By post.at (published, else created) or comment count.
 const SORTS = {
   newest: { text: "Newest", order: (a, b) => b.at - a.at || b.id - a.id },
   oldest: { text: "Oldest", order: (a, b) => a.at - b.at || a.id - b.id },
   comments: { text: "Most comments", order: (a, b) => b.comment_count - a.comment_count || b.at - a.at || b.id - a.id },
 };
 
-// A blog's card, with its first picture, title, opening words, date, comment
-// count and flags. A draft's card opens the editor and says when it was
-// started.
+// A draft's card opens the editor and shows when it was started.
 const blogCard = (post, { draft = false } = {}) => el("a", { class: `card ${hueOf(post.id)}`, href: draft ? to.edit(post.slug) : to.post(post.slug) },
   post.cover ? el("img", { class: "card__cover", src: post.cover, alt: "", loading: "lazy" }) : null,
   el("span", { class: "card__body" },
@@ -117,21 +102,18 @@ const blogCard = (post, { draft = false } = {}) => el("a", { class: `card ${hueO
     el("span", { class: "meta", textContent: draft ? `Started ${date(post.created)}` : `${date(post.at)}, ${plural(post.comment_count, "comment")}` }),
     post.flags.length ? flagTags(post.flags, { links: false }) : null));
 
-// The admin's cards carry a star in the corner, outside the card's link, to
-// feature the blog on Home.
+// Admin card. The star sits beside the card's link, not inside it.
 const starredCard = (post) => el("div", { class: `card-spot ${hueOf(post.id)}` }, blogCard(post), starButton(post));
 
-// A small button that's on or off, filled when it's on.
+// Small toggle button. draw() sets aria-pressed, which fills it.
 function toggle(text, look, click) {
   const button = el("button", { class: `button button--small ${look}`, type: "button", textContent: text });
   button.addEventListener("click", click);
   return button;
 }
 
-// Every blog, newest first or sorted another way, with flags to filter by.
-// Pick one or several and only the blogs with them show (any of them, or
-// all). The picked flags go in the address (?flag/space/rockets), so a
-// filtered Blog can be shared.
+// Every blog, sortable and filterable by flags (any or all). Picked flags go in
+// the URL (?flag/space/rockets) so a filtered Blog can be shared.
 async function blogPanel() {
   const [{ posts }, { flags: every }, drafts] = await Promise.all([
     api("/api/blog/posts"),
@@ -139,7 +121,7 @@ async function blogPanel() {
     admin ? api("/api/blog/posts?drafts").then((answer) => answer.posts) : [],
   ]);
   for (const post of posts) post.at = post.published ?? post.created;
-  // (the admin also gets flags only drafts have, which are no use here)
+  // skip flags only drafts use (the admin's list includes them)
   const flags = every.filter((flag) => flag.count > 0);
   const [, ...asked] = whereNow()[0] === "flag" ? whereNow().map((part) => part.toLowerCase()) : [];
   const picked = new Set(asked.filter((s) => flags.some((flag) => flag.slug === s)));
@@ -211,17 +193,13 @@ async function blogPanel() {
     list);
 }
 
-// The admin's buttons over the Blog. New blog, and Drafts (with a count),
-// which opens the drafts panel.
 const adminBlog = (drafts) => el("div", { class: "button-row" },
   el("a", { class: "button hue-4", href: to.write, textContent: "New blog" }),
   el("a", { class: "button hue-5", href: to.drafts, textContent: drafts.length ? `Drafts (${drafts.length})` : "Drafts" }));
 
 // --- the admin's drafts ----------------------------------------------------------
 
-// Every blog the admin hasn't published yet (or took back down), newest
-// first, as cards that open in the editor. Nobody else ever sees them
-// (server/blog.js enforces that too).
+// Unpublished blogs, newest first. Admin only (server/blog.js enforces it too).
 export const showDrafts = () => framed("blog", async () => {
   const { posts: drafts } = await api("/api/blog/posts?drafts");
   titled("Drafts - Techtrash");
@@ -238,13 +216,12 @@ export const showDrafts = () => framed("blog", async () => {
 
 // --- Pictures --------------------------------------------------------------------
 
-// Where a picture is from, as a blog's title or one of the site's own pages.
+// Caption source, a blog's title or a site page's name.
 const OWN_WORDS = { home: "Home", bulletin: "the bulletin", about: "About me", tagline: "the tagline" };
 const whereFrom = (from) => (from.kind === "post" ? from.title : OWN_WORDS[from.id] ?? from.title);
 
-// Every picture posted to the site, newest first, edge to edge. A click opens
-// it in the viewer among the rest, and Goto Image goes to it on its own page
-// (so does opening a picture in a new tab).
+// All pictures, newest first. A plain click opens the viewer. Each tile links
+// to the picture in its page, for Goto Image and new tabs.
 async function picturesPanel() {
   const { pictures } = await api("/api/blog/pictures");
   titled("Pictures - Techtrash");
@@ -271,7 +248,6 @@ async function picturesPanel() {
 
 // --- About me --------------------------------------------------------------------
 
-// The site's own About me page, which the admin writes on the site.
 async function aboutPanel() {
   const about = await api("/api/blog/page?name=about");
   titled(`${about.title} - Techtrash`);

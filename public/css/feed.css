@@ -1,10 +1,6 @@
 /* ============================================================
-   The blog's feed, /rss.xml (server/feed.js), as a browser shows
-   it. It gets the website's look, a line saying what it is, and
-   each blog's title, date, flags and opening words. The rest
-   (addresses, each blog in full) is for feed readers and stays
-   hidden. It's XML with no <body>, so the elements here are the
-   feed's own. Tokens only.
+   /rss.xml (server/feed.js) opened in a browser. It's XML with no
+   <body>, so this styles the RSS elements directly. Tokens only.
    ============================================================ */
 
 @namespace content url("http://purl.org/rss/1.0/modules/content/");

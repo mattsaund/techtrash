@@ -1,18 +1,11 @@
-// The wallpapers the desktop comes with, XP's own, in the order XP listed
-// them. tools/make_wallpapers.py builds them into img/wallpapers/ (WebP for
-// the big ones, a third smaller than JPEGs that look the same, and XP's own
-// JPEGs as they were for the rest), and files/credits.txt credits them.
+// XP's own wallpapers, in XP's order. Built into img/wallpapers/ by
+// tools/make_wallpapers.py (WebP for the big ones) and credited in files/credits.txt.
+// The setting is shared. server/disk.js checks it's one of these or a disk picture.
 //
-// Anyone can change the wallpaper for everyone (Display Properties, Paint, or
-// a picture's Set as Desktop Background), to one of these or any picture on
-// the disk. server/disk.js checks it's one of the two.
-//
-// A wallpaper setting is { image, position, color }.
-//   image     "xp:<id>" (one of these), "file:<id>" (a picture on the disk)
-//             or "" for none
-//   position  "stretch", "center" or "tile", as on XP
-//   color     "#rrggbb" around a centered picture or behind no picture, or ""
-//             for the desktop's own blue (--desktop)
+// A setting is { image, position, color }.
+//   image     "xp:<id>", "file:<item id>" or "" for none
+//   position  "stretch", "center" or "tile"
+//   color     "#rrggbb" around a centered picture or with none, or "" for --desktop
 
 import { fileUrl } from "./items.js";
 
@@ -43,8 +36,7 @@ export const WALLPAPERS = [
 
 export const findWallpaper = (id) => WALLPAPERS.find((wallpaper) => wallpaper.id === id);
 
-// Where a wallpaper setting's picture is, or "" for none. item is the disk's
-// item for a picture on the disk, if it's known.
+// The picture URL for a setting's image, or "". item is the disk item for "file:", if known.
 export function wallpaperUrl(image = "", item = null) {
   if (image.startsWith("xp:")) {
     const wallpaper = findWallpaper(image.slice(3));
@@ -55,5 +47,4 @@ export function wallpaperUrl(image = "", item = null) {
 
 export const POSITIONS = ["stretch", "center", "tile"];
 
-// A new desktop starts with XP's Bliss, stretched over the screen.
 export const FIRST_WALLPAPER = { image: "xp:bliss", position: "stretch", color: "" };

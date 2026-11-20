@@ -1,15 +1,6 @@
-// The admin account. Every visitor is the "techtrash" user and can read
-// everything, but only the admin can post. The admin logs on from the Welcome
-// screen with a user name and password kept in the Worker's secrets
-// (ADMIN_USERNAME and ADMIN_PASSWORD), never in this repo. Set them with
-// `npx wrangler secret put ADMIN_USERNAME`, or in the Cloudflare dashboard
-// under the Worker's Settings > Variables and Secrets. Until both are set,
-// nobody can log on as admin.
-//
-// The right pair gets a cookie saying "admin" until it expires. It's signed
-// with a key made from the pair itself, so changing either one logs every
-// admin session out. Page scripts can't read the cookie, and it's only sent
-// with requests from this site.
+// Admin session. Credentials are the ADMIN_USERNAME and ADMIN_PASSWORD secrets
+// (`npx wrangler secret put ADMIN_USERNAME`), never in the repo. Logon is off until both are set.
+// The cookie is HMAC-signed with a key derived from both, so changing either logs out every session.
 
 import { apiError, clientKey, done } from "./http.js";
 
@@ -35,7 +26,6 @@ function cookie(request, value, maxAge) {
   return `${COOKIE}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Strict${secure}`;
 }
 
-// Is this request from a logged on admin?
 export async function isAdmin(request, env) {
   if (!isSetUp(env)) return false;
   const value = (request.headers.get("cookie") ?? "")
@@ -47,21 +37,19 @@ export async function isAdmin(request, env) {
   return crypto.subtle.verify("HMAC", await signingKey(env), fromHex(signature), encoder.encode(`admin.${expires}`));
 }
 
-// Compares two strings in the same time whatever they hold, so how long a
-// wrong guess takes says nothing about how close it was.
+// Constant-time compare. Hashing first gives timingSafeEqual equal-length inputs.
 async function same(a, b) {
   const [x, y] = await Promise.all([a, b].map((text) => crypto.subtle.digest("SHA-256", encoder.encode(text))));
   return crypto.subtle.timingSafeEqual(x, y);
 }
 
-// POST /api/logon { username, password }. Every try counts toward
-// LOGON_LIMITER (5 a minute per person), so the password can't be guessed.
+// POST /api/logon { username, password }. Every attempt counts against LOGON_LIMITER.
 export async function logon(request, env) {
   const { success } = await env.LOGON_LIMITER.limit({ key: clientKey(request) });
   if (!success) return apiError(429, "Too many tries. Wait a minute, then try again.");
   if (!isSetUp(env)) return apiError(503, "The admin account isn't set up yet.");
 
-  // A user name and password are a few bytes, so anything much bigger isn't one.
+  // real credentials are a few bytes
   if (Number(request.headers.get("content-length")) > 4096) return apiError(400, "The user name or password is incorrect.");
   const input = await request.json().catch(() => ({}));
   const username = typeof input.username === "string" ? input.username : "";
@@ -78,17 +66,15 @@ export async function logon(request, env) {
   });
 }
 
-// POST /api/logoff. The cookie goes, whoever's asking.
+// POST /api/logoff. Clears the cookie, no auth check.
 export function logoff(request) {
   const response = done();
   response.headers.set("set-cookie", cookie(request, "", 0));
   return response;
 }
 
-// A visitor's tag. It's their internet address scrambled with a key made
-// from the admin's secrets, so the same person always gets the same tag and
-// nobody without the secrets can work the address back out of it. The shared
-// disk (server/disk.js) keeps track of who did what by it.
+// Visitor tag for the disk's activity log. HMAC of the IP, keyed from the admin secrets,
+// so it's stable per IP and the IP can't be recovered without the secrets.
 export async function visitorTag(request, env) {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -100,7 +86,6 @@ export async function visitorTag(request, env) {
   return toHex(await crypto.subtle.sign("HMAC", key, encoder.encode(clientKey(request)))).slice(0, 16);
 }
 
-// Runs handler only for the admin.
 export async function adminOnly(request, env, handler) {
   if (!(await isAdmin(request, env))) return apiError(401, "Only the admin can do that.");
   return handler(request, env);

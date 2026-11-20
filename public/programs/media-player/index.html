@@ -8,9 +8,7 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
   <style>
-    /* Deep blue all over. The visualization's black screen fills the
-       middle, the playlist runs down the right, and the controls sit
-       along the bottom. */
+    /* Screen in the middle, playlist on the right, controls along the bottom. */
     body.player { background: var(--player-face); color: var(--player-ink); }
     .player .menu-bar { color: var(--ink); }
     .player__main {
@@ -106,7 +104,7 @@
       color: var(--player-ink-dim);
     }
 
-    /* XP's round glass buttons, each with its glyph. */
+    /* XP's round glass buttons. */
     .player__button {
       flex: none;
       width: var(--player-button);
@@ -129,9 +127,8 @@
     [data-act="mute"] { --glyph: var(--glyph-speaker); margin-left: var(--sp-12); }
     .player.is-muted [data-act="mute"] { --glyph: var(--glyph-muted); }
 
-    /* The seek bar and volume, filled up to the knob. Firefox does that with
-       ::-moz-range-progress, the rest with a gradient to --fill (set by
-       media-player.js). */
+    /* Groove filled up to the knob. Firefox uses ::-moz-range-progress,
+       other browsers a gradient to --fill (set by media-player.js). */
     .player__slider {
       --fill: 0%;
       appearance: none;
@@ -175,10 +172,9 @@
   <script type="module" src="media-player.js"></script>
 </head>
 <!--
-  Windows Media Player, for the music and sounds on the shared disk.
-  ?id=<id> plays a song and lists the rest of its folder, ?folder=<id> plays
-  everything in a folder, and with neither it lists My Music.
-  media-player.js does the rest.
+  Windows Media Player, for sounds on the shared disk.
+  ?id=<id> plays a song with its folder as the playlist. ?folder=<id> plays
+  a folder and its subfolders. With neither, it lists My Music.
 -->
 <body class="app player">
   <nav class="menu-bar" aria-label="Menu"></nav>

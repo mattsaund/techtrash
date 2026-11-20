@@ -1,10 +1,5 @@
-// XP's File and Folder Tasks, which the desktop's icons and the File Browser
-// share. Each asks XP's question first, and shows XP's message when
-// something can't be done.
-//
-// They all work on the one disk (window.top.desktop.disk, js/disk.js). Their
-// questions and messages go up in whichever page called them (the desktop,
-// or a program's window), as XP put them over the window that asked.
+// XP's File and Folder Tasks, shared by the desktop icons and the File Browser.
+// XP's questions and errors show in the calling page, over the window that asked.
 
 import { BAD_NAME, NAME_RULE, SOUND_NAME, isFixed, isFolder } from "./items.js";
 import { showMessage } from "./message.js";
@@ -14,21 +9,20 @@ export const disk = () => window.top.desktop.disk;
 const one = (items) => items.length === 1;
 const quoted = (item) => `'${item.name}'`;
 
-// Says what went wrong, in the server's words.
+// Error box with the server's message.
 export function complain(title, error) {
   return showMessage({ title, text: error.message ?? String(error) });
 }
 
-// XP's error for something fixed in place (js/items.js isFixed), in the
-// same words the server would use. verb is "delete" or "move".
+// XP's error for a fixed item (js/items.js isFixed), worded like the server's.
+// verb is "delete" or "move".
 export function refuseFixed(item, verb) {
   const title = `Error ${verb === "delete" ? "Deleting" : "Moving"} ${isFolder(item) ? "Folder" : "File or Folder"}`;
   return showMessage({ title, text: `Cannot ${verb} ${item.name}: Permission Denied.` });
 }
 
-// Into the Recycle Bin, after XP's question. From inside the bin (or with
-// the admin's Shift+Delete) it's gone for good, which asks differently.
-// Anything fixed in place gets XP's error instead.
+// Asks, then sends to the Recycle Bin. From the bin, or with the admin's
+// Shift+Delete, it's for good and asks differently. Fixed items get XP's error.
 export async function deleteItems(items, { forGood = false } = {}) {
   items = items.filter(Boolean);
   const loose = items.filter(movable);
@@ -45,7 +39,7 @@ export async function deleteItems(items, { forGood = false } = {}) {
   return throwAway(items, { forGood });
 }
 
-// The same without asking, for dragging onto the Recycle Bin.
+// No question, for drops on the Recycle Bin.
 export async function throwAway(items, { forGood = false } = {}) {
   let ok = true;
   let refused = false;
@@ -61,15 +55,14 @@ export async function throwAway(items, { forGood = false } = {}) {
     } catch (error) {
       ok = false;
       await complain(`Error Deleting ${isFolder(item) ? "Folder" : "File or Folder"}`, error);
-      // Locked (423) or too many changes (429) would stop the rest too.
+      // Locked (423) or rate limited (429): the rest would fail too.
       if (error.status === 423 || error.status === 429) break;
     }
   }
   return ok;
 }
 
-// A new name. One Windows wouldn't allow gets XP's rule, and one the server
-// turns down (another item has it, say) gets the server's words.
+// Bad characters get XP's rule. Server refusals (a name taken) get its message.
 export async function renameItem(item, name) {
   name = name.replace(/\s+/g, " ").trim();
   if (!name || name === item.name) return true;
@@ -86,8 +79,7 @@ export async function renameItem(item, name) {
   }
 }
 
-// Into a folder. Skips the folder itself and anything already in it.
-// Anything fixed in place gets XP's error instead.
+// Skips the folder itself and what's already in it. Fixed items get XP's error.
 export async function moveItems(items, folderId) {
   let refused = false;
   for (const item of items) {
@@ -107,7 +99,7 @@ export async function moveItems(items, folderId) {
   return true;
 }
 
-// Out of the Recycle Bin, back where each came from.
+// Back to each item's original folder.
 export async function restoreItems(items) {
   for (const item of items) {
     try {
@@ -135,8 +127,8 @@ export async function emptyBin() {
   }
 }
 
-// A new folder or text file, named the way XP named them ("New Folder",
-// "New Folder (2)"). Gives back the new item, ready to rename, or null.
+// The server numbers duplicates like XP ("New Folder (2)").
+// Returns the new item, ready to rename, or null.
 export async function makeNew(parent, kind) {
   try {
     if (kind === "folder") return await disk().makeFolder(parent, "New Folder");
@@ -147,8 +139,7 @@ export async function makeNew(parent, kind) {
   }
 }
 
-// What a file from your computer would be on the disk ("picture", "sound" or
-// "text"), or null.
+// A local file's disk kind: "picture", "sound", "text" or null.
 export function kindOf(file) {
   if (file.type.startsWith("image/")) return "picture";
   if (file.type.startsWith("audio/") || SOUND_NAME.test(file.name)) return "sound";
@@ -156,9 +147,7 @@ export function kindOf(file) {
   return null;
 }
 
-// Files from your own computer, saved in a folder for everyone. Anyone can
-// add pictures and text files, only the admin can add music, and anything
-// else gets XP's error.
+// Uploads local files. Anyone can add pictures and text. Sounds are admin only.
 export async function saveFromComputer(files, folderId) {
   for (const file of files) {
     const kind = kindOf(file);
@@ -177,8 +166,7 @@ export async function saveFromComputer(files, folderId) {
   }
 }
 
-// A picture on the disk as everyone's wallpaper, keeping the wallpaper's
-// current position (stretch, if it has none).
+// A disk picture as the shared wallpaper, keeping the current position.
 export async function setAsWallpaper(item) {
   const now = disk().settings().wallpaper ?? {};
   try {
@@ -188,13 +176,10 @@ export async function setAsWallpaper(item) {
   }
 }
 
-// What can be moved somewhere else, or thrown away: anything but the
-// desktop's own folders and first shortcuts (js/items.js isFixed).
+// Anything not fixed in place (js/items.js isFixed).
 export const movable = (item) => Boolean(item) && !isFixed(item);
 
-// What Cut has put aside. The desktop keeps it (js/desktop.js), so something
-// cut in one window can be pasted in another, or on the desktop. Paste moves
-// it.
+// Cut and Paste. js/desktop.js holds it, so it works across windows. Paste moves.
 export const clipboard = {
   ids: () => window.top.desktop.clipboard(),
   has: () => clipboard.ids().some((id) => disk().item(id)),

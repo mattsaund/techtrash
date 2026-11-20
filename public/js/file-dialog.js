@@ -1,22 +1,14 @@
-// XP's Open, Save As and Move Items dialogs, over the shared disk. A program
-// puts one up over its own window, like XP, and gets a promise of the answer.
+// XP's Open, Save As and Move Items dialogs over the shared disk, live while open.
+// Each resolves to null on cancel. Styles: .dialog in css/explorer.css.
+// doc puts one on another page (Paint uses the desktop's, its own look would clash).
 //
 //   openDialog({ kind, folder })
-//       The file to open, or null. kind is "text", "picture", "sound" or
-//       "any", and decides which files it lists.
+//       The file. kind ("text", "picture", "sound" or "any") filters the list.
 //   saveDialog({ kind, folder, name, extension })
-//       Where to save, as { folder, name, replace }, or null. replace is the
-//       item already there, if the person said to replace it. A name with no
-//       extension gets `extension`.
+//       { folder, name, replace }. replace is the existing item to overwrite.
+//       A name without an extension gets `extension`.
 //   folderDialog({ title, text, button, exclude })
-//       The id of a folder to move things into, or null. Folders in
-//       `exclude` (and everything in them) aren't offered.
-//
-// Each lists the disk as it is (window.top.desktop.disk, js/disk.js) and
-// keeps up with it while it's open. Their look is .dialog in
-// css/explorer.css. Each also takes doc, the page to put it up on, if not
-// this one. Paint puts its own on the desktop's, since its look would clash
-// with XP's.
+//       A folder id. Folders in `exclude` are hidden, with everything in them.
 
 import { BAD_NAME, NAME_RULE, SPECIAL, iconOf, isFolder, isPicture, isSound, isText, sortItems } from "./items.js";
 import { showMessage } from "./message.js";
@@ -24,7 +16,7 @@ import { showMessage } from "./message.js";
 const XP = "/img/icons/xp";
 const disk = () => window.top.desktop.disk;
 
-// The places down the dialog's left side, like XP's.
+// Places bar down the left, like XP's.
 const PLACES = [
   { id: "desktop", label: "Desktop" },
   { id: "documents", label: "My Documents" },
@@ -41,8 +33,7 @@ const TYPES = {
 
 let count = 0;
 
-// The window on its own layer, with everything behind it out of reach, plus
-// close() to take it all down again and a few helpers.
+// Modal window on its own layer. Everything behind it is inert until close().
 function frame(title, className, doc) {
   const id = `dialog-${++count}`;
   const layer = doc.createElement("div");
@@ -71,8 +62,7 @@ function frame(title, className, doc) {
     behind.forEach((el, i) => { el.inert = wasInert[i]; });
     if (hadFocus?.isConnected) hadFocus.focus?.();
   };
-  // Keeps up with the disk while it's open. The desktop's page hears of
-  // changes from the disk itself, and a program's from its window.
+  // The desktop page uses disk.watch. A program's page gets "diskchange" events.
   const onChange = (fn) => {
     if (doc === window.top.document) cleanups.push(disk().watch(fn));
     else {
@@ -161,8 +151,7 @@ function fileDialog({ saving, kind = "text", folder = "documents", name = "", ex
     draw();
   }
 
-  // "Save in" (or "Look in") lists the folder and the folders it's in, then
-  // the places.
+  // "Look in" lists the folder and its ancestors, then the places.
   function drawLook() {
     look.replaceChildren();
     const chain = disk().path(here);
@@ -323,8 +312,8 @@ export function folderDialog({ title = "Browse For Folder", text = "", button = 
   const left = new Set(exclude);
   let picked = null;
 
-  // Every folder there is, each under the one it's in, the desktop first and
-  // then My Documents. Not the Recycle Bin, and nothing being moved.
+  // Folder tree under Desktop, then My Documents. Skips the Recycle Bin and
+  // what's being moved.
   function draw() {
     tree.replaceChildren();
     const add = (folder, depth) => {

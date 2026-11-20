@@ -1,14 +1,7 @@
-// XP's Notepad, over the shared disk. It edits a text file on the disk
-// (?id=<id>) or a new Untitled one, with XP's menus and its Open and Save As
-// dialogs (js/file-dialog.js). Closing with unsaved changes asks first, as
-// XP did.
-//
-// Someone else may change the file while it's open here. If nothing's been
-// typed here since, it just shows their version. Otherwise saving asks
-// whether to replace theirs.
-//
-// The site's own text files (?file=credits.txt, from public/files/) open
-// read-only, with their addresses turned into links.
+// XP's Notepad for the shared disk: ?id=<id>, or a new Untitled file.
+// If someone else saves the open file, their text loads unless there are
+// unsaved edits here. Then Save asks before replacing theirs.
+// Site files (?file=credits.txt, public/files/) open read-only, with links.
 
 import { openDialog, saveDialog } from "/js/file-dialog.js";
 import { isText } from "/js/items.js";
@@ -24,9 +17,9 @@ const site = document.querySelector(".notepad__site");
 const statusBar = document.querySelector(".status-bar");
 const where = document.querySelector("[data-where]");
 
-let file = null;       // the disk item being edited, or null for Untitled
-let version = 0;       // its version when opened or last saved here
-let saved = "";        // its text as of then
+let file = null;       // disk item, or null for Untitled
+let version = 0;       // version at open or last save, to spot others' saves
+let saved = "";        // text at that point
 let wrap = true;       // Format > Word Wrap
 let showStatus = false;
 
@@ -37,7 +30,7 @@ function title() {
   document.title = `${window.siteFile ?? name()} - Notepad`;
 }
 
-// Puts the file in the address, so a shared link or a reload reopens it.
+// ?id= in the address, so a reload or shared link reopens the file.
 function remember() {
   history.replaceState(null, "", file ? `?id=${encodeURIComponent(file.id)}` : location.pathname);
   dispatchEvent(new Event("addresschange"));
@@ -71,8 +64,7 @@ async function load(id) {
 
 // --- saving ----------------------------------------------------------------
 
-// Saves over the file it came from, or does Save As if it's new. Returns
-// whether it saved.
+// Save As for a new file. Returns whether it saved.
 async function save() {
   if (!file) return saveAs();
   const now = disk.item(file.id);
@@ -114,8 +106,7 @@ async function write(send) {
   }
 }
 
-// Asks XP's "Do you want to save the changes?" when there are any. Returns
-// true when it's fine to go on (it saved, or they picked No).
+// XP's "Do you want to save the changes?" prompt. Returns true if it's OK to go on.
 async function settle() {
   if (!changed()) return true;
   const answer = await showMessage({
@@ -128,7 +119,7 @@ async function settle() {
   return answer === "No";
 }
 
-// The window's close button asks this first (js/desktop.js).
+// js/desktop.js checks this before closing the window.
 window.mayClose = settle;
 
 async function fresh() {
@@ -151,15 +142,14 @@ async function openOne() {
 
 // --- editing ---------------------------------------------------------------
 
-// Types words in at the cursor, over any selection, so Undo can take them
-// back out.
+// Inserts via execCommand so Undo works. setRangeText is the fallback.
 function insert(words) {
   text.focus();
   if (!document.execCommand("insertText", false, words)) text.setRangeText(words, text.selectionStart, text.selectionEnd, "end");
   status();
 }
 
-// Time/Date (F5), written the way XP did, like 11:05 PM 11/9/2026.
+// Time/Date (F5) in XP's format, like 11:05 PM 11/9/2026.
 function stamp() {
   const now = new Date();
   insert(`${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} ${now.toLocaleDateString("en-US")}`);
@@ -195,7 +185,7 @@ function setWrap(on) {
   text.classList.toggle("is-unwrapped", !on);
 }
 
-// --- the menus -------------------------------------------------------------
+// --- menus -----------------------------------------------------------------
 
 function setUpMenus() {
   const editing = () => !window.siteFile;
@@ -224,8 +214,7 @@ function setUpMenus() {
       { label: "Word Wrap", checked: wrap, disabled: !editing(), action: () => { setWrap(!wrap); if (wrap) showStatus = false; status(); } },
     ] },
     { label: "View", items: () => [
-      // XP had no status bar with Word Wrap on, since wrapped lines would
-      // throw off Ln.
+      // XP disables the status bar under Word Wrap (wrapped lines skew Ln).
       { label: "Status Bar", checked: showStatus && !wrap, disabled: wrap || !editing(), action: () => { showStatus = !showStatus; status(); } },
     ] },
     { label: "Help", items: () => [
@@ -254,18 +243,17 @@ document.addEventListener("keydown", (e) => {
 text.addEventListener("input", status);
 text.addEventListener("keyup", status);
 text.addEventListener("pointerup", status);
-// Tab types a tab, as in XP's Notepad, instead of leaving the window.
+// Tab inserts a tab, as in XP's Notepad, instead of moving focus.
 text.addEventListener("keydown", (e) => {
   if (e.key !== "Tab" || e.ctrlKey || e.metaKey || e.altKey) return;
   e.preventDefault();
   insert("\t");
 });
 
-// --- the site's own files --------------------------------------------------
+// --- site files ------------------------------------------------------------
 
-// Addresses in the text become links that open in a new tab: web addresses,
-// with or without https:// (github.com/..., dejavu-fonts.github.io), and the
-// site's own files (/fonts/LGPL-2.1.txt). A name like cosmos.js isn't one.
+// Links web addresses, with or without https:// (github.com/...), and site
+// paths like /fonts/LGPL-2.1.txt. A file name like cosmos.js doesn't match.
 const ADDRESS = /(https?:\/\/\S+|(?<![\w.])\/[\w.-]+\/[\w./-]+|\b(?:[\w-]+\.)+(?:com|org|net|io|dev|app|gov|edu)(?:\/[\w./%-]*)?)/g;
 function linked(words) {
   const out = document.createDocumentFragment();
@@ -312,13 +300,13 @@ async function saveSiteFile() {
   title();
 }
 
-// --- starting --------------------------------------------------------------
+// --- startup ---------------------------------------------------------------
 
 function start() {
   setUpMenus();
   setWrap(true);
-  // Someone else changed the open file. Follow a rename, and show their text
-  // if nothing's been typed here since.
+  // Someone else changed the open file. Follow renames, and take their text
+  // if nothing's been typed here.
   addEventListener("diskchange", async (e) => {
     if (!file || !e.detail.items) return;
     const now = e.detail.items.find((item) => item.id === file.id);

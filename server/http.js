@@ -1,7 +1,6 @@
-// Small helpers the whole server uses.
+// Shared HTTP helpers.
 
-// JSON is never cached (it changes whenever something's posted), and the
-// browser never takes it for anything but JSON.
+// Never cached (API data changes on every write) and never MIME-sniffed.
 const JSON_HEADERS = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
 
 export function apiError(status, message) {
@@ -14,11 +13,10 @@ export function fresh(body, status = 200) {
 
 export const done = () => new Response(null, { status: 204 });
 
-// Who's asking, for the rate limiters.
+// Client IP, the key for rate limits.
 export const clientKey = (request) => request.headers.get("cf-connecting-ip") ?? "unknown";
 
-// A change (a post, a log on) has to come from the site's own pages.
-// Browsers always send Origin with one, and another site can't fake it.
+// CSRF check for writes. Browsers always send Origin with them, and other sites can't forge it.
 export function fromThisSite(request) {
   const origin = request.headers.get("origin");
   return !origin || origin === new URL(request.url).origin;

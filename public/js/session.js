@@ -1,36 +1,18 @@
-// Logging on and off, and who's logged on.
-//
-// A visitor arrives already logged on as "techtrash", so nothing stands
-// between them and the blog. The Welcome screen only comes after Log Off or
-// Switch User, and a tab that logged off stays that way through a reload.
-// The little script at the top of index.html puts .is-logged-off on <html>
-// before anything paints, and this does everything after.
-//
-// The Welcome screen has two users.
-//   techtrash  everyone. One click logs on.
-//   admin      me. The server checks the user name and password
-//              (server/admin.js), and the admin can post on the blog. A
-//              cookie keeps the admin logged on through a reload or a new
-//              tab, until Log Off or Switch User.
-//
-// Log Off in the start menu asks first, with the desktop gone gray behind
-// the question, like XP.
-//   Switch User  back to the Welcome screen, windows left open
-//   Log Off      every window closed, "Saving your settings...", then back
-//                to the Welcome screen
-// Either one ends an admin session.
+// Logging on and off. Visitors start logged on as "techtrash" so nothing blocks
+// the blog. The Welcome screen shows only after Log Off or Switch User, and stays
+// through a reload. Admin logon is checked by server/admin.js, and its cookie
+// lasts until Log Off or Switch User. Only Log Off closes the windows.
 
 const css = getComputedStyle(document.documentElement);
 const WAIT = parseInt(css.getPropertyValue("--wait"), 10);
-// Set in sessionStorage while this tab is logged off. index.html reads it too.
+// sessionStorage flag while this tab is logged off. index.html's inline script
+// reads it too, to set .is-logged-off before first paint.
 const KEY = "techtrash:logged-off";
 
 const PROMPT = "To begin, click your user name";
 
-// onUser(user, { changed }) runs whenever we learn who's logged on, both when
-// the server confirms an admin session from before and every time someone
-// logs on. changed is true when it's a different user than before (after the
-// page loaded), so open windows can catch up with what they're allowed to do.
+// onUser(user, { changed }) runs on every logon, and when the server confirms an
+// earlier admin session. changed means a new user since load, so windows catch up.
 export function setUpSession({ closeAll, onUser }) {
   const root = document.documentElement;
   const logon = document.querySelector(".logon");
@@ -40,8 +22,7 @@ export function setUpSession({ closeAll, onUser }) {
   const form = logon.querySelector(".logon__form");
   const dialog = document.querySelector(".logoff");
   const startHead = document.querySelector(".start-menu__head");
-  // Everything behind the Welcome screen or the Log Off dialog, made inert
-  // while either is up.
+  // Inert while the Welcome screen or the Log Off dialog is up.
   const behind = [".desktop", ".taskbar", "#start-menu"].map((s) => document.querySelector(s));
   let current = "techtrash";
 
@@ -55,8 +36,7 @@ export function setUpSession({ closeAll, onUser }) {
   const reach = (el, on) => { el.inert = !on; };
   const status = (user, text) => { tile(user).querySelector(".logon__status").textContent = text; };
 
-  // The start menu shows who's logged on, with the same picture and name as
-  // their Welcome screen tile.
+  // Start menu header copies the user's Welcome screen picture and name.
   function becomeUser(user, tell = true) {
     const changed = user !== current;
     current = user;
@@ -110,7 +90,7 @@ export function setUpSession({ closeAll, onUser }) {
     logOnAs("techtrash");
   });
 
-  // XP's password box, which opens under the user's name.
+  // XP's password box, under the user's name.
   tile("admin").addEventListener("click", () => {
     if (logon.classList.contains("is-logging-on")) return;
     form.hidden = false;
@@ -147,7 +127,7 @@ export function setUpSession({ closeAll, onUser }) {
 
   // --- logging off ---------------------------------------------------------
 
-  // Leaving as the admin ends the admin session on the server too.
+  // Ends the admin session on the server too.
   function leave() {
     if (current === "admin") fetch("/api/logoff", { method: "POST" }).catch(() => {});
   }
@@ -198,15 +178,14 @@ export function setUpSession({ closeAll, onUser }) {
     }, WAIT);
   });
 
-  // --- the first paint -----------------------------------------------------
+  // --- first paint ---------------------------------------------------------
 
   prompt.textContent = PROMPT;
   if (root.classList.contains("is-logged-off")) showWelcome();
   else reach(logon, false);
 
-  // An admin session from before (a reload, another tab) is still the admin.
-  // The windows already asked the server themselves, so there's no need to
-  // tell them.
+  // An earlier admin session (reload, other tab) still counts. Windows ask the
+  // server themselves, so they aren't told.
   fetch("/api/me")
     .then((response) => (response.ok ? response.json() : {}))
     .then(({ admin }) => {

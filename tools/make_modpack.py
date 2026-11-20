@@ -3,30 +3,22 @@
 Builds public/files/create-mod-all.mrpack, the Minecraft server's modpack,
 from the Prism Launcher instance it's played in.
 
-A Modrinth pack (.mrpack) is a zip holding one file, modrinth.index.json. It
-names the Minecraft version and the mod loader, and lists every mod with its
-hashes and the address Modrinth serves it from. A launcher reads it, makes a
-fresh instance, and downloads each mod from Modrinth itself, checking it
-against its hashes. So the pack is a few dozen KB and hands out nobody's jars.
+The .mrpack is a zip holding only modrinth.index.json: the Minecraft and loader
+versions, and each mod's hashes and Modrinth URL. Launchers download and verify
+the mods themselves, so the pack is a few dozen KB and redistributes no jars.
+No configs (mods write their own defaults), settings, worlds, caches, resource
+packs or server list.
 
-It carries nothing else. No configs (every mod writes its own defaults the
-first time it runs), and no settings, worlds, caches, resource packs or
-server list. Importing it gives a fresh instance with the mods and nothing
-of the instance it was made from.
-
-Every mod has to have come from Modrinth, installed through Prism's mod
-browser, which records where each one came from in mods/.index. Before
-anything is written, each jar on disk is checked against Prism's record of
-it, and Modrinth is asked to confirm every file by its hash, so the pack
-points at exactly the jars the instance runs.
+Every mod must be installed from Modrinth through Prism's mod browser, which
+records its source in mods/.index. Before writing, each jar is checked against
+that record and Modrinth confirms every file by hash.
 
     python3 tools/make_modpack.py                    # the default instance
     python3 tools/make_modpack.py "<instance folder>" [--version 2026.11.02]
 
-Needs Python 3.11 or newer (for tomllib) and nothing else. Players import
-the result in Prism (Add Instance, Import, paste
-https://techtrash.org/files/create-mod-all.mrpack) or open it with the
-Modrinth App.
+Needs Python 3.11+ (tomllib) and nothing else. Players import the result in
+Prism (Add Instance, Import, paste https://techtrash.org/files/create-mod-all.mrpack)
+or open it with the Modrinth App.
 """
 import argparse
 import datetime
@@ -45,9 +37,9 @@ INSTANCE = Path.home() / ".local/share/PrismLauncher/instances/1.21.1 Create Mod
 NAME = "1.21.1 Create Mod All"
 SUMMARY = "Create and its addons, for Minecraft 1.21.1 on NeoForge."
 
-# The hosts a launcher will download a pack's files from (the .mrpack format's own list).
+# Download hosts the .mrpack format allows.
 HOSTS = {"cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com"}
-# Prism's names for the game and the loaders, and what the format calls them.
+# Prism component uids and their .mrpack names.
 LOADERS = {
     "net.minecraft": "minecraft",
     "net.neoforged": "neoforge",
@@ -71,7 +63,7 @@ def digest(path, algorithm):
 
 
 def modrinth_files(sha512s):
-    """{sha512: (url, sha1)} for every file Modrinth has, asked in one go."""
+    """{sha512: (url, sha1)} for each file Modrinth has, in one request."""
     request = urllib.request.Request(
         f"{API}/version_files",
         data=json.dumps({"hashes": sha512s, "algorithm": "sha512"}).encode(),
@@ -106,7 +98,7 @@ def main():
     if "minecraft" not in dependencies or len(dependencies) < 2:
         fail(f"couldn't tell the Minecraft version and the loader from mmc-pack.json: {dependencies}")
 
-    # Prism's record of each mod, with where it came from and its hash
+    # Prism's record per mod (source and hash)
     records = {}
     for path in (mods / ".index").glob("*.pw.toml"):
         record = tomllib.loads(path.read_text())
@@ -137,7 +129,7 @@ def main():
     if problems:
         fail("these mods can't go in the pack:\n  " + "\n  ".join(problems))
 
-    # Modrinth's word that it serves each exact file, and where
+    # Modrinth must serve each exact file
     confirmed = modrinth_files([f["hashes"]["sha512"] for f in files])
     for f in files:
         url, sha1 = confirmed.get(f["hashes"]["sha512"], (None, None))

@@ -2,10 +2,9 @@
 """
 Draws the icons for Solitaire and Mines into public/img/icons/games/.
 
-The games are the site's own, not Microsoft's, so their icons are too. They're
-drawn in XP's style, lit from the top left with a dark edge and a soft shadow,
-at four times the size and then scaled down so the edges come out smooth.
-They're MIT, like the rest of my code.
+The games are the site's own, not Microsoft's, so their icons are too. Drawn in
+XP's style at 4x, then scaled down for smooth edges. They're MIT, like the rest
+of my code.
 
 Needs pillow. In a throwaway virtualenv:
 
@@ -20,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "img" / "icons" / "games"
-SIZE = 96          # the same as XP's icons on the site (tools/make_icons.py)
+SIZE = 96          # same as SIZE in tools/make_icons.py
 BIG = SIZE * 4     # drawn at this size first
 
 
@@ -82,7 +81,7 @@ def letter_a(draw, x, y, h, width, fill):
     draw.line([(x - w * 0.27, y + h * 0.62), (x + w * 0.27, y + h * 0.62)], fill=fill, width=width)
 
 
-# --- Solitaire, three cards fanned out ----------------------------------------
+# --- Solitaire, three fanned cards --------------------------------------------
 
 CARD = (156, 216)
 EDGE = (84, 98, 128, 255)
@@ -130,7 +129,7 @@ def solitaire():
     return shadow(canvas, (10, 12), 12, 0.3)
 
 
-# --- Mines, a raised tile with a flag on it -----------------------------------
+# --- Mines, a flagged tile ----------------------------------------------------
 
 def mines():
     canvas = Image.new("RGBA", (BIG, BIG), (0, 0, 0, 0))
@@ -182,7 +181,7 @@ def mines():
 
 
 def shrink(image):
-    # with the color premultiplied by its alpha, so the edges don't go dark
+    # premultiplied alpha, so the edges don't go dark
     return image.convert("RGBa").resize((SIZE, SIZE), Image.LANCZOS).convert("RGBA")
 
 

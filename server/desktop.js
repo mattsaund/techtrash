@@ -1,28 +1,18 @@
-// The shared desktop. One Durable Object, Desktop, is the computer everyone
-// on the site shares. It holds where the icons sit, the disk (server/disk.js,
-// with every file, the wallpaper, the lock and what's been done), and the
-// line to every tab using it. A tab connects over a WebSocket at /api/desktop
-// and gets the whole desktop, then every change as it happens. Changes to the
-// disk come in as plain requests to /api/disk/... (through worker.js) and go
-// out to every tab once they're made.
+// The shared desktop. One Durable Object holds the icon cells, the disk (server/disk.js) and
+// every tab's WebSocket (/api/desktop). Disk changes come in as /api/disk/... requests (see
+// answer()) and go out to every tab. worker.js sets x-techtrash-admin ("1") and
+// x-techtrash-visitor (a visitor tag) after dropping any the client sent.
 //
-// worker.js says who's asking in two headers it sets itself, after throwing
-// out any the request came with. x-techtrash-admin is "1" for the admin, and
-// x-techtrash-visitor is a visitor's tag.
-//
-// WebSocket messages are all JSON. Positions are grid cells, [column, row]
-// from the top left (public/js/grid.js):
-//   to a tab    { t: "desktop", icons }       every desktop icon's cell, as it connects
-//               { t: "disk", items, all }     every item on the disk, as it connects
-//               { t: "disk", items, gone }    these changed (as they are now), or are gone
-//               { t: "settings", settings }   the wallpaper and the lock
-//               { t: "move", icons }          someone's dragging these, and they're
-//                                             here right now (in cells, not whole ones)
-//               { t: "place", icons }         these landed in these cells
-//   from a tab  { t: "move", icons }          dragging: passed on, not saved
-//               { t: "drop", icons }          let go: snapped to a free cell, saved,
-//                                             and sent to everyone as "place"
-// The disk's requests are the cases in answer(), below.
+// WebSocket messages are JSON. Cells are [column, row] from the top left (public/js/grid.js).
+//   to a tab    { t: "desktop", icons }       every icon's cell, on connect
+//               { t: "disk", items, all }     every disk item, on connect
+//               { t: "disk", items, gone }    changed items (as they are now) and removed ids
+//               { t: "settings", settings }   wallpaper and lock
+//               { t: "move", icons }          someone's live drag, in fractional cells
+//               { t: "place", icons }         icons landed in these cells
+//   from a tab  { t: "move", icons }          dragging, relayed but not saved
+//               { t: "drop", icons }          let go, snapped to a free cell, saved and
+//                                             sent to everyone as "place"
 
 import { DurableObject } from "cloudflare:workers";
 import { FIRST_SHORTCUTS, findApp, firstShortcutsFirst } from "../public/js/apps.js";
@@ -37,8 +27,7 @@ const MAX_MESSAGE_BYTES = 4096;
 const MAX_MESSAGES_PER_SECOND = 60;   // a tab sends at most 20 while dragging
 const MAX_JSON_BYTES = 16 * 1024;
 
-// A request's body, read no further than `most` bytes. worker.js checks the
-// size a request says it is, but a body sent in chunks doesn't say.
+// Reads at most `most` bytes. worker.js checks Content-Length, but a chunked body has none.
 async function upTo(request, most) {
   const parts = [];
   let size = 0;
@@ -52,9 +41,7 @@ async function upTo(request, most) {
   return all;
 }
 
-// What a visitor saves: something new (a file, a folder, a shortcut) or a
-// file saved over. The admin gets one email about everything saved in the
-// ten minutes after the first (server/notify.js).
+// Visitor actions for the admin's digest email, sent 10 minutes after the first one.
 const SAVES = new Set(["POST folder", "POST shortcut", "POST file", "PUT file"]);
 const EMAIL_AFTER_MS = 10 * 60 * 1000;
 const MOST_IN_AN_EMAIL = 50;
@@ -67,22 +54,18 @@ export class Desktop extends DurableObject {
     const { sql } = ctx.storage;
     sql.exec("CREATE TABLE IF NOT EXISTS cells (id TEXT PRIMARY KEY, col INTEGER NOT NULL, row INTEGER NOT NULL)");
     this.disk = new Disk(sql, (work) => ctx.storage.transactionSync(work));
-    // The first time the admin's email is set up, the emails start from now
-    // rather than with everything ever saved.
+    // When email is first set up, start the digest from now, not from all past activity.
     if (notifying(env) && this.disk.setting("emailed") === null) this.disk.setSetting("emailed", this.disk.lastActivity());
-    // Lets tabs keep their connection alive without waking this object up.
+    // keepalive pings are answered without waking the object
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
-    // The desktop's icons are the items in its folder. The shortcuts it
-    // started with come first, then the rest in the order they were made.
-    // Each goes in its saved cell, or the next free one down XP's columns.
+    // Icons are the desktop folder's items, first shortcuts first, then by creation.
+    // Each takes its saved cell, or the next free one down XP's columns.
     const onDesktop = this.disk.list().filter((item) => item.parent === "desktop")
       .sort((a, b) => firstShortcutsFirst(a, b) || a.created - b.created);
     const saved = new Map(sql.exec("SELECT id, col, row FROM cells").toArray().map(({ id, col, row }) => [id, [col, row]]));
     this.icons = startingCells(onDesktop.map((item) => item.id), saved);
     for (const [id, cell] of this.icons) if (!saved.has(id)) this.store(id, cell);
-    // The first shortcuts never move. They sit at the top of the first
-    // column in their order, and whatever got one of those cells swaps with
-    // the shortcut that belongs there.
+    // First shortcuts are pinned to the top of column 0. Whatever holds their cell swaps with them.
     FIRST_SHORTCUTS.forEach((id, row) => {
       const at = this.icons.get(id);
       if (!at || (at[0] === 0 && at[1] === row)) return;
@@ -93,7 +76,6 @@ export class Desktop extends DurableObject {
     });
   }
 
-  // Puts an icon in a cell and saves it for next time.
   store(id, cell) {
     this.icons.set(id, cell);
     this.ctx.storage.sql.exec(
@@ -121,9 +103,9 @@ export class Desktop extends DurableObject {
     }
   }
 
-  // --- the WebSocket ------------------------------------------------------------
+  // --- WebSocket ----------------------------------------------------------------
 
-  // A new tab gets the whole desktop, then every change as it happens.
+  // Sends the full state. Changes follow through send().
   connect(request, who) {
     if (request.headers.get("upgrade") !== "websocket") return new Response("expected a websocket", { status: 426 });
     const [client, server] = Object.values(new WebSocketPair());
@@ -146,8 +128,7 @@ export class Desktop extends DurableObject {
       return ws.serializeAttachment(tab);
     }
     const icons = this.cleanIcons(message?.icons, message?.t === "drop");
-    // If the desktop's locked or this visitor's kept out, nothing moves, and
-    // a drop goes back where it came from.
+    // If locked or blocked, nothing moves and a drop snaps back.
     let mayMove = Boolean(icons);
     if (icons) {
       try {
@@ -158,7 +139,7 @@ export class Desktop extends DurableObject {
       }
     }
     if (mayMove && message.t === "move") {
-      // Remembered, so the icons can go back if this tab leaves mid-drag.
+      // so webSocketClose can put them back if the tab leaves mid-drag
       tab.moving = [...new Set([...(tab.moving ?? []), ...Object.keys(icons)])];
       this.send({ t: "move", icons }, ws);
     } else if (mayMove && message.t === "drop") {
@@ -168,14 +149,13 @@ export class Desktop extends DurableObject {
     ws.serializeAttachment(tab);
   }
 
-  // Throws out anything that isn't one of the desktop's icons at a pair of
-  // numbers. The numbers are held to the grid, then rounded to whole cells
-  // for a drop or to two places (well under a pixel) for a move.
+  // Keeps known icons at numeric [col, row], clamped to the grid. Rounded to whole cells
+  // for a drop, or 2 decimals (well under a pixel) for a move.
   cleanIcons(value, whole) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const icons = {};
     for (const [id, at] of Object.entries(value)) {
-      // (the first shortcuts never move, whatever a tab says)
+      // first shortcuts never move
       if (!this.icons.has(id) || FIRST_SHORTCUTS.includes(id) || !Array.isArray(at) || at.length !== 2) continue;
       const cell = at.map(Number);
       if (!cell.every(Number.isFinite)) continue;
@@ -187,9 +167,8 @@ export class Desktop extends DurableObject {
     return Object.keys(icons).length > 0 ? icons : null;
   }
 
-  // Puts each dropped icon in its cell, or the nearest free one if another
-  // icon got there first, and saves them. Cells the dropped icons are leaving
-  // count as free.
+  // Saves each icon at its cell, or the nearest free one if taken.
+  // Cells the dropped icons are leaving count as free.
   drop(icons) {
     const taken = new Set([...this.icons].filter(([id]) => !(id in icons)).map(([, cell]) => cellKey(cell)));
     const placed = {};
@@ -202,7 +181,7 @@ export class Desktop extends DurableObject {
     return placed;
   }
 
-  // At most MAX_MESSAGES_PER_SECOND from one tab. The rest are ignored.
+  // Per-tab rate limit. Extra messages are ignored.
   allow(tab) {
     const second = Math.floor(Date.now() / 1000);
     if (tab.second !== second) Object.assign(tab, { second, count: 0 });
@@ -210,7 +189,7 @@ export class Desktop extends DurableObject {
     return tab.count <= MAX_MESSAGES_PER_SECOND;
   }
 
-  // To every tab, or every tab but one.
+  // Broadcast, optionally skipping one socket.
   send(message, except = null) {
     const text = JSON.stringify(message);
     for (const other of this.ctx.getWebSockets()) {
@@ -221,8 +200,7 @@ export class Desktop extends DurableObject {
     }
   }
 
-  // A tab that goes away mid-drag never drops what it was dragging, so
-  // everyone else gets those icons back where they were.
+  // A tab that leaves mid-drag never drops, so put its icons back for everyone else.
   webSocketClose(ws, code) {
     const moving = (ws.deserializeAttachment()?.moving ?? []).filter((id) => this.icons.has(id));
     if (moving.length > 0) {
@@ -233,10 +211,9 @@ export class Desktop extends DurableObject {
     } catch {}
   }
 
-  // --- the admin's email about saves --------------------------------------------
+  // --- save digest email --------------------------------------------------------
 
-  // A visitor saved something. Unless an email's already on its way, one goes
-  // out in ten minutes (the alarm).
+  // Sets the digest alarm 10 minutes out, unless one is already pending.
   async emailSoon(host) {
     if (!notifying(this.env)) return;
     if (this.disk.setting("site") !== host) this.disk.setSetting("site", host);
@@ -257,7 +234,7 @@ export class Desktop extends DurableObject {
       `${lines.join("\n")}\n\nSee it all in the Admin Dashboard: https://${site}/#admin\n`);
   }
 
-  // --- the disk's requests ------------------------------------------------------
+  // --- disk API -----------------------------------------------------------------
 
   async answer(request, url, who) {
     const q = url.searchParams;
@@ -277,23 +254,21 @@ export class Desktop extends DurableObject {
 
     switch (op) {
       case "GET file": return this.file(request, q.get("id"), q.get("v"));
-      // The wallpaper and the lock, for a page that hasn't opened its line yet
-      // (js/disk.js peek). url is where the wallpaper's picture is.
+      // For pages not connected yet (peek in public/js/disk.js). url is the wallpaper image.
       case "GET settings": {
         const settings = this.disk.settings();
         const image = settings.wallpaper?.image ?? "";
         return json({ settings, url: wallpaperUrl(image, image.startsWith("file:") ? this.disk.item(image.slice(5)) : null) });
       }
       case "POST folder": return this.changed(this.disk.create(who, { ...(await body()), kind: "folder" }));
-      // A shortcut to a program (the start menu's Send To > Desktop), named
-      // after it. Only the admin can make one to an admin-only program.
+      // Start menu's Send To > Desktop. Shortcuts to admin-only programs are admin-only.
       case "POST shortcut": {
         const { parent, type } = await body();
         const app = findApp(String(type ?? ""));
         if (app?.admin && who !== "admin") throw new DiskError(403, "Only the admin can make a shortcut to that.");
         return this.changed(this.disk.create(who, { parent, name: app?.title ?? "Shortcut", kind: "app", type: app?.id ?? "" }));
       }
-      // type is what the file's meant to be ("text", "picture" or "sound")
+      // type is "text", "picture" or "sound"
       case "POST file": return this.changed(this.disk.create(who, {
         parent: q.get("parent"), name: q.get("name"), kind: "file", type: q.get("type"), data: await bytes(),
       }));
@@ -306,7 +281,7 @@ export class Desktop extends DurableObject {
       case "POST restore": return this.changed(this.disk.restore(who, q.get("id")));
       case "POST empty": return this.changed(this.disk.empty(who));
       case "PUT wallpaper": return this.settingsChanged(this.disk.setWallpaper(who, await body()));
-      // the Admin Dashboard's
+      // Admin Dashboard
       case "GET admin": admin(); return json({
         items: this.disk.everything(), activity: this.disk.activity(), blocked: this.disk.blocked(), settings: this.disk.settings(),
       });
@@ -321,9 +296,8 @@ export class Desktop extends DurableObject {
     }
   }
 
-  // A file's bytes, or the part of them a player asked for. Each version has
-  // its own address (?v=), so a browser can keep it a while. Whatever's in a
-  // file, it's only ever shown as what it is, never run.
+  // Each version has its own URL (?v=), so it can be cached. The CSP sandbox and nosniff
+  // mean uploaded content is only ever displayed, never run.
   file(request, id, version) {
     const item = this.disk.file(id);
     const current = String(item.version) === String(version ?? "");
@@ -337,9 +311,8 @@ export class Desktop extends DurableObject {
     return sendPart(request, item.size, headers, (start, end) => this.disk.stream(item.id, start, end));
   }
 
-  // Sends a change to the disk out to every tab, and keeps the desktop's
-  // icons in step with its folder. Something new there gets the next free
-  // cell down XP's columns, and whatever left gives its cell up.
+  // Broadcasts a disk change and keeps icons in step with the desktop folder.
+  // New items get the next free cell. Items that left give theirs up.
   changed({ items = [], gone = [] }) {
     const placed = {};
     for (const item of items) {

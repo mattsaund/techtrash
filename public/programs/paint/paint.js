@@ -1,18 +1,7 @@
-// Paint. It's JS Paint (jspaint/, MS Paint remade for the web by Isaiah
-// Odhner, MIT) in a window, saving to the shared disk.
-//
-// JS Paint lets the page around it decide where files go, through
-// window.systemHooks. Here that's the disk (js/disk.js). Save and Open use
-// XP's own dialogs (js/file-dialog.js) on the desktop's page, since JS Paint's
-// look would clash with them in here. File > Set As Wallpaper sets everyone's
-// wallpaper, and a picture opened from the File Browser (?id=<id>) opens
-// straight in. The address follows the file.
-//
-// Before JS Paint starts, this also trims its menus, stops About from asking
-// jspaint.app for news, and makes closing the window with unsaved changes
-// ask first. It runs after JS Paint's other modules and before its app.js
-// (see index.html), so JS Paint's globals are there to read and its menus
-// can be changed before they're drawn.
+// Paint is JS Paint (jspaint/, MS Paint remade for the web by Isaiah Odhner,
+// MIT). window.systemHooks points its files at the shared disk.
+// Save and Open use XP's dialogs on the top page, clear of JS Paint's CSS.
+// Loads just before JS Paint's app.js (see index.html) to edit its menus first.
 
 /* global file_name, localize, MENU_DIVIDER, saved, showMessageBox, system_file_handle */
 
@@ -26,8 +15,7 @@ const desktop = window.top === window ? null : window.top.desktop;
 const disk = desktop?.disk;
 const doc = window.top.document;   // where XP's dialogs go
 
-// The picture types the disk keeps, by extension, and the format JS Paint
-// saves each one as.
+// Picture extensions the disk keeps -> the format JS Paint saves each as.
 const SAVE_AS = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", bmp: "image/bmp", webp: "image/webp" };
 const extension = (name) => (name.match(/\.([^.]+)$/)?.[1] ?? "").toLowerCase();
 
@@ -36,10 +24,10 @@ const cannot = () => showMessage({ title: "Paint", text: "Paint here can only sa
 const onDisk = () => (typeof system_file_handle === "string" ? disk.item(system_file_handle) : null);
 const forPictures = (formats) => formats.some((format) => format.formatID === "image/png");
 
-// --- the address follows the file ------------------------------------------
+// --- address ---------------------------------------------------------------
 
-// Puts the file's id in the address. JS Paint retitles its page whenever
-// the file changes or is saved, so that's when this runs.
+// Puts ?id= in the address. Triggered by <title> changes, since JS Paint
+// retitles the page on every open and save.
 function remember() {
   const id = typeof system_file_handle === "string" ? system_file_handle : null;
   const search = id ? `?id=${encodeURIComponent(id)}` : "";
@@ -48,15 +36,14 @@ function remember() {
   dispatchEvent(new Event("addresschange"));
 }
 
-// --- files, on the disk ----------------------------------------------------
+// --- disk files ------------------------------------------------------------
 
 async function asFile(item) {
   const blob = await disk.blob(item);
   return new File([blob], item.name, { type: blob.type });
 }
 
-// Saves a picture as a new file or over an old one. The name's extension
-// picks the format, and a name without one the disk keeps gets ".png".
+// The extension picks the format. Names without a SAVE_AS extension get ".png".
 async function saveBlob(to, getBlob) {
   let name = to.name;
   if (!SAVE_AS[extension(name)]) name += ".png";
@@ -66,8 +53,7 @@ async function saveBlob(to, getBlob) {
   return { item, format, blob };
 }
 
-// Makes the picture everyone's wallpaper. If it has unsaved changes (or was
-// never saved), a copy goes to My Pictures first.
+// Sets everyone's wallpaper. Unsaved pictures get a copy in My Pictures first.
 async function setWallpaper(canvas, position) {
   try {
     let item = saved ? onDisk() : null;
@@ -104,8 +90,7 @@ window.systemHooks = {
     }
   },
 
-  // On cancel this never settles. JS Paint just carries on, the same as when
-  // its own file picker is canceled.
+  // Never settles on cancel, same as JS Paint's own canceled file picker.
   async showOpenFileDialog({ formats }) {
     if (!forPictures(formats)) {
       await cannot();
@@ -145,35 +130,33 @@ window.systemHooks = {
 // --- before JS Paint starts ------------------------------------------------
 
 function start() {
-  // No autosave to this browser's storage, since everything's on the disk.
-  // JS Paint calls this for a new picture, and its sessions aren't copied.
+  // No autosave to local storage. Files live on the disk, and JS Paint's
+  // session code isn't copied.
   window.new_local_session = () => {};
 
-  // A picture from the disk, to open as JS Paint starts.
+  // Picture to open at startup.
   const id = new URLSearchParams(location.search).get("id");
   if (id) window.initial_system_file_handle = id;
 
-  // File > Exit closes the window (JS Paint has asked about saving by then).
+  // File > Exit. JS Paint has already asked about saving.
   window.close = function close() {
     desktop.close(window, { ask: false });
   };
 
-  // The window's close button asks first, as Exit does.
+  // The close button asks about saving, like Exit.
   window.mayClose = () => new Promise((resolve) => are_you_sure(() => resolve(true), () => resolve(false)));
 
   new MutationObserver(remember).observe(document.querySelector("title"), { childList: true, characterData: true, subtree: true });
 
-  // Drop the menu items for what tools/make_paint.py didn't copy (multi-user
-  // sessions, Imgur, the head tracker...), plus Fullscreen, since a window on
-  // the desktop can't be, and JS Paint's news and chat. About gets its own
-  // box so it doesn't ask jspaint.app for news.
+  // Drop items for parts tools/make_paint.py doesn't copy, plus Fullscreen,
+  // news and chat. About gets a local box so it doesn't fetch jspaint.app news.
   const gone = ["Load From URL", "Upload To Imgur", "Manage Storage", "Multi-User", "Themes", "Language", "Head Tracker",
     "Dwell Clicker", "Enlarge UI", "Quick Undo Button", "Vertical Color Box", "Speech Recognition", "Fullscreen",
     "Project News", "Discord", "Donate"];
   const plain = (label) => String(localize(label ?? "")).replace(/&/g, "");
   for (const [name, items] of Object.entries(menus)) {
     const kept = items.filter((item) => !gone.includes(plain(item.label)));
-    // no divider left at either end, or two in a row
+    // no leading, trailing or doubled dividers
     menus[name] = kept.filter((item, i) => item !== MENU_DIVIDER || (i > 0 && i < kept.length - 1 && kept[i - 1] !== MENU_DIVIDER));
   }
   const about = Object.values(menus).flat().find((item) => plain(item.label) === "About Paint");

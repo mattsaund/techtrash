@@ -1,4 +1,4 @@
-// Small helpers the whole website uses.
+// Shared helpers for the website.
 
 import { MAX_UPLOAD_BYTES, shrinkImage } from "/js/shrink-image.js";
 
@@ -6,12 +6,12 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { month: "long", day: "num
 export const date = (ms) => dateFormat.format(ms);
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-// Each blog (and each flag) gets one of the six hues from its number, and keeps it.
+// Stable hue class (hue-1 to hue-6) from a blog or flag id.
 export const hueOf = (id) => `hue-${((Number(id) - 1) % 6 + 6) % 6 + 1}`;
 
 // el("a", { href: "?blog/liftoff", class: "card" }, "a child", anotherElement)
-// Anything the element has as a property is set as one (textContent, hidden,
-// checked...). The rest become attributes (class, for, aria-label, data-...).
+// Keys the element has as properties (textContent, hidden, checked) are set
+// directly, the rest as attributes.
 export function el(tag, props = {}, ...children) {
   const element = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
@@ -23,7 +23,7 @@ export function el(tag, props = {}, ...children) {
   return element;
 }
 
-// Plain text exactly as typed, with web links made clickable (as on tcc.place).
+// Plain text, with http(s) URLs made into links.
 export function textWithLinks(text) {
   const out = document.createDocumentFragment();
   text.split(/(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]'])/).forEach((part, i) => {
@@ -33,11 +33,10 @@ export function textWithLinks(text) {
   return out;
 }
 
-// Calls the server and returns its answer, or throws an Error saying what went
-// wrong. Send json as JSON, form as FormData, or body as is (a file).
+// fetch() wrapper. Returns the parsed JSON or throws an Error with the server's
+// message. Send json (as JSON), form (FormData) or body (raw, like a file).
 export async function api(url, { method = "GET", json, form, body } = {}) {
-  // The first ask for something index.html already started on. Once anything
-  // changes, what it asked for early might be out of date.
+  // Use index.html's early response once. Any write makes them all stale.
   if (method !== "GET") window.earlyAnswers?.clear();
   const early = method === "GET" && window.earlyAnswers?.get(url);
   if (early) {
@@ -67,7 +66,7 @@ export async function api(url, { method = "GET", json, form, body } = {}) {
   return answer;
 }
 
-// Shrinks a picture for upload, or throws an Error saying why not.
+// Shrinks a picture for upload, or throws with the reason.
 export async function readyPicture(file) {
   let picture;
   try {
@@ -79,22 +78,20 @@ export async function readyPicture(file) {
   return picture;
 }
 
-// Checks a sound file for upload (it goes as is), or throws an Error saying
-// why not. The server has the same size limit (server/blog.js).
+// Sounds upload as is. Same size limit as server/blog.js MAX_SOUND_BYTES.
 const MAX_SOUND_BYTES = 20 * 1024 * 1024;
 export function readySound(file) {
   if (file.size > MAX_SOUND_BYTES) throw new Error("That sound is too big (20 MB at most).");
   return file;
 }
 
-// A section's name in its hue, like "Blog".
+// Section heading in the section's hue.
 export const label = (name) => el("h2", { class: "label", textContent: name });
 
-// "Back" at the top of a panel, up one level (from a blog to the Blog).
+// "Back" link at the top of a panel.
 export const backTo = (href) => el("p", { class: "crumb" }, el("a", { href, textContent: "Back" }));
 
-// A button that takes two clicks. The first asks, the second does it. work()
-// throws to say it failed.
+// Click twice to confirm (disarms after 4 s). work() throws to show an error.
 export function twoClick(text, ask, work, look = "button hue-1") {
   const button = el("button", { class: look, type: "button", textContent: text });
   let armed = false;
@@ -125,10 +122,8 @@ export function twoClick(text, ask, work, look = "button hue-1") {
 // A form's status line.
 export const status = () => el("p", { class: "form__message meta", role: "status" });
 
-// The admin's star on a blog. It's filled once the blog is one of the
-// featured blogs on Home, and a click stars it or takes the star off.
-// words puts "Feature" or "Featured" beside it, for a row of buttons.
-// changed(on) runs after each click goes through.
+// Admin's star for featuring a blog on Home. words adds a "Feature(d)" label,
+// for button rows. changed(on) runs after a successful toggle.
 export function starButton(post, { words = false, changed } = {}) {
   const button = el("button", { class: words ? "button feature-star feature-star--words" : "feature-star", type: "button" });
   const show = () => {
@@ -157,17 +152,15 @@ export function starButton(post, { words = false, changed } = {}) {
   return button;
 }
 
-// Lets the admin drag the items in `list` (each with a data-id) into a new
-// order. A press that doesn't move is still an ordinary click. done(ids) gets
-// the new order once the item is let go. across is for a row that wraps,
-// like the blinkies, rather than a list down the page.
+// Drag to reorder `list` (items need data-id). A press without a move stays a
+// click. done(ids) gets the new order. across is for a wrapping row (blinkies).
 export function sortable(list, done, { across = false } = {}) {
   let draggedAt = 0;
   list.classList.add("is-sortable");
-  // (the browser's own drag of a link or a picture would take the pointer away)
+  // native link and image drags would steal the pointer
   for (const one of list.querySelectorAll("a, img")) one.draggable = false;
   list.addEventListener("dragstart", (e) => e.preventDefault());
-  // the click at the end of a drag isn't a click on whatever's under it
+  // swallow the click that ends a drag
   list.addEventListener("click", (e) => {
     if (performance.now() - draggedAt < 400) {
       e.preventDefault();
@@ -186,7 +179,7 @@ export function sortable(list, done, { across = false } = {}) {
         item.classList.add("is-dragging");
       }
       e.preventDefault();
-      // in front of the first one whose middle is still ahead of the pointer
+      // insert before the first item whose middle the pointer hasn't reached
       const next = [...list.children].find((one) => {
         if (one === item) return false;
         const r = one.getBoundingClientRect();
@@ -211,9 +204,8 @@ export function sortable(list, done, { across = false } = {}) {
   });
 }
 
-// What this browser remembers (a commenter's name, an unsaved blog) and what
-// this tab keeps while it's open (the Blog's sort). Storage can be off or
-// full, so it's only ever a convenience.
+// JSON in localStorage (remembered) or sessionStorage (forNow). Storage can be
+// off or full, so failures are ignored. Convenience only.
 function keeper(storage) {
   return {
     get(key) {

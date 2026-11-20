@@ -1,19 +1,13 @@
-// A post's comments. Anyone can comment or reply, so comments form threads.
-// Replies nest MAX_DEPTH deep. Past that they line up under the last one,
-// each saying who it answers.
-//
-// Switching comments off keeps what's there and stops new ones. The admin
-// can delete any comment. Its words go, but the replies under it stay put.
-//
-// A comment is plain text and is drawn as text (links made clickable), never
-// as HTML.
+// Threaded comments. Replies nest MAX_DEPTH deep, then list flat with "to <name>".
+// Turning comments off keeps existing ones. A deleted comment keeps its replies.
+// Bodies are plain text, never HTML.
 
 import { api, date, el, label, remembered, status, textWithLinks, twoClick } from "./util.js";
 
 const MAX_DEPTH = 4;
 const NAME = "techtrash:name";
 
-// The comments as threads, the top-level ones each with its replies.
+// Builds reply trees. Returns the top-level comments.
 function threads(comments) {
   const byId = new Map(comments.map((comment) => [comment.id, { ...comment, replies: [] }]));
   const top = [];
@@ -21,17 +15,17 @@ function threads(comments) {
   return top;
 }
 
-// A deleted comment only shows (as a gap) if a reply under it still has words.
+// A deleted comment shows (as a placeholder) only if a live reply is under it.
 const shows = (comment) => !comment.deleted || comment.replies.some(shows);
 
-// The comments panel for a post ({ id, comments, comments_open }).
+// post is { id, comments, comments_open }.
 export function commentsPanel(post, { admin, hue }) {
   const panel = el("section", { class: `panel ${hue}`, id: "comments" });
   const live = post.comments.filter((comment) => !comment.deleted).length;
   const open = Boolean(post.comments_open);
   let replying = null;   // the open reply form, if any
 
-  // Redraws the panel from the server after a change.
+  // Re-fetch and replace the panel. Scrolls to and highlights showId.
   async function redraw(showId) {
     const fresh = await api(`/api/blog/post?id=${post.id}`);
     const next = commentsPanel(fresh, { admin, hue });
@@ -46,7 +40,7 @@ export function commentsPanel(post, { admin, hue }) {
   function form(parent) {
     const name = el("input", { name: "name", maxlength: "40", required: true, autocomplete: "nickname", value: remembered.get(NAME) ?? "" });
     const body = el("textarea", { name: "body", rows: "4", maxlength: "2000", required: true });
-    // A field people never see. Only a bot fills it in, and the server turns it away.
+    // Honeypot, hidden by .trap. The server rejects any value.
     const trap = el("input", { name: "website", tabindex: "-1", autocomplete: "off" });
     const message = status();
     const send = el("button", { class: "button", textContent: parent ? "Reply" : "Post comment" });
@@ -119,8 +113,7 @@ export function commentsPanel(post, { admin, hue }) {
     return li;
   }
 
-  // One level of a thread. At MAX_DEPTH the replies line up under the last
-  // one instead of nesting deeper.
+  // One thread level. At MAX_DEPTH, deeper replies list flat.
   function thread(comments, depth) {
     const list = el("ul", { class: "thread" });
     const add = (comment, answering) => {

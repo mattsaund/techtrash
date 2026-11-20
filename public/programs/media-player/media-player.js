@@ -1,13 +1,7 @@
-// Windows Media Player, for the music and sounds on the shared disk. Anyone
-// can listen. Only the admin can add music, with File > Add to Library or by
-// dropping songs on the player.
-//
-// The playlist is the folder a song was opened from, or all of My Music.
-// The keys are WMP's own, and the Play menu lists them.
-//
-// The visualization listens through the Web Audio API. A browser only lets
-// that start once the page has been pressed, so until then the song plays on
-// its own and the screen shows its name.
+// Windows Media Player for the shared disk. Keys are WMP's.
+// Anyone can listen. Only the admin adds music (Add to Library, or drop files).
+// The visualization uses Web Audio, which a browser starts only after a press.
+// Until then the song plays without it and the screen shows the song's name.
 
 import { openDialog } from "/js/file-dialog.js";
 import { SOUND_NAME, fileUrl, isFolder, isSound, nameParts, sortItems } from "/js/items.js";
@@ -36,14 +30,14 @@ const volumeSlider = document.querySelector(".player__volume");
 const status = document.querySelector(".player__status");
 const time = document.querySelector(".player__time");
 
-let source = { folder: "music", deep: true };   // where the playlist comes from
-let list = [];         // its songs
-let now = null;        // the song that's loaded
-let picked = null;     // the id of the selected playlist row
-let seeking = false;   // is someone dragging the seek bar?
-const lengths = new Map();   // each song's length in seconds, once known
+let source = { folder: "music", deep: true };   // playlist folder (deep: with subfolders)
+let list = [];         // playlist songs
+let now = null;        // loaded song
+let picked = null;     // selected row's id
+let seeking = false;   // seek bar being dragged
+const lengths = new Map();   // id -> seconds, once known
 
-// --- settings, kept for next time ------------------------------------------
+// --- saved settings --------------------------------------------------------
 
 const saved = (() => {
   try {
@@ -64,7 +58,7 @@ function remember() {
   } catch {}
 }
 
-// --- little helpers --------------------------------------------------------
+// --- helpers ---------------------------------------------------------------
 
 function el(tag, className, parent, text) {
   const node = document.createElement(tag);
@@ -76,7 +70,7 @@ function el(tag, className, parent, text) {
 
 const songName = (item) => nameParts(item.name)[0];
 
-// 83 seconds is "01:23", and an hour or more is "1:02:03". Blank if unknown.
+// 83 -> "01:23", 3723 -> "1:02:03", unknown -> "".
 function clock(seconds) {
   if (!Number.isFinite(seconds)) return "";
   const s = Math.floor(seconds);
@@ -94,10 +88,9 @@ function fill(slider) {
   slider.style.setProperty("--fill", `${span > 0 ? ((Number(slider.value) - Number(slider.min)) / span) * 100 : 0}%`);
 }
 
-// --- the playlist ----------------------------------------------------------
+// --- playlist --------------------------------------------------------------
 
-// The songs in a folder, in its order, then (if deep) the ones in the
-// folders inside it.
+// A folder's songs in display order, then (if deep) its subfolders' songs.
 function songsIn(folder, deep) {
   const songs = [];
   const folders = [];
@@ -108,8 +101,7 @@ function songsIn(folder, deep) {
   return [...songs, ...folders.flatMap((one) => songsIn(one.id, true))];
 }
 
-// Rebuilds the list from the disk after anyone's change. If the loaded song
-// is gone, it stops.
+// Rebuilds after any disk change. Unloads the current song if it's gone.
 function refresh() {
   const folder = disk.item(source.folder);
   list = folder && !disk.inBin(folder.id) ? songsIn(folder.id, source.deep) : [];
@@ -155,7 +147,7 @@ function pick(id) {
   tracks.querySelector(`[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest" });
 }
 
-// How long each song is, found one at a time by loading just enough of it.
+// Song lengths, one at a time, loading only each file's metadata.
 let measuring = false;
 async function measure() {
   if (measuring) return;
@@ -205,7 +197,7 @@ async function play(item) {
   try {
     await audio.play();
   } catch (error) {
-    // The browser wants a press on the page first, so it waits for Play.
+    // Autoplay blocked until the page is pressed. Wait for Play.
     if (error.name === "NotAllowedError") say("Ready");
   }
 }
@@ -226,7 +218,7 @@ function stop() {
   showTime();
 }
 
-// Unloads the song, as when the one playing gets deleted.
+// For when the loaded song gets deleted.
 function unload() {
   audio.pause();
   audio.removeAttribute("src");
@@ -238,8 +230,8 @@ function unload() {
   showSong();
 }
 
-// The next song (by 1) or the one before (by -1). Shuffle picks any other.
-// At the end of the list it stops, unless Repeat is on or someone pressed Next.
+// by: 1 for next, -1 for previous. Shuffle picks any other song.
+// Past the end, auto-advance stops unless Repeat is on. Next and Previous wrap.
 function step(by, { auto = false } = {}) {
   if (!list.length) return;
   const at = list.findIndex((item) => item.id === now?.id);
@@ -274,8 +266,8 @@ function toggleMute() {
   remember();
 }
 
-// The volume goes through the Web Audio graph once it's running, so the
-// visualization doesn't shrink as the music gets quieter.
+// Once the Web Audio graph runs, volume is a gain node after the analyser,
+// so the visualization doesn't shrink at low volume.
 function loudness() {
   page.classList.toggle("is-muted", muted);
   fill(volumeSlider);
@@ -343,13 +335,13 @@ seek.addEventListener("change", () => {
 });
 volumeSlider.addEventListener("input", () => setVolume(Number(volumeSlider.value) / 100));
 
-// --- the visualization -----------------------------------------------------
+// --- visualization ---------------------------------------------------------
 
-let context = null;   // the Web Audio context, once made
-let graph = null;     // { analyser, gain, freq, wave, peaks } once it's running
+let context = null;   // AudioContext, once made
+let graph = null;     // { analyser, gain, freq, wave, peaks } once running
 
-// Starts the Web Audio graph if the browser will let it. Called on every
-// press, since the first one is what lets it start.
+// Builds the Web Audio graph once the browser allows it. Called on every
+// press, because only a press lets the context start.
 function wire() {
   if (graph || !window.AudioContext) return;
   context ??= new AudioContext();
@@ -371,7 +363,7 @@ function wire() {
 
 const paint = screen.getContext("2d");
 let colors = null;
-let ramp = null;      // the bars' gradient, for the screen's height
+let ramp = null;      // bar gradient, rebuilt on resize
 let running = false;
 let quietSince = 0;
 
@@ -389,8 +381,7 @@ function size() {
 }
 new ResizeObserver(size).observe(screen);
 
-// Draws frames while something's playing, and for a second after so the
-// bars can fall.
+// Runs while playing, plus 1 s after so the bars can fall.
 function animate() {
   if (running) return;
   running = true;
@@ -413,7 +404,7 @@ function draw() {
     if (look !== "bars") drawWave(width, height, look === "scope" ? 0.9 : 0.35);
     return;
   }
-  // Nothing to show, so the song's name, as WMP did with no visualization.
+  // No visualization, so show the song's name like WMP.
   if (!now) return;
   paint.fillStyle = colors.ink;
   paint.font = `${Math.round(14 * (devicePixelRatio || 1))}px ${colors.font}`;
@@ -422,8 +413,7 @@ function draw() {
   paint.fillText(songName(now), width / 2, height / 2, width * 0.9);
 }
 
-// The spectrum in BARS bars, low notes on the left. Each band is wider than
-// the last, the way ears hear, and each bar's peak cap falls slowly.
+// Spectrum in BARS log-spaced bands, lows on the left. Peak caps fall slowly.
 function drawBars(width, height) {
   const { analyser, freq, peaks } = graph;
   analyser.getByteFrequencyData(freq);
@@ -445,7 +435,7 @@ function drawBars(width, height) {
   }
 }
 
-// The sound's wave across the middle.
+// reach: share of the half-height the wave may use.
 function drawWave(width, height, reach) {
   const { analyser, wave } = graph;
   analyser.getByteTimeDomainData(wave);
@@ -461,9 +451,9 @@ function drawWave(width, height, reach) {
   paint.stroke();
 }
 
-// --- adding music (admin only) and opening a song --------------------------
+// --- adding (admin only) and opening ---------------------------------------
 
-// New music goes in the playlist's folder, or My Music.
+// New music goes to the playlist's folder, or My Music if that's gone.
 const addingTo = () => (disk.item(source.folder) && !disk.inBin(source.folder) ? source.folder : "music");
 
 const chooser = el("input", "", page);
@@ -493,8 +483,7 @@ async function openOne() {
   play(item);
 }
 
-// Songs dropped on the player from your computer get added. js/tasks.js
-// refuses them for anyone but the admin.
+// Dropped audio files get added. js/tasks.js refuses non-admins.
 page.addEventListener("dragover", (e) => {
   if (!e.dataTransfer.types.includes("Files")) return;
   e.preventDefault();
@@ -510,7 +499,7 @@ page.addEventListener("drop", (e) => {
   add([...e.dataTransfer.files].filter((file) => file.type.startsWith("audio/") || SOUND_NAME.test(file.name)));
 });
 
-// --- controls, playlist, menus and keys ------------------------------------
+// --- controls, playlist, menus, keys ---------------------------------------
 
 const ACTIONS = {
   play: playPause,
@@ -617,7 +606,7 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-// --- starting up -----------------------------------------------------------
+// --- startup ---------------------------------------------------------------
 
 function start() {
   volumeSlider.value = Math.round(volume * 100);

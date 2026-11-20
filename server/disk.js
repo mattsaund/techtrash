@@ -1,23 +1,7 @@
-// The shared computer's disk. Everyone on the site shares one XP desktop and
-// one disk, so whatever anyone saves is there for everyone. Anyone can open
-// it, rename it, move it, throw it away or take it back out of the Recycle
-// Bin. The wallpaper is everyone's too.
-//
-// A few things are held back. Nobody, the admin included, can rename, move or
-// delete the folders the desktop is built on, or its three first shortcuts
-// (the Recycle Bin, the blog and the File Browser), which also never leave
-// their cells (server/desktop.js). Only the admin can add or change music.
-// The admin can also lock the desktop, keep a visitor out, and see
-// everything that's been done (programs/admin/).
-//
-// It all lives in the shared desktop's Durable Object (server/desktop.js), in
-// four tables. items has every folder, file and shortcut, without its bytes.
-// chunks has the bytes, in rows of 2 MB. settings has the wallpaper, the lock
-// and who's kept out (and where the admin's emails about saves are up to).
-// activity is what's been done and by whom.
-//
-// Who did something is a visitor's tag, their internet address scrambled with
-// a key only the server has (server/admin.js). The admin's is "admin".
+// The shared disk, stored in the Desktop Durable Object's SQLite (server/desktop.js).
+// Anyone can change anything, except the base folders and first shortcuts (nobody can)
+// and sounds (admin only). Tables are items, chunks (file bytes), settings and activity.
+// `who` is a visitor tag (server/admin.js) or "admin".
 
 import { FIRST_SHORTCUTS, findApp } from "../public/js/apps.js";
 import { BAD_NAME, LIMITS, TEXT, isPicture, isSound } from "../public/js/items.js";
@@ -26,7 +10,7 @@ import { mediaType } from "./media.js";
 
 export { TEXT };
 
-// Thrown for anything that can't be done, with its status and the words for it.
+// HTTP status plus the message shown to the user.
 export class DiskError extends Error {
   constructor(status, message) {
     super(message);
@@ -35,7 +19,7 @@ export class DiskError extends Error {
 }
 const refuse = (status, message) => { throw new DiskError(status, message); };
 
-// The folders the desktop is built on. They're always there, as they are.
+// Base folders. Always present, never renamed, moved or deleted.
 const FOLDERS = [
   { id: "desktop", name: "Desktop", parent: null },
   { id: "documents", name: "My Documents", parent: null },
@@ -45,25 +29,25 @@ const FOLDERS = [
 ];
 const FOLDER_IDS = new Set(FOLDERS.map((folder) => folder.id));
 
-// A row holds 8 MB at most, so a file's bytes are kept in smaller pieces.
+// DO SQLite rows max out at 8 MB, so file bytes are split into chunks.
 const CHUNK = 2 * 1024 * 1024;
 
-// The newest this many things done are kept for the Admin Dashboard.
+// activity rows kept for the Admin Dashboard
 const ACTIVITY = 2000;
 
 const BAD_NAME_TEXT = "A name can't be empty, longer than 100 characters, or have any of \\ / : * ? \" < > | in it.";
 
-// Everything inside a folder, however deep, and the folder itself.
+// A folder and everything under it, at any depth.
 const INSIDE = "WITH RECURSIVE inside(id) AS (SELECT ? UNION SELECT items.id FROM items JOIN inside ON items.parent = inside.id)";
 
-// A name as the disk keeps it, with no spaces or dots on the end. Null if
-// nothing's left, it's too long, or it has a character Windows didn't allow.
+// Trims trailing dots and spaces, like Windows. Null if empty, too long,
+// or containing a character Windows forbids.
 function cleanName(value) {
   const name = String(value ?? "").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "");
   return name && name.length <= LIMITS.name && !BAD_NAME.test(name) ? name : null;
 }
 
-// "Untitled.txt", then "Untitled (2).txt", "Untitled (3).txt" and so on.
+// "Untitled.txt", "Untitled (2).txt", "Untitled (3).txt"...
 function numbered(name, n) {
   if (n === 1) return name;
   const dot = name.lastIndexOf(".");
@@ -72,7 +56,7 @@ function numbered(name, n) {
 
 const COLUMNS = "id, parent, name, kind, type, size, version, made_by, created, modified, was_in";
 
-// An item as the pages get it.
+// Row in the client's item shape.
 const shown = (row) => row && {
   id: row.id,
   parent: row.parent,
@@ -88,19 +72,17 @@ const shown = (row) => row && {
 };
 
 export class Disk {
-  // sql is the object's ctx.storage.sql. transaction(fn) runs fn all at
-  // once or not at all.
+  // sql is ctx.storage.sql. transaction(fn) runs fn atomically.
   constructor(sql, transaction) {
     this.sql = sql;
     this.transaction = transaction;
     this.install();
   }
 
-  // --- the tables ---------------------------------------------------------------
+  // --- schema -------------------------------------------------------------------
 
-  // The folders are put back if they're ever missing. The first shortcuts
-  // and the wallpaper are only put there the very first time, and after that
-  // they're everyone's to change.
+  // Runs on every start and restores the base folders and first shortcuts.
+  // The default wallpaper is only set on first install.
   install() {
     const { sql } = this;
     sql.exec(`CREATE TABLE IF NOT EXISTS items (
@@ -133,9 +115,7 @@ export class Disk {
       sql.exec("INSERT OR IGNORE INTO items (id, parent, name, kind, created, modified) VALUES (?, ?, ?, 'folder', ?, ?)",
         folder.id, folder.parent, folder.name, now, now);
     }
-    // The first shortcuts stay on the desktop under their own names. One
-    // that went missing, or got moved or thrown away before they were fixed
-    // in place, comes back.
+    // Also repairs first shortcuts moved, renamed or deleted before they were pinned.
     for (const id of FIRST_SHORTCUTS) {
       const title = findApp(id).title;
       sql.exec("INSERT OR IGNORE INTO items (id, parent, name, kind, type, created, modified) VALUES (?, 'desktop', ?, 'app', ?, ?, ?)",
@@ -161,7 +141,6 @@ export class Disk {
 
   // --- reading ------------------------------------------------------------------
 
-  // Every item on the disk, for a tab as it connects.
   list() {
     return this.sql.exec(`SELECT ${COLUMNS} FROM items`).toArray().map(shown);
   }
@@ -178,15 +157,13 @@ export class Disk {
     return this.row(id) ?? refuse(404, "That isn't here anymore. Someone may have moved it or thrown it away.");
   }
 
-  // A file, to send its bytes.
   file(id) {
     const row = this.existing(id);
     if (row.kind !== "file") refuse(400, "Only a file can be opened that way.");
     return shown(row);
   }
 
-  // A file's bytes from start to end (end included). They're read a piece at
-  // a time as they go out, so a long song never sits in memory all at once.
+  // Bytes start to end (inclusive), read a chunk at a time so a big file never sits in memory.
   stream(id, start, end) {
     const { readable, writable } = new FixedLengthStream(end - start + 1);
     const writer = writable.getWriter();
@@ -201,23 +178,22 @@ export class Disk {
     return readable;
   }
 
-  // What everyone sees of the desktop's settings.
+  // The settings everyone sees.
   settings() {
     return { wallpaper: this.setting("wallpaper", FIRST_WALLPAPER), locked: Boolean(this.setting("locked", false)) };
   }
 
-  // --- the rules ----------------------------------------------------------------
+  // --- permissions --------------------------------------------------------------
 
-  // The admin can always change things. A visitor can unless the desktop is
-  // locked or they've been kept out.
+  // The admin always can. Visitors can't while the desktop is locked or they're blocked.
   mayChange(who) {
     if (who === "admin") return;
     if (this.setting("locked", false)) refuse(423, "The desktop is locked right now. Only the admin can change things on it.");
     if (this.setting("blocked", []).includes(who)) refuse(403, "You can't change things on this desktop.");
   }
 
-  // What stays put. verb is what was tried, for XP's own words, like
-  // "Cannot delete My Documents: Permission Denied."
+  // Base folders and first shortcuts never change. Sounds are admin-only.
+  // verb is for XP's wording, e.g. "Cannot delete My Documents: Permission Denied."
   mayTouch(row, who, verb) {
     if (FOLDER_IDS.has(row.id) || FIRST_SHORTCUTS.includes(row.id)) refuse(403, `Cannot ${verb} ${row.name}: Permission Denied.`);
     if (who !== "admin" && this.holdsSound(row)) {
@@ -225,13 +201,13 @@ export class Disk {
     }
   }
 
-  // Is it a sound, or a folder with one somewhere inside?
+  // A sound, or a folder with one anywhere inside.
   holdsSound(row) {
     if (row.kind !== "folder") return isSound(row);
     return this.sql.exec(`${INSIDE} SELECT 1 FROM items WHERE id IN inside AND type LIKE 'audio/%' LIMIT 1`, row.id).toArray().length > 0;
   }
 
-  // A folder something can go into.
+  // A folder new items can go into (not the Recycle Bin or anything in it).
   folder(id) {
     const row = this.existing(id);
     if (row.kind !== "folder") refuse(400, "That isn't a folder.");
@@ -240,7 +216,7 @@ export class Disk {
     return row;
   }
 
-  // Is this item in the Recycle Bin, or in a folder that is?
+  // In the Recycle Bin, directly or inside a binned folder.
   inBin(id) {
     for (let row = this.row(id), steps = 0; row && steps <= LIMITS.depth + 2; row = this.row(row.parent), steps++) {
       if (row.parent === "recycle") return true;
@@ -254,8 +230,7 @@ export class Disk {
     return depth;
   }
 
-  // Is the folder `id` the folder `folderId`, or somewhere above it? A folder
-  // can't go inside itself.
+  // True if id is folderId or one of its ancestors, so a folder can't move into itself.
   contains(id, folderId) {
     for (let row = this.row(folderId); row; row = this.row(row.parent)) {
       if (row.id === id) return true;
@@ -263,9 +238,8 @@ export class Disk {
     return false;
   }
 
-  // The name `name` would get in `parent`. It gets a number if something
-  // there already has it, ignoring case. The Recycle Bin can hold two of a
-  // name, as XP's could.
+  // The name to use in parent, numbered if taken (case-insensitive).
+  // The Recycle Bin allows duplicates, like XP's.
   freeName(parent, name, except = "") {
     if (parent === "recycle") return name;
     for (let n = 1; ; n++) {
@@ -275,8 +249,7 @@ export class Disk {
     }
   }
 
-  // Is there room for this many more bytes, and one more item? Music has a
-  // share of its own.
+  // Quota check for bytes and item count. Sounds have their own byte quota.
   room(bytes, { newItem = true, sound = false } = {}) {
     const used = this.sql.exec(`SELECT COUNT(*) AS count,
       COALESCE(SUM(CASE WHEN type LIKE 'audio/%' THEN size ELSE 0 END), 0) AS music,
@@ -286,8 +259,7 @@ export class Disk {
     if (!sound && used.rest + bytes > LIMITS.bytes) refuse(507, "The disk is full. Throw some things away and empty the Recycle Bin first.");
   }
 
-  // The bytes a file is written with, checked against what it's meant to be.
-  // Text can be anything, since it's only ever shown as text.
+  // Checks bytes against the intended type. Text isn't checked since it's only ever served as text.
   content(data, as) {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data ?? new ArrayBuffer(0));
     if (as === "text") {
@@ -307,7 +279,7 @@ export class Disk {
     return { bytes, type: file.type };
   }
 
-  // A file's bytes, in pieces, in place of whatever it had.
+  // Replaces a file's chunks.
   store(id, bytes) {
     this.sql.exec("DELETE FROM chunks WHERE id = ?", id);
     for (let n = 0; n * CHUNK < bytes.length; n++) {
@@ -321,20 +293,18 @@ export class Disk {
     this.sql.exec("DELETE FROM activity WHERE id <= (SELECT MAX(id) FROM activity) - ?", ACTIVITY);
   }
 
-  // Where an item is, as a path like "My Documents\My Pictures".
+  // e.g. "My Documents\My Pictures"
   path(id) {
     const names = [];
     for (let row = this.row(id); row; row = this.row(row.parent)) names.unshift(row.name);
     return names.join("\\");
   }
 
-  // --- changing things ----------------------------------------------------------
+  // --- changes ------------------------------------------------------------------
   //
-  // Each gives back what changed for everyone, as { items } (as they are now)
-  // and { gone } (ids no longer on the disk at all).
+  // Each returns what to broadcast, { items } (current state) and { gone } (deleted ids).
 
-  // A new folder, file or shortcut. For a file, type is what it's meant to be
-  // ("text", "picture" or "sound"). For a shortcut, it's the app's id.
+  // type is "text", "picture" or "sound" for a file, or the app id for a shortcut.
   create(who, { parent, name, kind = "file", type = "text", data }) {
     this.mayChange(who);
     const folder = this.folder(parent);
@@ -362,7 +332,7 @@ export class Disk {
     return { items: [this.item(id)] };
   }
 
-  // A file written again, from Notepad's or Paint's Save.
+  // Notepad's or Paint's Save.
   write(who, id, data) {
     this.mayChange(who);
     const row = this.existing(id);
@@ -410,8 +380,8 @@ export class Disk {
     return { items: [this.item(row.id)] };
   }
 
-  // Into the Recycle Bin, remembering where from. If it's in the bin already,
-  // or the admin says so, it's gone for good with everything inside it.
+  // Moves it to the Recycle Bin, remembering where from (was_in). If it's already in
+  // the bin, or the admin passes forGood, it's deleted with everything inside it.
   remove(who, id, forGood = false) {
     this.mayChange(who);
     const row = this.existing(id);
@@ -426,8 +396,7 @@ export class Disk {
     return { items: [this.item(row.id)] };
   }
 
-  // Out of the Recycle Bin and back where it was, or to the desktop if that
-  // folder's gone. Its name gets a number if something there has it now.
+  // Back to was_in, or the desktop if that folder is gone or binned. Renumbered on a name clash.
   restore(who, id) {
     this.mayChange(who);
     const row = this.existing(id);
@@ -442,14 +411,13 @@ export class Disk {
     return { items: [this.item(row.id)] };
   }
 
-  // Everything in the Recycle Bin, gone for good.
   empty(who) {
     this.mayChange(who);
     const rows = this.sql.exec(`SELECT ${COLUMNS} FROM items WHERE parent = 'recycle'`).toArray();
     return { gone: this.purge(who, rows, `emptied the Recycle Bin (${rows.length} thing${rows.length === 1 ? "" : "s"})`) };
   }
 
-  // These and everything inside them, off the disk. Gives back their ids.
+  // Deletes rows and everything inside them. Returns the deleted ids.
   purge(who, rows, summary = null) {
     const ids = rows.flatMap((row) => this.sql.exec(`${INSIDE} SELECT id FROM inside`, row.id).toArray().map((one) => one.id));
     this.transaction(() => {
@@ -463,7 +431,7 @@ export class Disk {
     return ids;
   }
 
-  // The wallpaper, for everyone. One of XP's, a picture on the disk, or none.
+  // image is "xp:<id>", "file:<item id>", or "" for none.
   setWallpaper(who, value) {
     this.mayChange(who);
     const image = String(value?.image ?? "");
@@ -483,7 +451,7 @@ export class Disk {
     return this.settings();
   }
 
-  // --- the admin's --------------------------------------------------------------
+  // --- admin --------------------------------------------------------------------
 
   setLocked(locked) {
     this.transaction(() => {
@@ -493,7 +461,6 @@ export class Disk {
     return this.settings();
   }
 
-  // Keeps a visitor from changing anything, or lets them again.
   setBlocked(visitor, blocked) {
     const tag = String(visitor ?? "");
     if (!/^[0-9a-f]{8,16}$/.test(tag)) refuse(400, "That isn't a visitor's tag.");
@@ -507,9 +474,7 @@ export class Disk {
     return [...list];
   }
 
-  // What's been done, newest first. `before` is an entry's id, for more.
-  // The newest activity's id, and what visitors have made or saved since
-  // the one with id `after` (oldest first), for the admin's email.
+  // For the digest email. Newest activity id, and visitor saves after `after`, oldest first.
   lastActivity() {
     return this.sql.exec("SELECT MAX(id) AS id FROM activity").toArray()[0]?.id ?? 0;
   }
@@ -518,13 +483,14 @@ export class Disk {
     return this.sql.exec("SELECT * FROM activity WHERE id > ? AND who != 'admin' AND what IN ('made', 'changed') ORDER BY id", Number(after)).toArray();
   }
 
+  // Newest first. `before` is an activity id, for paging.
   activity(before = null, count = 200) {
     return before
       ? this.sql.exec("SELECT * FROM activity WHERE id < ? ORDER BY id DESC LIMIT ?", Number(before), count).toArray()
       : this.sql.exec("SELECT * FROM activity ORDER BY id DESC LIMIT ?", count).toArray();
   }
 
-  // Everything people have made, with where it is, for the dashboard.
+  // Every non-base item with its path, for the Admin Dashboard.
   everything() {
     return this.list().filter((item) => !FOLDER_IDS.has(item.id)).map((item) => ({ ...item, path: this.path(item.parent) }));
   }

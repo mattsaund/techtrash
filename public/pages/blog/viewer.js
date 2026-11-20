@@ -1,43 +1,33 @@
-// The picture viewer. A click on a picture in what's written (a blog, Home's
-// words, the bulletin, About me, the tagline) or in Pictures opens it over the
-// page, as big as fits, with its description from the editor under it.
-// Previous and Next (or the arrow keys) step through the pictures it was
-// opened among. Esc, Close or a click beside it closes it.
-//
-// Goto Image goes to the picture's place in its blog or page. If that's the
-// page you're on, the viewer just closes and scrolls to it. From Pictures,
-// it's the picture's page with #picture-<name> on the end, and
-// showPictureFromAddress() scrolls to it once that page is drawn.
+// Picture viewer, a modal <dialog> for pictures in .prose and in Pictures.
+// Goto Image scrolls to a picture on this page, or opens its page with
+// #picture-<name>, which showPictureFromAddress() handles.
 
 import { el } from "./util.js";
 
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const plainClick = (e) => e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
 
-// "#picture-liftoff-3f9a1c.png" for an uploaded picture's address ("" for one from elsewhere)
+// "#picture-liftoff-3f9a1c.png" for an uploaded picture, "" for any other
 export function pictureHash(src) {
   const path = new URL(src, location.href).pathname;
   return path.startsWith("/blog/img/") ? `#picture-${path.slice("/blog/img/".length)}` : "";
 }
 
-// The pictures on this page that open in the viewer. Not the editor's (a
-// click there picks one), and not ones inside a link.
+// Viewable pictures. Not in the editor (a click there selects) or inside a link.
 const viewable = () => [...document.querySelectorAll(".prose img")].filter((img) => !img.closest(".editor, a[href]"));
 
-// The hue of the panel a picture's in, for the viewer's buttons.
+// Viewer buttons take the hue of the picture's panel.
 const hueAround = (node) => [...(node.closest(".panel")?.classList ?? [])].find((name) => /^hue-[1-6]$/.test(name)) ?? "hue-5";
 
-// Scrolls a picture on this page into view and marks it for a moment.
+// Scrolls to a picture and highlights it for 2 s.
 function bringIntoView(img) {
   img.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
   img.classList.add("is-found");
   setTimeout(() => img.classList.remove("is-found"), 2000);
 }
 
-// pictures is [{ src, alt, from, href, here }]. from is where it's from
-// (words for under it, or null), href is where Goto Image goes, and here is
-// the <img> itself if it's on this page. start is the one to show first, and
-// hue is the viewer's.
+// pictures is [{ src, alt, from, href, here }]. from is the caption source or
+// null, href is Goto Image's target, here is the <img> if it's on this page.
 export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
   let at = start;
   const many = pictures.length > 1;
@@ -78,7 +68,7 @@ export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
     show();
   };
 
-  // (a picture on this page needs no navigating, just a scroll)
+  // same page, so just scroll
   goto.addEventListener("click", (e) => {
     const here = pictures[at].here;
     if (!here || !plainClick(e)) return;
@@ -91,7 +81,7 @@ export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
     e.preventDefault();
     step(e.key === "ArrowLeft" ? -1 : 1);
   });
-  // the dialog fills the window, so a click on it (not the box) is beside the picture
+  // the dialog fills the window, so a click on it directly is outside the box
   dialog.addEventListener("click", (e) => {
     if (e.target === dialog) dialog.close();
   });
@@ -103,8 +93,7 @@ export function openViewer(pictures, start, { hue = "hue-5" } = {}) {
   close.focus();
 }
 
-// Every picture in what's written on this page opens in the viewer, among
-// the others on the page.
+// A click on a .prose picture opens the viewer over all of this page's pictures.
 export function watchPictures(root) {
   root.addEventListener("click", (e) => {
     const img = e.target.closest?.(".prose img");
@@ -116,9 +105,8 @@ export function watchPictures(root) {
   });
 }
 
-// #picture-<name> on the address (Goto Image from Pictures) scrolls to that
-// picture once the page is drawn. The lazy pictures above it load first, so
-// it isn't pushed away as they come in.
+// Scrolls to #picture-<name> once the page is drawn. Loads the lazy pictures
+// above it first (3 s max) so they don't push it out of view.
 export async function showPictureFromAddress() {
   if (!location.hash.startsWith("#picture-")) return;
   const all = viewable();

@@ -8,8 +8,7 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
   <style>
-    /* The picture centered on a plain field, with XP's row of buttons under
-       it. A slide show turns the field black and hides the buttons. */
+    /* .is-show is the slide show: black field, no toolbar. */
     .viewer__stage {
       flex: 1;
       min-height: 0;
@@ -30,8 +29,8 @@
   <script type="module" src="viewer.js"></script>
 </head>
 <!--
-  The Windows Picture and Fax Viewer, for a picture on the shared disk
-  (?id=<id>) and the others in its folder. viewer.js does the rest.
+  Windows Picture and Fax Viewer for the shared disk.
+  ?id=<id> shows a picture. Previous and Next page through its folder.
 -->
 <body class="app viewer">
   <main class="viewer__stage is-fit" tabindex="0" aria-label="Picture">

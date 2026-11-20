@@ -1,24 +1,19 @@
-// The site's own words (the tagline, Home's words, the bulletin and About
-// me). The admin edits each one in place. The blog editor (editor/editor.js)
-// takes its spot with Save and Cancel under it, and saving redraws the page.
-// The server keeps them as "pages" (server/blog.js).
+// Editable site text (tagline, Home, bulletin, About me, footer). Stored as
+// "pages" by server/blog.js. The admin edits in place with editor/editor.js.
 
 import { renderBody } from "./content.js";
 import { admin, again } from "./site.js";
 import { api, el, status } from "./util.js";
 
-// Puts the admin's form in a spot in place of what was there. Returns a
-// function that puts it back.
+// Swaps form into spot. Returns a function that restores the old contents.
 export function swap(spot, form) {
   const was = [...spot.childNodes];
   spot.replaceChildren(form);
   return () => spot.replaceChildren(...was);
 }
 
-// The tagline, Home's words, About me or the footer's words. Shows the words,
-// or `fallback` until they're written. The admin also gets a button (labeled
-// `edit`) that opens them in the editor, with any `more` buttons beside it.
-// short means a line or two, and canEmpty lets them be saved with nothing.
+// Renders a page's text, or fallback when empty. The admin gets an `edit`
+// button plus `more`. short is a line or two, canEmpty allows saving nothing.
 export function ownWords(text, { fallback = null, short = false, look = "", edit, more = [], canEmpty = false }) {
   const spot = el("div", { class: `page-text ${look}` });
   const written = Boolean(text.body.trim());
@@ -43,13 +38,11 @@ export function ownWords(text, { fallback = null, short = false, look = "", edit
   return spot;
 }
 
-// The blog editor with Save and Cancel, for one of the site's own words.
-// save({ body }) sends it and moves on, cancel() puts back what was there.
-// short makes the box fit a line or two (the tagline), and canEmpty lets it
-// save with nothing in it.
+// Editor with Save and Cancel. save({ body }) throws to show an error.
+// short and canEmpty as in ownWords.
 export async function writingForm({ body = "", short = false, canEmpty = false, saveText, save, cancel }) {
   const { createEditor } = await import("./editor/editor.js");
-  // (problems in it, like a picture that won't upload, show under Save)
+  // editor errors (like a failed upload) show under Save
   const editor = createEditor(body, { short, onProblem: (text) => { message.textContent = text; } });
   const message = status();
   const saveButton = el("button", { class: "button hue-4", type: "button", textContent: saveText });

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/xp.css">
   <style>
-    /* Light gray on black in the mono font, with lines kept as printed. */
+    /* Light gray on black, mono, output kept as printed. */
     .console {
       flex: 1;
       min-height: 0;
@@ -38,10 +38,7 @@
   </style>
   <script type="module" src="cmd.js"></script>
 </head>
-<!--
-  The Command Prompt. Its C: drive is the shared disk (js/paths.js).
-  cmd.js does the rest.
--->
+<!-- Command Prompt. C: is the shared disk (js/paths.js). -->
 <body class="app">
   <main class="console" aria-label="Command Prompt">
     <pre class="console__out" aria-live="polite"></pre>

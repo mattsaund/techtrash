@@ -1,12 +1,10 @@
-// Shrinks a picture in the browser before it's uploaded to the blog. It ends
-// up at most MAX_SIDE pixels on its longest side, re-saved as a JPEG, or a
-// PNG if it has see-through parts. Re-saving also strips phone metadata like
-// GPS location. GIFs are left alone so animations keep working. Borrowed
-// from tcc.place, where it does the same job.
+// Shrinks a blog upload to MAX_SIDE px on its longest side, as JPEG, or PNG if
+// it has transparency. Re-encoding strips metadata like GPS location. GIFs pass
+// through so animations keep working. Borrowed from tcc.place.
 
 const MAX_SIDE = 1920;
 
-// the most the server takes for one picture (server/blog.js)
+// Keep in sync with server/blog.js MAX_PICTURE_BYTES.
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 function hasTransparency(context, width, height) {
@@ -34,7 +32,6 @@ export async function shrinkImage(file) {
   const type = hasTransparency(context, width, height) ? "image/png" : "image/jpeg";
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, 0.85));
   if (!blob) throw new Error("couldn't save the shrunk picture");
-  // Always the re-saved one, even when it comes out a little bigger, since the
-  // original could still have the phone's location in it.
+  // Always the re-encode, even if bigger. The original may carry GPS data.
   return blob;
 }

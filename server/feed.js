@@ -1,26 +1,18 @@
-// The blog as an RSS feed at /rss.xml, for people who follow it in a feed
-// reader. It has the newest published blogs (never a draft), each with its
-// title, address, date, flags, opening words, and all its words and pictures,
-// with the site's own addresses made absolute so they work in any reader. The
-// site's pages point to it (<link rel="alternate"> in public/index.html and
-// public/pages/blog/), so a reader given techtrash.org finds it.
-//
-// A browser that opens it draws it like the website, with a line saying what
-// it is (public/css/feed.css). It's sent as plain XML, which every reader
-// takes, because Firefox downloads a file sent as RSS instead of showing it.
+// RSS feed at /rss.xml. Newest published posts (never drafts) in full, with absolute URLs.
+// Found through <link rel="alternate"> in public/index.html and public/pages/blog/.
+// Sent as application/xml because Firefox downloads application/rss+xml instead of showing it.
+// Browsers style it with public/css/feed.css.
 
 import { excerpt, flagsOf, reading } from "./blog.js";
 
-const NEWEST = 20;   // blogs in the feed
-const TAGLINE = "My own little corner of the internet.";   // until one's written (public/pages/blog/index.html)
+const NEWEST = 20;   // posts in the feed
+const TAGLINE = "My own little corner of the internet.";   // default, same as public/pages/blog/index.html
 
 const xml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-// in a CDATA section, with any "]]>" (which would end it) split across two
+// splits any "]]>" so it can't end the CDATA section early
 const cdata = (text) => `<![CDATA[${String(text).replaceAll("]]>", "]]]]><![CDATA[>")}]]>`;
 
-// A blog's words with the site's own addresses made absolute. That's pictures
-// and sounds (/blog/img/...) and links to other pages of the site
-// (?blog/liftoff, which the blog's page sends on to the desktop).
+// Makes root-relative src/href (uploads) and ?blog/<slug> links absolute for feed readers.
 const whole = (html, origin) => html
   .replace(/(\s(?:src|href)=")\/(?!\/)/g, `$1${origin}/`)
   .replace(/(\shref=")\?/g, `$1${origin}/pages/blog/?`);
@@ -67,7 +59,7 @@ ${flags[post.id].map((flag) => `      <category>${xml(flag.name)}</category>\n`)
 </rss>
 `;
 
-  // A reader that already has this version gets a 304 and fetches nothing.
+  // ETag from the body hash, so an unchanged feed is a 304.
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   const tag = `"${[...new Uint8Array(digest)].slice(0, 16).map((byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
   const headers = {

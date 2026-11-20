@@ -1,23 +1,16 @@
-// The server. Cloudflare answers any request that matches a file in public/
-// before this code runs, and everything else comes here.
+// Worker entry point. Cloudflare serves files in public/ before this runs.
 //
-//   /api/desktop,         the shared desktop (its      server/desktop.js,
-//   /api/disk/...         icons, disk and admin)       server/disk.js
-//   /api/me, /api/logon,  who's logged on, and the     server/admin.js
-//   /api/logoff           admin account
-//   /api/time             the server's clock, for Date and Time Properties
-//                         and the Command Prompt's ping
-//   /api/blog/...,        the blog, its pictures and   server/blog.js
-//   /blog/img/<name>,     its sounds
-//   /blog/sound/<name>
-//   /rss.xml              the blog, for feed readers   server/feed.js
-//   anything else         XP's blue screen, as a 404   public/404.html
-//                         (a JSON one under /api/)
+//   /api/desktop, /api/disk/...        shared desktop             server/desktop.js, disk.js
+//   /api/me, /api/logon, /api/logoff   admin session              server/admin.js
+//   /api/time                          server clock (Date and Time, cmd ping)
+//   /api/blog/..., /blog/img/<name>,   blog, pictures, sounds     server/blog.js
+//     /blog/sound/<name>
+//   /rss.xml                           RSS feed                   server/feed.js
+//   anything else                      404 blue screen            public/404.html
+//                                      (JSON 404 under /api/)
 //
-// Anything that changes something has to come from the site's own pages.
-// Posting, changing or deleting on the blog is the admin's alone, except for
-// comments, which are anyone's. The shared desktop is everyone's, though the
-// admin can lock it and keep people out (server/disk.js).
+// API writes and the desktop WebSocket must come from this origin. Blog writes are
+// admin-only, except comments. The admin can lock the desktop or block visitors (server/disk.js).
 
 import { adminOnly, isAdmin, logoff, logon, visitorTag } from "./server/admin.js";
 import * as blog from "./server/blog.js";
@@ -26,12 +19,11 @@ import { apiError, clientKey, fresh, fromThisSite } from "./server/http.js";
 
 export { Desktop } from "./server/desktop.js";
 
-// "<method> <what>" for /api/blog/<what>. Reading is anyone's, and the rest
-// is the admin's, except comments.
+// "<method> <path>" under /api/blog/. Reads are public, writes admin-only except comments.
 const BLOG = {
-  "GET posts": blog.listPosts,     // drafts are the admin's, checked there
+  "GET posts": blog.listPosts,     // handler checks admin for ?drafts
   "POST posts": blog.createPost,
-  "GET post": blog.getPost,        // a draft is the admin's, checked there
+  "GET post": blog.getPost,        // handler checks admin for drafts
   "PUT post": blog.updatePost,
   "PUT featured": blog.saveFeatured,
   "DELETE post": blog.deletePost,
@@ -39,20 +31,18 @@ const BLOG = {
   "GET pictures": blog.listPictures,
   "POST pictures": blog.uploadPicture,
   "POST sounds": blog.uploadSound,
-  "POST comments": blog.createComment,   // anyone's, see server/blog.js
+  "POST comments": blog.createComment,   // public, rate-limited
   "DELETE comment": blog.deleteComment,
   "GET page": blog.getPage,
   "PUT page": blog.savePage,
 };
 
-// The most anyone can send the shared disk in one go. That's a 4 MB picture,
-// or a 20 MB song from the admin, plus a little.
+// LIMITS.picture, or LIMITS.sound for the admin (public/js/items.js), plus 64 KB.
 const MAX_UPLOAD = 4 * 1024 * 1024 + 64 * 1024;
 const MAX_ADMIN_UPLOAD = 20 * 1024 * 1024 + 64 * 1024;
 
-// Passes a request on to the shared desktop, with two headers saying who's
-// asking (server/desktop.js). Any the request brought itself are thrown out
-// first. Changes are limited to 60 a minute per person (DISK_LIMITER).
+// Forwards to the Desktop object, which trusts x-techtrash-admin and x-techtrash-visitor,
+// so client copies are dropped first. Writes count against DISK_LIMITER (60/min per IP).
 async function toDesktop(request, env, reading) {
   const admin = await isAdmin(request, env);
   if (!reading) {
@@ -74,9 +64,8 @@ export default {
     try {
       return await route(request, env, ctx);
     } catch (error) {
-      // The error goes in the Worker's logs (the dashboard's Observability
-      // tab, or `npx wrangler tail`). An API call gets a plain message
-      // instead of Cloudflare's error page.
+      // Logged to Workers Logs (Observability tab, or `npx wrangler tail`).
+      // API calls get a JSON error instead of Cloudflare's error page.
       console.error(request.method, new URL(request.url).pathname, error);
       if (new URL(request.url).pathname.startsWith("/api/")) {
         return apiError(500, "Something broke on the server. Try again, and if it keeps happening, check the Worker's logs.");
@@ -91,7 +80,7 @@ async function route(request, env, ctx) {
   const method = request.method;
   const reading = method === "GET" || method === "HEAD";
 
-  // (the desktop's WebSocket opens with a GET, so it's checked too)
+  // The desktop WebSocket opens with a GET, so check it too.
   const upgrade = request.headers.get("upgrade") === "websocket";
   if (pathname.startsWith("/api/") && (!reading || upgrade) && !fromThisSite(request)) {
     return apiError(403, "That has to come from techtrash.org itself.");

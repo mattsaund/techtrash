@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 """
-Checks the style rules.
+Checks the style rules. public/css/tokens.css is the only file allowed raw
+values. Every other stylesheet, <style> block and style="" attribute in
+public/ is checked for:
 
-public/css/tokens.css is the only file allowed a raw value. This goes
-through every other stylesheet, <style> block and style="" attribute in
-public/ and lists everything that breaks a rule:
-
-  - a color that isn't a token (#hex, rgb(), hsl(), a named color)
-  - a length that isn't a token (px, em, rem, vh...). Zero is fine, and
-    so are percentages and fr
-  - a font-family, or a font shorthand, that isn't a --font-* token
+  - colors that aren't tokens (#hex, rgb(), hsl(), named colors)
+  - lengths that aren't tokens (px, em, rem, vh...). 0, % and fr are fine
+  - a font-family or font shorthand without a --font-* token
   - a line-height that isn't a --lh-* token
   - a font-weight other than 400, 500 or 700
   - a z-index that isn't a --z-* token
-  - a media query at any width but --breakpoint, or at any resolution but
-    the planets' (--site-art-coarse)
-  - a var(--name) nothing defines, which is almost always a typo
-  - a color written into an HTML attribute (fill, stroke, bgcolor...)
+  - media queries at any width but --breakpoint, or any resolution but
+    --site-art-coarse
+  - a var(--name) nothing defines (almost always a typo)
+  - colors in HTML attributes (fill, stroke, bgcolor...)
 
 Run it before you push. No output and exit 0 means clean.
 
@@ -29,18 +26,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "public"
 TOKENS = SITE / "css" / "tokens.css"
-SKIP_DIRS = {"fonts", "jspaint"}   # jspaint is JS Paint, copied as it is (tools/make_paint.py)
+SKIP_DIRS = {"fonts", "jspaint"}   # jspaint is vendored JS Paint (tools/make_paint.py)
 
-# The one width a media query may name is --breakpoint in tokens.css. A media
-# query can't read a custom property, so the CSS writes the number out and
-# this makes sure it's that number.
+# Media queries can't read custom properties, so they spell out --breakpoint's value.
 BREAKPOINTS = set(re.findall(r"--breakpoint:\s*([\d.]+px)", TOKENS.read_text()))
-# The one resolution it may name is --site-art-coarse, for the screens the
-# website's planets need a stroke on.
+# Same for --site-art-coarse, the resolution where the website's planets get a stroke.
 RESOLUTIONS = set(re.findall(r"--site-art-coarse:\s*([\d.]+dppx)", TOKENS.read_text()))
 RESOLUTION = re.compile(r"(?<![\w.#-])(?:\d+\.?\d*|\.\d+)(?:dppx|dpi|dpcm|x)\b", re.I)
-# XP uses 400 and 700 (Tahoma has nothing between). The website uses 400 and
-# 500, plus 700 for bold words in a post.
+# XP uses 400 and 700 (Tahoma has nothing between). The website uses 400 and 500, plus 700 in posts.
 WEIGHTS = {"400", "500", "700", "inherit"}
 
 HEX = re.compile(r"#[0-9a-f]{3,8}\b", re.I)

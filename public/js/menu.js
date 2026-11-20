@@ -1,43 +1,34 @@
-// XP's menus, both the right-click kind and the ones that drop down from a
-// window's menu bar. The pointer, arrow keys, Enter and Esc all work like
-// XP. Pressing anywhere else, or leaving the page, closes them. Their look
-// is .menu in css/xp.css.
+// XP's context menus and menu bars, with XP's pointer and keyboard handling.
+// A press outside, blur or resize closes them. Styles: .menu in css/xp.css.
 //
-// showMenu(entries, at) puts one up at a point in this page ({ x, y }) or
-// under an element ({ below: el }). An entry is "-" for a rule, or an object
-// with any of these.
-//   label     its text
-//   action    runs once the menu is gone
+// showMenu(entries, at): at is { x, y } (client coordinates) or { below: el }.
+// An entry is "-" for a separator, or an object with:
+//   label     text
+//   action    runs after the menu closes
 //   disabled  grayed out
-//   bold      the default, what a double-click would do
-//   checked   XP's tick beside it
-//   radio     XP's dot, for one of a set (View's Thumbnails, Icons, Details)
-//   keys      its shortcut, written beside it ("Ctrl+S")
-//   icon      a picture beside it
-//   submenu   more entries, opening to the side (New, Arrange Icons By)
+//   bold      the default, what a double-click does
+//   checked   XP's tick
+//   radio     XP's dot, for one of a set
+//   keys      shortcut text ("Ctrl+S")
+//   icon      image URL
+//   submenu   child entries
 //
-// menuBar(bar, menus) makes a window's menu bar from [{ label, items }],
-// where items() gives a menu's entries each time it opens. Once one is open,
-// pointing at another opens that one instead, and Left and Right move
-// between them, like XP.
+// menuBar(bar, menus): menus is [{ label, items }]. items() runs on every open.
 
-let current = null;   // the menu that's up, as { close }
+let current = null;   // the open menu, as { close }
 
 export function closeMenu() {
   current?.close();
 }
 
 // Options:
-//   onClose()          runs when it's gone, however it went
-//   onSide(direction)  Left or Right past its own edge (to a menu bar's
-//                      neighbors)
-//   first              start with the first entry picked, as the keyboard
-//                      opens one
-//   keep               an element where a press doesn't count as outside
-//                      (the menu bar it came from)
+//   onClose()          runs however it closes
+//   onSide(direction)  Left or Right with nowhere to go (to menu bar neighbors)
+//   first              preselect the first entry (keyboard open)
+//   keep               element where a press isn't outside (its menu bar)
 export function showMenu(entries, at, { onClose, onSide, first = false, keep = null } = {}) {
   closeMenu();
-  const levels = [];   // the menu, then each submenu open from it, in order
+  const levels = [];   // root menu, then each open submenu
   const hadFocus = document.activeElement;
 
   function build(list, depth) {
@@ -129,7 +120,7 @@ export function showMenu(entries, at, { onClose, onSide, first = false, keep = n
     level.active = item;
   }
 
-  // Picks the next enabled entry, down (1) or up (-1), wrapping around.
+  // Next enabled entry, down (1) or up (-1), wrapping.
   function step(level, direction) {
     const usable = level.items.filter((item) => !item.button.disabled);
     if (!usable.length) return;
@@ -164,8 +155,8 @@ export function showMenu(entries, at, { onClose, onSide, first = false, keep = n
     level.menu.focus();
   }
 
-  // Puts the menu at (x, y). Where it wouldn't fit it goes the other way,
-  // left of x (or of flipX, a submenu's parent's left edge) and up.
+  // Where it would overflow, flips left of flipX (a submenu's parent's left
+  // edge) or up.
   function place(menu, x, y, flipX = x) {
     const w = menu.offsetWidth;
     const h = menu.offsetHeight;
@@ -212,7 +203,7 @@ export function showMenu(entries, at, { onClose, onSide, first = false, keep = n
     onClose?.();
   }
 
-  // Closes, puts focus back where it was, then runs whatever was picked.
+  // Closes and restores focus, then runs the action.
   function finish(action) {
     close();
     if (hadFocus?.isConnected) hadFocus.focus?.();

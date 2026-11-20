@@ -1,9 +1,6 @@
-// Display Properties, which sets the desktop's wallpaper for everyone.
-//
-// It's just XP's Desktop tab. The list has (None), XP's own wallpapers and
-// whatever's in My Pictures, and Browse can pick any picture on the disk.
-// Position and Color work as on XP, and the little monitor shows how it'll
-// look. Apply sets it for everyone on the site (server/disk.js).
+// Display Properties, XP's Desktop tab only. Apply sets the wallpaper for
+// everyone (server/disk.js). The list holds (None), XP's wallpapers and
+// My Pictures. Browse can pick any picture on the disk.
 
 import { openDialog } from "/js/file-dialog.js";
 import { iconOf, isPicture, sortItems } from "/js/items.js";
@@ -23,13 +20,13 @@ const XP = "/img/icons/xp";
 const MONITOR_W = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--monitor-w"), 10);
 const BLUE = getComputedStyle(document.documentElement).getPropertyValue("--desktop").trim();
 
-// How much smaller the little monitor's screen is than this visitor's desktop.
+// Preview scale, relative to this visitor's desktop.
 const scale = () => MONITOR_W / (window.top.document.querySelector(".desktop")?.clientWidth || 800);
 
-let choice = { image: "", position: "stretch", color: "" };   // what's picked here
-let extra = null;   // a picture from Browse that isn't in My Pictures
+let choice = { image: "", position: "stretch", color: "" };   // selection in this dialog
+let extra = null;   // Browse pick from outside My Pictures
 
-// The list's rows, each [image, name, icon].
+// List rows as [image, name, icon].
 function options() {
   const pictures = sortItems(disk.children("pictures").filter(isPicture));
   const shown = [...pictures];
@@ -66,8 +63,8 @@ function drawList() {
   list.querySelector("[aria-selected=true]")?.scrollIntoView({ block: "nearest" });
 }
 
-// The wallpaper on the little monitor, as it would sit on this visitor's
-// desktop, scaled down.
+// Preview at this visitor's desktop scale. Center and tile need the image's
+// natural size.
 function drawMonitor() {
   const url = urlOf(choice.image);
   screen.style.setProperty("--wallpaper-image", url ? `url("${url}")` : "none");
@@ -122,7 +119,7 @@ document.querySelector("[data-browse]").addEventListener("click", async () => {
   pick({ image: extra });
 });
 
-// Sets it for everyone. Returns false if the disk said no.
+// Applies for everyone. False if the disk refused.
 async function save() {
   if (same(choice, current())) return true;
   try {
@@ -150,8 +147,7 @@ function start() {
     draw();
     list.focus();
   });
-  // Follows someone else's change to the wallpaper, unless something else is
-  // picked here, and redraws when a picture in the list changes.
+  // Follow others' wallpaper changes unless there's an unapplied pick here.
   addEventListener("diskchange", (e) => {
     if (e.detail.settings && apply.disabled) choice = current();
     if (e.detail.settings || e.detail.items || e.detail.gone) {

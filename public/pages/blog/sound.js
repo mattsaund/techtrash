@@ -1,18 +1,11 @@
-// The sound player, for a sound file in a post (uploaded in the editor, or
-// linked on a line of its own). It has Play, the name and time, a seek bar,
-// Mute and a volume slider. Play turns into Pause while playing, and Mute
-// into Unmute while muted. The icons are plain gray, drawn by site.css from
-// tokens, and this only says which one shows. One sound plays at a time, and
-// the volume is remembered for the next one (and the next visit).
-//
-// soundPlayer(src, title) returns the player for content.js to put in a
-// post's player box.
+// Audio player for sound files in posts (content.js embeds it). Icons are CSS
+// masks in site.css. One sound plays at a time. Volume is remembered.
 
 import { el, remembered } from "./util.js";
 
-const LOUDNESS = "techtrash:volume";   // the volume, kept in this browser
+const LOUDNESS = "techtrash:volume";   // localStorage key
 
-// An icon button says what it does, to screen readers and as a tooltip.
+// aria-label and tooltip for an icon button.
 function says(button, words) {
   button.setAttribute("aria-label", words);
   button.title = words;
@@ -20,7 +13,7 @@ function says(button, words) {
 }
 const iconButton = (look, words) => says(el("button", { class: `sound__button ${look}`, type: "button" }), words);
 
-// 83 seconds as "1:23", an hour and more as "1:02:03".
+// 83 becomes "1:23", 3723 becomes "1:02:03".
 function clock(seconds) {
   const s = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
   const parts = [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60];

@@ -3,21 +3,18 @@
 Builds public/programs/paint/jspaint/ from JS Paint.
 
 JS Paint is MS Paint remade for the web, by Isaiah Odhner (MIT,
-github.com/1j01/jspaint). The desktop's Paint is JS Paint in a window, saving
-its files on the shared disk instead of your computer
-(public/programs/paint/index.html and paint.js do that part).
+github.com/1j01/jspaint). The desktop's Paint runs it in a window and saves to
+the shared disk (public/programs/paint/index.html and paint.js).
 
-This copies the parts of JS Paint that Paint uses, at one commit, unchanged
-except for two small patches (PATCHES, below). Those keep it to English and
-the classic look, since the other languages and looks aren't copied.
-Also left behind are the multi-user sessions and their autosave, opening
-PDFs, uploading to Imgur, the head tracker, speech recognition, the news
-and the desktop app.
+Copies only what Paint uses, at COMMIT, unchanged except for PATCHES, which
+keep it to English and the classic look since the rest isn't copied. Also left
+out are sessions and their autosave, PDF opening, Imgur upload, the head
+tracker, speech recognition, the news and the desktop app.
 
     python3 tools/make_paint.py                  # downloads COMMIT from GitHub
     python3 tools/make_paint.py --from ~/jspaint # or uses a checkout of it
 
-A checkout should be at COMMIT, and this says so if it isn't.
+Warns if the checkout isn't at COMMIT.
 """
 import argparse
 import glob
@@ -34,7 +31,7 @@ OUT = ROOT / "public" / "programs" / "paint" / "jspaint"
 COMMIT = "53be67ab8c47cc0d2168899e7481bc04839c4c81"
 ARCHIVE = f"https://codeload.github.com/1j01/jspaint/tar.gz/{COMMIT}"
 
-# What Paint uses, as globs from JS Paint's own folder.
+# Globs relative to the JS Paint root.
 FILES = [
     "LICENSE.txt",
     "audio/*",
@@ -50,15 +47,14 @@ FILES = [
     "src/*.js",
     "styles/layout.css", "styles/normalize.css", "styles/print.css", "styles/themes/classic.css",
 ]
-# ...but not these, which are left behind (see above) or are JS Paint's own tools.
+# Minus the features left out (see above) and JS Paint's own dev tools.
 LEAVE = {
     "src/sessions.js", "src/test-news.js", "src/eye-gaze-mode.js", "src/discord-activity-client.js",
     "src/electron-injected.js", "src/electron-main.js", "src/copy-inkscape-labels.js",
     "src/repack-spritesheet.js", "src/save-history-as-spritesheet.js", "src/extra-tools.js",
 }
 
-# Each file's changes, as (what's there, what it becomes). What's there has
-# to be found exactly once.
+# (old, new) pairs per file. Each old string must appear exactly once.
 PATCHES = {
     "src/app-localization.js": [(
         "const accepted_languages = Array.from(navigator.languages || [navigator.language || navigator.userLanguage]);",

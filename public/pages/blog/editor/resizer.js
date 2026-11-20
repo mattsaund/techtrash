@@ -1,21 +1,12 @@
-// The resize corners for a picture or a player in the editor. Click a picture
-// (or a player's bar) and four corners show over it. Drag one to resize it.
-// It keeps its shape (a song's player only gets wider) and never gets wider
-// than the column. A picture's width goes in its width="", a player's in its
-// data-width (sizePlayer in content.js), and the post keeps either. The
-// corners follow it while it's picked, however the words around it move it.
-//
-// setUpCorners(element, { picked, column, hidden, resized }) returns
-// { follow }. element is the editor (the corners go inside it), picked() is
-// what's picked, column() is the widest it can be, hidden() says when to hide
-// the corners (the HTML view) and resized(item) is called when a drag ends.
-// Call follow() after something new is picked.
+// Resize corners for the picked picture or player. Keeps the aspect ratio (audio players
+// only get wider), capped at column(). Pictures save width="", players data-width (sizePlayer).
+// follow() repositions the corners every frame while something is picked. Call it after a pick.
 
 import { sizePlayer } from "../content.js";
 import { el } from "../util.js";
 
-const LEAST_PICTURE = 32;   // smallest a picture can be dragged, in pixels
-const LEAST_PLAYER = 240;   // a player is no use any smaller
+const LEAST_PICTURE = 32;   // px
+const LEAST_PLAYER = 240;   // px, unusable any smaller
 
 export function setUpCorners(element, { picked, column, hidden, resized }) {
   const corners = ["nw", "ne", "sw", "se"].map((corner) => el("span", { class: `resizer__handle resizer__handle--${corner}`, "data-corner": corner }));
@@ -40,10 +31,8 @@ export function setUpCorners(element, { picked, column, hidden, resized }) {
     following = requestAnimationFrame(follow);
   }
 
-  // Dragging a corner away from the middle makes it bigger. Moving across
-  // sets the size, and so does moving up or down for something that keeps its
-  // shape (a picture, a video), whichever goes further. The pointer is
-  // captured, so the drag keeps working even over a player's video.
+  // Dragging outward grows it. Width follows whichever axis moved further (vertical only
+  // counts for fixed-ratio items). Pointer capture keeps the drag going over a player's video.
   resizer.addEventListener("pointerdown", (e) => {
     const corner = e.target.dataset?.corner;
     const item = picked();

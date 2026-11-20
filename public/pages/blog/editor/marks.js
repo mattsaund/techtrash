@@ -1,16 +1,13 @@
-// Turns the browser's editing marks into a post's. Editing in a browser
-// leaves its own markup in the HTML (<font color>, style="...", align="",
-// <div>, <b>). A post says each of those its own way (a hue class, an
-// alignment class, <p>, <strong>), and DOMPurify throws out anything else
-// when the post is cleaned (content.js), so these convert it first. editor.js
-// runs them on its box, on a paste and on what it saves.
+// Converts contenteditable markup (<font color>, style="", align="", <div>, <b>) to a
+// post's (hue and align classes, <p>, <strong>). Must run before clean() in content.js,
+// whose DOMPurify config strips the browser's version.
 
-// The six hues, named as in tokens.css (--site-hue-1 is red).
+// Same order as --site-hue-1 to --site-hue-6 in tokens.css.
 export const HUES = ["red", "orange", "yellow", "green", "blue", "violet"];
 
 export const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-// Any color as #rrggbb, so colors can be compared.
+// Canvas normalizes any CSS color to #rrggbb, so colors can be compared.
 const paint = document.createElement("canvas").getContext("2d");
 function normalColor(color) {
   paint.fillStyle = "#000000";
@@ -18,20 +15,18 @@ function normalColor(color) {
   return paint.fillStyle;
 }
 
-// Which of the six hues (1 to 6) a color is, if any.
+// Hue number (1 to 6) for a color, or undefined.
 let hueByColor;
 export function hueOfColor(color) {
   hueByColor ??= new Map(HUES.map((_, i) => [normalColor(cssVar(`--site-hue-${i + 1}`)), i + 1]));
   return hueByColor.get(normalColor(color));
 }
 
-// A separate, unseen document to work on HTML in. In this page's document, a
-// pasted <img onerror> would load, and run, before it was ever cleaned.
+// Detached document for untrusted HTML. In the live one, <img onerror> fires before cleaning.
 export const inert = () => document.implementation.createHTMLDocument("");
 
-// Sets a line's alignment class from however the browser wrote it (Chrome
-// writes style="text-align: right", Firefox align="right"). Any other
-// alignment class goes first, since Enter copies the previous line's class.
+// Chrome writes style="text-align", Firefox align="". Both become an align-* class.
+// Old align-* classes are cleared first since Enter copies the previous line's class.
 export function lineUp(node) {
   const align = (node.style.textAlign || node.getAttribute("align") || "").toLowerCase();
   node.removeAttribute("align");
@@ -40,7 +35,7 @@ export function lineUp(node) {
   if (align === "center" || align === "right") node.classList.add(`align-${align}`);
 }
 
-// Swaps an element for another tag, keeping its class and children.
+// Swap the tag, keeping class and children.
 function rename(node, tag) {
   const renamed = node.ownerDocument.createElement(tag);
   if (node.className) renamed.className = node.className;
@@ -48,10 +43,8 @@ function rename(node, tag) {
   node.replaceWith(renamed);
 }
 
-// Converts every browser mark under root to a post's. Colors become hues,
-// alignments become classes, other styles go, a <div> becomes a <p>, <b>
-// becomes <strong> and so on, and headings a post doesn't have become the
-// nearest one it does. Returns root.
+// Converts in place and returns root. Off-palette colors are dropped.
+// h1, h5 and h6 become the nearest heading a post has (h2 to h4).
 export function tidy(root) {
   const doc = root.ownerDocument;
   for (const node of root.querySelectorAll("[style], [align], font")) {
@@ -74,7 +67,7 @@ export function tidy(root) {
   for (const [from, to] of [["b", "strong"], ["i", "em"], ["strike", "s"], ["h1", "h2"], ["h5", "h4"], ["h6", "h4"]]) {
     for (const node of root.querySelectorAll(from)) rename(node, to);
   }
-  // drop the invisible spaces insertHtml adds
+  // strip the zero-width spaces insertHtml() adds
   const text = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node; (node = text.nextNode());) {
     if (node.data.includes("​")) node.data = node.data.replaceAll("​", "");
@@ -82,12 +75,9 @@ export function tidy(root) {
   return root;
 }
 
-// Strips the browser's inline styles from the box as soon as it adds them.
-// Joining a paragraph to a heading, say, wraps the paragraph's words in a
-// span that keeps their old size and color, so the line looks like a
-// paragraph, spaces like a heading and is saved as a heading. Without the
-// styles it shows what it really is. Alignments and hues from the buttons
-// become their classes, and a player keeps its own width.
+// Strips inline styles as soon as the browser adds them, so the box shows what gets saved.
+// Joining a paragraph to a heading wraps its text in a span that keeps the old size and color.
+// Alignments and hues become classes. Players keep their inline width.
 export function dropStyles(root) {
   for (const node of root.querySelectorAll("[style], [align]")) {
     if (node.closest(".embed")) continue;
@@ -106,13 +96,11 @@ export function tidyHtml(html) {
   return tidy(doc.body).innerHTML;
 }
 
-// Inserts HTML at the cursor. Given a lone inline element like <code> with
-// nothing after it, Chrome swaps it for a <span> styled to look the same. An
-// invisible space after it prevents that, and tidy() takes it out again.
+// Chrome turns a lone inline element like <code> into a look-alike styled <span>.
+// A trailing zero-width space prevents that. tidy() removes it.
 const BLOCK_TAG = /<(?:p|h[1-6]|ul|ol|li|pre|blockquote|table|hr|figure|div)\b/i;
 export function insertHtml(html) {
   document.execCommand("insertHTML", false, BLOCK_TAG.test(html) ? html : `${html}​`);
 }
 
-// Escapes text for HTML.
 export const escape = (text) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
