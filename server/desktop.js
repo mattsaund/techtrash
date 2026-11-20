@@ -28,8 +28,10 @@ import { DurableObject } from "cloudflare:workers";
 import { FIRST_SHORTCUTS, findApp, firstShortcutsFirst } from "../public/js/apps.js";
 import { LAST_CELL, cellKey, nearestFree, nextFreeCell, startingCells } from "../public/js/grid.js";
 import { LIMITS } from "../public/js/items.js";
+import { wallpaperUrl } from "../public/js/wallpapers.js";
 import { Disk, DiskError, TEXT } from "./disk.js";
 import { sendPart } from "./media.js";
+import { notify, notifying, quoted } from "./notify.js";
 
 const MAX_MESSAGE_BYTES = 4096;
 const MAX_MESSAGES_PER_SECOND = 60;   // a tab sends at most 20 while dragging
@@ -50,6 +52,13 @@ async function upTo(request, most) {
   return all;
 }
 
+// What a visitor saves: something new (a file, a folder, a shortcut) or a
+// file saved over. The admin gets one email about everything saved in the
+// ten minutes after the first (server/notify.js).
+const SAVES = new Set(["POST folder", "POST shortcut", "POST file", "PUT file"]);
+const EMAIL_AFTER_MS = 10 * 60 * 1000;
+const MOST_IN_AN_EMAIL = 50;
+
 const json = (body, status = 200) => Response.json(body, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 
 export class Desktop extends DurableObject {
@@ -58,6 +67,9 @@ export class Desktop extends DurableObject {
     const { sql } = ctx.storage;
     sql.exec("CREATE TABLE IF NOT EXISTS cells (id TEXT PRIMARY KEY, col INTEGER NOT NULL, row INTEGER NOT NULL)");
     this.disk = new Disk(sql, (work) => ctx.storage.transactionSync(work));
+    // The first time the admin's email is set up, the emails start from now
+    // rather than with everything ever saved.
+    if (notifying(env) && this.disk.setting("emailed") === null) this.disk.setSetting("emailed", this.disk.lastActivity());
     // Lets tabs keep their connection alive without waking this object up.
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     // The desktop's icons are the items in its folder. The shortcuts it
@@ -100,7 +112,9 @@ export class Desktop extends DurableObject {
     const who = request.headers.get("x-techtrash-admin") === "1" ? "admin" : request.headers.get("x-techtrash-visitor") || "unknown";
     if (url.pathname === "/api/desktop") return this.connect(request, who);
     try {
-      return await this.answer(request, url, who);
+      const response = await this.answer(request, url, who);
+      if (response.ok && who !== "admin" && SAVES.has(`${request.method} ${url.pathname.slice("/api/disk/".length)}`)) await this.emailSoon(url.hostname);
+      return response;
     } catch (error) {
       if (error instanceof DiskError) return json({ error: error.message }, error.status);
       throw error;
@@ -219,6 +233,30 @@ export class Desktop extends DurableObject {
     } catch {}
   }
 
+  // --- the admin's email about saves --------------------------------------------
+
+  // A visitor saved something. Unless an email's already on its way, one goes
+  // out in ten minutes (the alarm).
+  async emailSoon(host) {
+    if (!notifying(this.env)) return;
+    if (this.disk.setting("site") !== host) this.disk.setSetting("site", host);
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + EMAIL_AFTER_MS);
+  }
+
+  async alarm() {
+    const saved = this.disk.savedSince(this.disk.setting("emailed", 0));
+    this.disk.setSetting("emailed", this.disk.lastActivity());
+    if (!saved.length) return;
+    const site = this.disk.setting("site", "techtrash.org");
+    const lines = saved.slice(0, MOST_IN_AN_EMAIL).map((row) => (row.what === "made"
+      ? `Visitor ${row.who} made ${quoted(row.name)} in ${row.detail || "the C: drive"}`
+      : `Visitor ${row.who} saved over ${quoted(row.name)}`));
+    if (saved.length > MOST_IN_AN_EMAIL) lines.push(`...and ${saved.length - MOST_IN_AN_EMAIL} more.`);
+    const count = saved.length === 1 ? "1 thing" : `${saved.length} things`;
+    await notify(this.env, site, `${count} saved on the XP desktop`,
+      `${lines.join("\n")}\n\nSee it all in the Admin Dashboard: https://${site}/#admin\n`);
+  }
+
   // --- the disk's requests ------------------------------------------------------
 
   async answer(request, url, who) {
@@ -239,6 +277,13 @@ export class Desktop extends DurableObject {
 
     switch (op) {
       case "GET file": return this.file(request, q.get("id"), q.get("v"));
+      // The wallpaper and the lock, for a page that hasn't opened its line yet
+      // (js/disk.js peek). url is where the wallpaper's picture is.
+      case "GET settings": {
+        const settings = this.disk.settings();
+        const image = settings.wallpaper?.image ?? "";
+        return json({ settings, url: wallpaperUrl(image, image.startsWith("file:") ? this.disk.item(image.slice(5)) : null) });
+      }
       case "POST folder": return this.changed(this.disk.create(who, { ...(await body()), kind: "folder" }));
       // A shortcut to a program (the start menu's Send To > Desktop), named
       // after it. Only the admin can make one to an admin-only program.

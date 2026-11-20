@@ -49,7 +49,8 @@ public/img/icons/games/        the two games' own icons
 public/img/wallpapers/         Windows XP's own wallpapers
 public/fonts/                  Tahoma, DejaVu Sans Mono, Paper Mono
 public/files/                  credits.txt, and the Minecraft server's modpack
-public/_headers                security headers, for every file
+public/_headers                security headers for every file, and a week's
+                               caching for pictures and fonts
 public/styleguide/             the XP kit, drawn (at /styleguide/)
 
 worker.js                      the server (which address goes where)
@@ -58,6 +59,7 @@ server/disk.js                 its disk, with everything anyone saves on it
 server/admin.js                the admin's log on
 server/blog.js                 blogs, drafts, flags, comments, pictures, sounds
 server/feed.js                 /rss.xml
+server/notify.js               emails me about new comments and desktop saves
 server/media.js                what kind of file something is, and sending part
                                of one, for both the blog and the disk
 wrangler.jsonc                 the Worker's Cloudflare settings
@@ -96,6 +98,14 @@ internet and the blog, so make it long and random:
 ```sh
 npx wrangler secret put ADMIN_USERNAME
 npx wrangler secret put ADMIN_PASSWORD
+```
+
+To get an email when someone comments or saves something on the desktop,
+turn on Email Routing for the domain in the Cloudflare dashboard, add your
+address there and verify it, then make it a secret too:
+
+```sh
+npx wrangler secret put NOTIFY_TO
 ```
 
 ## Licenses

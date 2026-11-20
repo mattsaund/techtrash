@@ -70,9 +70,9 @@ async function toDesktop(request, env, reading) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
-      return await route(request, env);
+      return await route(request, env, ctx);
     } catch (error) {
       // The error goes in the Worker's logs (the dashboard's Observability
       // tab, or `npx wrangler tail`). An API call gets a plain message
@@ -86,7 +86,7 @@ export default {
   },
 };
 
-async function route(request, env) {
+async function route(request, env, ctx) {
   const { pathname } = new URL(request.url);
   const method = request.method;
   const reading = method === "GET" || method === "HEAD";
@@ -105,7 +105,7 @@ async function route(request, env) {
 
   if (pathname.startsWith("/api/blog/")) {
     const handler = BLOG[`${reading ? "GET" : method} ${pathname.slice("/api/blog/".length)}`];
-    if (handler) return reading || handler === blog.createComment ? handler(request, env) : adminOnly(request, env, handler);
+    if (handler) return reading || handler === blog.createComment ? handler(request, env, ctx) : adminOnly(request, env, handler);
   }
   if (reading && pathname.startsWith("/blog/img/")) {
     const name = pathname.slice("/blog/img/".length);

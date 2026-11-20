@@ -14,7 +14,9 @@ matched to XP's copies, since some have been rescanned or read with the
 wrong color profile. The other eight were made for XP and never came any
 bigger, so they're used as they are.
 
-Each is saved as a JPEG, under the id public/js/wallpapers.js gives it.
+The bigger ones are saved as WebP, which keeps them looking the same as a
+JPEG at about a third less. XP's own are kept as the JPEGs they were. Each goes
+under the file name public/js/wallpapers.js gives it.
 
 Needs pillow and numpy. In a throwaway virtualenv:
 
@@ -34,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "img" / "wallpapers"
 ARCHIVE = "https://raw.githubusercontent.com/WINNT-Moments/Windows-Wallpaper-Archive/main/Windows XP RTM Home Wallpapers/"
 BIGGER = "https://via.sudovanilla.org/media/wallpapers/Operating Systems/Microsoft Windows/Windows XP/"
-QUALITY = 88
+QUALITY = 85   # WebP's, which looks like the JPEGs' 88 did
 
 # each id on the site (public/js/wallpapers.js), with XP's file and the bigger copy's (or None)
 WALLPAPERS = {
@@ -90,12 +92,12 @@ def matched(big, xp):
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for wallpaper_id, (xp_name, big_name) in WALLPAPERS.items():
-        path = OUT / f"{wallpaper_id}.jpg"
+        path = OUT / f"{wallpaper_id}.{'webp' if big_name else 'jpg'}"
         data = fetch(ARCHIVE, xp_name)
         xp = Image.open(io.BytesIO(data)).convert("RGB")
         if big_name:
             picture = matched(Image.open(io.BytesIO(fetch(BIGGER, big_name))).convert("RGB"), xp)
-            picture.save(path, quality=QUALITY, optimize=True, progressive=True)
+            picture.save(path, quality=QUALITY, method=6)
         else:
             # XP's own JPEG, byte for byte, since saving it again would only lose detail
             picture = xp

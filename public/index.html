@@ -20,6 +20,19 @@
   <link rel="stylesheet" href="/css/desktop.css">
   <!-- For Paint's Open and Save As, which it puts up out here (js/file-dialog.js). -->
   <link rel="stylesheet" href="/css/explorer.css">
+  <!-- Every script the desktop loads, asked for all at once rather than one
+       level of imports at a time, so the website's window opens sooner. -->
+  <link rel="modulepreload" href="/js/apps.js">
+  <link rel="modulepreload" href="/js/disk.js">
+  <link rel="modulepreload" href="/js/grid.js">
+  <link rel="modulepreload" href="/js/icons.js">
+  <link rel="modulepreload" href="/js/items.js">
+  <link rel="modulepreload" href="/js/menu.js">
+  <link rel="modulepreload" href="/js/message.js">
+  <link rel="modulepreload" href="/js/session.js">
+  <link rel="modulepreload" href="/js/shared.js">
+  <link rel="modulepreload" href="/js/tasks.js">
+  <link rel="modulepreload" href="/js/wallpapers.js">
   <script type="module" src="/js/desktop.js"></script>
 </head>
 <body>

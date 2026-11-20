@@ -42,6 +42,13 @@
     { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
     // 60 changes a minute per person to the shared disk (saves, renames, deletes...)
     { "name": "DISK_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }
+  ],
+  // Emails to the admin about new comments and what visitors save on the
+  // desktop (server/notify.js), through the domain's Email Routing. The
+  // address they go to is the NOTIFY_TO secret, never in the repo (see
+  // "Deploying" in README.md).
+  "send_email": [
+    { "name": "EMAIL" }
   ]
   // The admin's user name and password are secrets, not settings. They're
   // ADMIN_USERNAME and ADMIN_PASSWORD (see "Deploying" in README.md, and

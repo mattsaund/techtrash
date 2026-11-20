@@ -14,3 +14,11 @@
   Content-Security-Policy: frame-ancestors 'self'
   X-Frame-Options: SAMEORIGIN
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Pictures and fonts hardly ever change, so a browser keeps them a week
+# without asking again. Pages, scripts and styles are still checked every
+# time, so a change to the site shows up straight away and never half done.
+/img/*
+  Cache-Control: public, max-age=604800
+/fonts/*
+  Cache-Control: public, max-age=604800

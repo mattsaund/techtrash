@@ -9,7 +9,7 @@
 // it is (public/css/feed.css). It's sent as plain XML, which every reader
 // takes, because Firefox downloads a file sent as RSS instead of showing it.
 
-import { ensureSchema, excerpt, flagsOf } from "./blog.js";
+import { excerpt, flagsOf, reading } from "./blog.js";
 
 const NEWEST = 20;   // blogs in the feed
 const TAGLINE = "My own little corner of the internet.";   // until one's written (public/pages/blog/index.html)
@@ -25,8 +25,7 @@ const whole = (html, origin) => html
   .replace(/(\s(?:src|href)=")\/(?!\/)/g, `$1${origin}/`)
   .replace(/(\shref=")\?/g, `$1${origin}/pages/blog/?`);
 
-export async function feed(request, env) {
-  await ensureSchema(env);
+export const feed = (request, env) => reading(env, async () => {
   const origin = new URL(request.url).origin;
   const [{ results: posts }, tagline] = await Promise.all([
     env.DB.prepare(
@@ -79,4 +78,4 @@ ${flags[post.id].map((flag) => `      <category>${xml(flag.name)}</category>\n`)
   };
   if (request.headers.get("if-none-match") === tag) return new Response(null, { status: 304, headers });
   return new Response(request.method === "HEAD" ? null : body, { headers });
-}
+});

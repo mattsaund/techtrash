@@ -21,12 +21,12 @@
 import { APPS, GROUPS, HOME, PLACES, SHORTCUTS, findApp } from "./apps.js";
 import { disk } from "./disk.js";
 import { setUpIcons } from "./icons.js";
-import { fileUrl, opener } from "./items.js";
+import { opener } from "./items.js";
 import { closeMenu, showMenu } from "./menu.js";
 import { showMessage } from "./message.js";
 import { setUpSession } from "./session.js";
 import { line } from "./shared.js";
-import { WALLPAPER_DIR, findWallpaper } from "./wallpapers.js";
+import { wallpaperUrl } from "./wallpapers.js";
 
 const css = getComputedStyle(document.documentElement);
 const num = (name) => parseInt(css.getPropertyValue(name), 10);
@@ -134,11 +134,10 @@ disk.watch(tellWindows);
 // shape is in js/wallpapers.js). A picture on the disk only shows while it's
 // still there.
 function showWallpaper() {
-  const { wallpaper, locked } = disk.settings();
+  const { wallpaper, locked, url: sent } = disk.settings();
   const image = wallpaper?.image ?? "";
-  let url = "";
-  if (image.startsWith("xp:") && findWallpaper(image.slice(3))) url = `${WALLPAPER_DIR}/${image.slice(3)}.jpg`;
-  if (image.startsWith("file:") && disk.item(image.slice(5))) url = fileUrl(disk.item(image.slice(5)));
+  // (a picture on the disk, before the disk's here, is where it was last time)
+  const url = wallpaperUrl(image, disk.item(image.slice(5))) || (image.startsWith("file:") && !disk.loaded() ? sent ?? "" : "");
   const value = url ? `url("${url}")` : "none";
   if (desktop.style.getPropertyValue("--wallpaper-image") !== value) desktop.style.setProperty("--wallpaper-image", value);
   if (wallpaper?.color) desktop.style.setProperty("--wallpaper-color", wallpaper.color);
@@ -148,6 +147,20 @@ function showWallpaper() {
   lock.hidden = !locked;
 }
 disk.watch(showWallpaper);
+
+// The wallpaper comes in a moment after the website itself has loaded (its
+// pictures too, most of the time), so it never slows that down: this
+// browser's last one first, then the shared one, asked for without opening
+// the line. It's there by the time anyone looks.
+function afterLoad(work) {
+  const later = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(work, { timeout: 4000 }) : work()), 1500);
+  if (document.readyState === "complete") later();
+  else addEventListener("load", later, { once: true });
+}
+afterLoad(() => {
+  showWallpaper();
+  disk.peek();
+});
 
 // --- launchers -------------------------------------------------------------
 

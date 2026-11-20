@@ -154,8 +154,21 @@ for (const { place, hue, side, across, at, rows, wide, ...settings } of PLANETS)
   const cfg = Object.assign(renderer.defaults(), settings);
   planets.push({ pre, renderer, cfg, grid: { rows, wide }, side, across, at, turn: cfg.speed * cfg.direction });
 }
+// The planets are a lot of math, so they wait until the page itself is drawn
+// (blog.js says so, or 3 seconds go by), and then each one is built when the
+// browser has a moment to spare. The sky is only scenery.
+const drawn = new Promise((resolve) => {
+  if (window.pageDrawn) resolve();
+  addEventListener("pagedrawn", resolve, { once: true });
+  setTimeout(resolve, 3000);
+});
+const idle = () => new Promise((resolve) => (window.requestIdleCallback ? requestIdleCallback(() => resolve(), { timeout: 3000 }) : setTimeout(resolve, 200)));
 let built = await glyphShape();   // the shape the planets are built for
-for (const planet of planets) build(planet, built);
+await drawn;
+for (const planet of planets) {
+  await idle();
+  build(planet, built);
+}
 built = planets[0].renderer.aspect();
 
 // Puts each asteroid in its strip beside the page (where across and at say),

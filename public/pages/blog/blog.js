@@ -79,3 +79,10 @@ try {
 } catch (error) {
   if (!(error instanceof Gone)) await framed(null, async () => el("section", { class: "panel hue-1" }, backTo(to.blog), el("p", { textContent: error.message })));
 }
+
+// The page is up. Anything index.html asked for early that wasn't used is
+// let go (it could be out of date later on), and the sky (sky/space.js)
+// starts on its planets.
+window.earlyAnswers?.clear();
+window.pageDrawn = true;
+dispatchEvent(new Event("pagedrawn"));

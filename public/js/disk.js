@@ -12,6 +12,7 @@
 
 import { line } from "./shared.js";
 import { TEXT, fileUrl } from "./items.js";
+import { wallpaperUrl } from "./wallpapers.js";
 
 export class DiskError extends Error {
   constructor(message, status) {
@@ -25,6 +26,17 @@ const inFolder = new Map();  // folder id to the ids of what's in it
 const gone = new Set();      // ids that are gone for good
 const watchers = new Set();
 let settings = { wallpaper: null, locked: false };
+let fromServer = false;
+let loaded = false;
+// The last shared settings this browser got, in localStorage, so the desktop
+// can put up the wallpaper before the line opens. Only the wallpaper's used,
+// and url, where its picture is (for a picture on the disk, which can't be
+// found until the disk is here).
+const SEEN = "techtrash:settings";
+try {
+  const seen = JSON.parse(localStorage.getItem(SEEN));
+  if (seen?.wallpaper) settings = { wallpaper: seen.wallpaper, url: seen.url ?? "", locked: false };
+} catch {}
 let markReady;
 const ready = new Promise((resolve) => { markReady = resolve; });
 
@@ -62,11 +74,19 @@ function apply({ items: changed = [], gone: removed = [], all = false }) {
     items.delete(id);
   }
   notify({ items: fresh, gone: removed, all });
-  if (all) markReady();
+  if (all) {
+    loaded = true;
+    markReady();
+  }
 }
 
 function changeSettings(next) {
-  settings = next;
+  const image = next.wallpaper?.image ?? "";
+  settings = { ...next, url: next.url ?? wallpaperUrl(image, items.get(image.slice(5))) };
+  fromServer = true;
+  try {
+    localStorage.setItem(SEEN, JSON.stringify({ wallpaper: settings.wallpaper, url: settings.url }));
+  } catch {}
   notify({ settings });
 }
 
@@ -105,8 +125,9 @@ async function fetchFile(item) {
 }
 
 export const disk = {
-  // Settles once the whole disk is here.
+  // Settles once the whole disk is here. loaded() says so right away.
   ready,
+  loaded: () => loaded,
   // Whether this tab is the admin's (js/desktop.js keeps it up to date).
   admin: false,
 
@@ -129,6 +150,18 @@ export const disk = {
   },
   binFull: () => (inFolder.get("recycle")?.size ?? 0) > 0,
   settings: () => settings,
+  // The shared settings without opening the line, so the wallpaper can come
+  // in while the website's in front. url is where its picture is, worked
+  // out by the server (a picture on the disk needs the disk to say). The
+  // line's own settings take over once it opens.
+  async peek() {
+    if (fromServer) return;
+    try {
+      const response = await fetch("/api/disk/settings");
+      const answer = await response.json();
+      if (response.ok && answer.settings && !fromServer) changeSettings({ ...answer.settings, url: answer.url });
+    } catch {}
+  },
   // Calls fn(change) on every change, with { items, gone, all } or
   // { settings }. Gives back a function that stops it.
   watch(fn) {

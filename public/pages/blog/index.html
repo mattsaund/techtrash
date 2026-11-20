@@ -8,9 +8,47 @@
   <title>Techtrash - Microsoft Internet Explorer</title>
   <!-- The blog, for feed readers (server/feed.js). -->
   <link rel="alternate" type="application/rss+xml" title="Techtrash" href="/rss.xml">
+  <script>
+    // What this page is about to ask the server for, asked for now while its
+    // scripts are still on the way. util.js api() takes each answer from
+    // here the first time it's wanted. The paths match blog.js's.
+    (() => {
+      if (window.top === window) return;   // (it's off to the desktop, js/app.js)
+      let path = [];
+      try {
+        path = decodeURIComponent(location.search.slice(1)).split("/").filter(Boolean);
+      } catch {}
+      const [first, ...rest] = path;
+      const urls = ["/api/me", "/api/blog/page?name=tagline", "/api/blog/page?name=footer", "/api/blog/page?name=blinkies"];
+      if (!first) urls.push("/api/blog/page?name=home", "/api/blog/page?name=bulletin", "/api/blog/posts?featured");
+      else if (first === "blog" && rest.length === 1) urls.push(`/api/blog/post?slug=${encodeURIComponent(rest[0])}`);
+      else if ((first === "blog" && !rest.length) || first === "flag") urls.push("/api/blog/posts", "/api/blog/flags");
+      else if (first === "pictures") urls.push("/api/blog/pictures");
+      else if (first === "about") urls.push("/api/blog/page?name=about");
+      const ask = (url) => fetch(url).then(async (r) => ({ ok: r.ok, status: r.status, answer: r.status === 204 ? {} : await r.json().catch(() => ({})) }), () => null);
+      window.earlyAnswers = new Map(urls.map((url) => [url, ask(url)]));
+    })();
+  </script>
   <script src="/js/app.js"></script>
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/pages/blog/site.css">
+  <!-- Everything the page loads, asked for all at once rather than one
+       level of imports at a time. -->
+  <link rel="preload" href="/fonts/paper-mono.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/pages/blog/sky/cosmos/planet.js" as="script">
+  <link rel="modulepreload" href="/pages/blog/site.js">
+  <link rel="modulepreload" href="/pages/blog/util.js">
+  <link rel="modulepreload" href="/pages/blog/frame.js">
+  <link rel="modulepreload" href="/pages/blog/front.js">
+  <link rel="modulepreload" href="/pages/blog/post.js">
+  <link rel="modulepreload" href="/pages/blog/viewer.js">
+  <link rel="modulepreload" href="/pages/blog/content.js">
+  <link rel="modulepreload" href="/pages/blog/comments.js">
+  <link rel="modulepreload" href="/pages/blog/footer.js">
+  <link rel="modulepreload" href="/pages/blog/own-words.js">
+  <link rel="modulepreload" href="/pages/blog/sound.js">
+  <link rel="modulepreload" href="/pages/blog/vendor/purify.js">
+  <link rel="modulepreload" href="/js/shrink-image.js">
   <script type="module" src="/pages/blog/sky/space.js"></script>
   <script type="module" src="/pages/blog/blog.js"></script>
 </head>

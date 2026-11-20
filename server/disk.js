@@ -13,7 +13,8 @@
 // It all lives in the shared desktop's Durable Object (server/desktop.js), in
 // four tables. items has every folder, file and shortcut, without its bytes.
 // chunks has the bytes, in rows of 2 MB. settings has the wallpaper, the lock
-// and who's kept out. activity is what's been done and by whom.
+// and who's kept out (and where the admin's emails about saves are up to).
+// activity is what's been done and by whom.
 //
 // Who did something is a visitor's tag, their internet address scrambled with
 // a key only the server has (server/admin.js). The admin's is "admin".
@@ -507,6 +508,16 @@ export class Disk {
   }
 
   // What's been done, newest first. `before` is an entry's id, for more.
+  // The newest activity's id, and what visitors have made or saved since
+  // the one with id `after` (oldest first), for the admin's email.
+  lastActivity() {
+    return this.sql.exec("SELECT MAX(id) AS id FROM activity").toArray()[0]?.id ?? 0;
+  }
+
+  savedSince(after) {
+    return this.sql.exec("SELECT * FROM activity WHERE id > ? AND who != 'admin' AND what IN ('made', 'changed') ORDER BY id", Number(after)).toArray();
+  }
+
   activity(before = null, count = 200) {
     return before
       ? this.sql.exec("SELECT * FROM activity WHERE id < ? ORDER BY id DESC LIMIT ?", Number(before), count).toArray()

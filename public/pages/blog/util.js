@@ -36,6 +36,18 @@ export function textWithLinks(text) {
 // Calls the server and returns its answer, or throws an Error saying what went
 // wrong. Send json as JSON, form as FormData, or body as is (a file).
 export async function api(url, { method = "GET", json, form, body } = {}) {
+  // The first ask for something index.html already started on. Once anything
+  // changes, what it asked for early might be out of date.
+  if (method !== "GET") window.earlyAnswers?.clear();
+  const early = method === "GET" && window.earlyAnswers?.get(url);
+  if (early) {
+    window.earlyAnswers.delete(url);
+    const got = await early;
+    if (got) {
+      if (!got.ok) throw new Error(got.answer.error ?? "That didn't work. Try again.");
+      return got.answer;
+    }
+  }
   const options = { method };
   if (json !== undefined) {
     options.headers = { "content-type": "application/json" };

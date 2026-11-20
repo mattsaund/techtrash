@@ -6,9 +6,9 @@
 // look. Apply sets it for everyone on the site (server/disk.js).
 
 import { openDialog } from "/js/file-dialog.js";
-import { fileUrl, iconOf, isPicture, sortItems } from "/js/items.js";
+import { iconOf, isPicture, sortItems } from "/js/items.js";
 import { showMessage } from "/js/message.js";
-import { WALLPAPER_DIR, WALLPAPERS, findWallpaper } from "/js/wallpapers.js";
+import { WALLPAPERS, wallpaperUrl } from "/js/wallpapers.js";
 
 const desktop = window.top === window ? null : window.top.desktop;
 const disk = desktop?.disk;
@@ -44,11 +44,7 @@ function options() {
   ];
 }
 
-function urlOf(image) {
-  if (image.startsWith("xp:") && findWallpaper(image.slice(3))) return `${WALLPAPER_DIR}/${image.slice(3)}.jpg`;
-  const item = image.startsWith("file:") && disk.item(image.slice(5));
-  return item ? fileUrl(item) : "";
-}
+const urlOf = (image) => wallpaperUrl(image, disk.item(image.slice(5)));
 
 function drawList() {
   list.replaceChildren();

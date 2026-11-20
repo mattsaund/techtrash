@@ -67,6 +67,7 @@
 //   PUT    /api/blog/page?name=          { body }
 
 import { isAdmin } from "./admin.js";
+import { notify, quoted } from "./notify.js";
 import { apiError, clientKey, done, fresh } from "./http.js";
 import { mediaType, sendPart } from "./media.js";
 
@@ -136,6 +137,22 @@ export function ensureSchema(env) {
   });
   return schemaReady;
 }
+
+// Reads skip setting up the tables, since they're nearly always there and
+// each check is another trip to the database. Only if the database turns out
+// to be missing a table or a column (a brand new one, or one from an older
+// blog) does a read set them up and try again. A read can always be tried
+// twice. Writes set up first (ensureSchema), since a write can't.
+export async function reading(env, work) {
+  try {
+    return await work();
+  } catch (error) {
+    if (!/no such (table|column)/i.test(error?.message ?? "")) throw error;
+    await ensureSchema(env);
+    return work();
+  }
+}
+const readOnly = (handler) => (request, env, ...rest) => reading(env, () => handler(request, env, ...rest));
 
 // The blog before this one (September and October 2026) kept posts under
 // topics, and the very first kept them as plain text, without the columns
@@ -309,22 +326,24 @@ const hasFile = (value) => value instanceof Blob && value.size > 0;
 // blog or one of the site's own pages. Before that only the admin, so they can
 // see a draft's and what they've only just added. Returns its cache-control,
 // or null for a 404 that looks the same whether the file exists or not.
-async function mayHave(request, env, address) {
-  if (await isAdmin(request, env)) return "private, max-age=3600";
-  await ensureSchema(env);
-  const shown = await env.DB.prepare(
+async function mayHave(admin, env, address) {
+  if (admin) return "private, max-age=3600";
+  const shown = await reading(env, () => env.DB.prepare(
     "SELECT 1 FROM posts WHERE draft = 0 AND instr(body, ?1) > 0 UNION ALL SELECT 1 FROM pages WHERE instr(body, ?1) > 0 LIMIT 1",
-  ).bind(address).first();
+  ).bind(address).first());
   return shown ? "public, max-age=3600" : null;
 }
 
 const notFound = () => new Response("not found", { status: 404 });
 
+// A picture. A picture's name never gets other bytes, so the store keeps a
+// copy near whoever's reading it for a day (cacheTtl). That's only ever
+// read once mayHave has said yes.
 export async function servePicture(name, request, env) {
-  const cache = await mayHave(request, env, `/blog/img/${name}`);
+  const cache = await mayHave(await isAdmin(request, env), env, `/blog/img/${name}`);
   if (!cache) return notFound();
-  let found = await env.PICTURES.getWithMetadata(PICTURES + name, { type: "stream" });
-  if (!found.value) found = await env.PICTURES.getWithMetadata(FIRST_PICTURES + name, { type: "stream" });
+  let found = await env.PICTURES.getWithMetadata(PICTURES + name, { type: "stream", cacheTtl: 86400 });
+  if (!found.value) found = await env.PICTURES.getWithMetadata(FIRST_PICTURES + name, { type: "stream", cacheTtl: 86400 });
   if (!found.value) return notFound();
   return new Response(found.value, {
     headers: {
@@ -338,7 +357,7 @@ export async function servePicture(name, request, env) {
 // A sound, whole or just the part a player asks for (Range: bytes=...), so it
 // can start partway in.
 export async function serveSound(name, request, env) {
-  const cache = await mayHave(request, env, `/blog/sound/${name}`);
+  const cache = await mayHave(await isAdmin(request, env), env, `/blog/sound/${name}`);
   if (!cache) return notFound();
   const found = await env.PICTURES.getWithMetadata(SOUNDS + name, { type: "arrayBuffer" });
   if (!found.value) return notFound();
@@ -422,8 +441,7 @@ function setFlags(env, postId, names) {
   ]);
 }
 
-export async function listFlags(request, env) {
-  await ensureSchema(env);
+export const listFlags = readOnly(async (request, env) => {
   const { results } = await env.DB.prepare(
     `SELECT flags.id, flags.name,
        (SELECT COUNT(*) FROM post_flags JOIN posts ON posts.id = post_flags.post_id
@@ -433,12 +451,11 @@ export async function listFlags(request, env) {
   // only the admin sees a flag that's only on drafts
   const admin = await isAdmin(request, env);
   return fresh({ flags: results.filter((flag) => admin || flag.count > 0).map((flag) => ({ ...flag, slug: slugify(flag.name, "flag") })) });
-}
+});
 
 // --- posts -----------------------------------------------------------------------
 
-export async function listPosts(request, env) {
-  await ensureSchema(env);
+export const listPosts = readOnly(async (request, env) => {
   const params = new URL(request.url).searchParams;
   const drafts = params.has("drafts");
   const featured = params.has("featured");
@@ -457,10 +474,9 @@ export async function listPosts(request, env) {
       ...post, excerpt: excerpt(start, 160), cover: uploadedPicturesIn(start)[0]?.url ?? null, flags: flags[post.id],
     })),
   });
-}
+});
 
-export async function getPost(request, env) {
-  await ensureSchema(env);
+export const getPost = readOnly(async (request, env) => {
   const params = new URL(request.url).searchParams;
   const bySlug = params.has("slug");
   const post = await env.DB.prepare(
@@ -476,7 +492,7 @@ export async function getPost(request, env) {
     flags: flags[post.id],
     comments: comments.map((c) => (c.deleted ? { ...c, name: "", body: "", is_admin: 0 } : c)),
   });
-}
+});
 
 // Whatever of { title, body, flags, comments, draft, featured } a request sends,
 // cleaned. Flags are names, and case doesn't matter.
@@ -593,8 +609,7 @@ export async function deletePost(request, env) {
 // Every picture posted to the site, newest first. That's the ones in published
 // posts and the site's own pages, each once, with where it's from. The
 // footer's pictures and blinkies are part of the site, so they're left out.
-export async function listPictures(request, env) {
-  await ensureSchema(env);
+export const listPictures = readOnly(async (request, env) => {
   const [posts, pages] = await Promise.all([
     env.DB.prepare(
       "SELECT id, title, slug, body, COALESCE(published, created) AS created FROM posts WHERE draft = 0 AND instr(body, '/blog/img/') > 0",
@@ -612,7 +627,7 @@ export async function listPictures(request, env) {
   found.sort((a, b) => b.created - a.created);   // stable, so a post's pictures keep their order
   const seen = new Set();
   return fresh({ pictures: found.filter(({ url }) => !seen.has(url) && seen.add(url)) });
-}
+});
 
 // A picture for anywhere in a post.
 export async function uploadPicture(request, env) {
@@ -648,7 +663,7 @@ export async function uploadSound(request, env) {
 
 // --- comments --------------------------------------------------------------------
 
-export async function createComment(request, env) {
+export async function createComment(request, env, ctx) {
   const { success } = await env.COMMENT_LIMITER.limit({ key: clientKey(request) });
   if (!success) return apiError(429, "That's a lot of comments. Wait a minute, then try again.");
   const input = await readJson(request, 20_000);
@@ -660,7 +675,7 @@ export async function createComment(request, env) {
   if (!name || !body) return apiError(400, "A comment needs a name and something to say.");
 
   await ensureSchema(env);
-  const post = await env.DB.prepare("SELECT id, comments_open FROM posts WHERE id = ? AND draft = 0").bind(Number(input.post)).first();
+  const post = await env.DB.prepare("SELECT id, title, slug, comments_open FROM posts WHERE id = ? AND draft = 0").bind(Number(input.post)).first();
   if (!post) return apiError(404, "That blog isn't here anymore.");
   if (!post.comments_open) return apiError(403, "Comments are closed on this blog.");
   let parent = null;
@@ -668,10 +683,18 @@ export async function createComment(request, env) {
     parent = await env.DB.prepare("SELECT id FROM comments WHERE id = ? AND post_id = ?").bind(Number(input.parent), post.id).first();
     if (!parent) return apiError(404, "The comment you're replying to isn't here anymore.");
   }
+  const admin = await isAdmin(request, env);
   const comment = await env.DB.prepare(
     `INSERT INTO comments (post_id, parent_id, name, body, is_admin, created) VALUES (?, ?, ?, ?, ?, ?)
      RETURNING id, parent_id, name, body, is_admin, deleted, created`,
-  ).bind(post.id, parent?.id ?? null, name, body, (await isAdmin(request, env)) ? 1 : 0, Date.now()).first();
+  ).bind(post.id, parent?.id ?? null, name, body, admin ? 1 : 0, Date.now()).first();
+  // The admin hears about it by email (server/notify.js), unless it's theirs.
+  if (!admin) {
+    const { hostname, origin } = new URL(request.url);
+    const said = parent ? "replied to a comment on" : "commented on";
+    ctx?.waitUntil(notify(env, hostname, `New comment on ${quoted(post.title)}`,
+      `${name} ${said} ${quoted(post.title)}:\n\n${body}\n\nRead it there: ${origin}/#blog/${encodeURIComponent(post.slug)}\n`));
+  }
   return fresh(comment, 201);
 }
 
@@ -691,13 +714,12 @@ const pageName = (request) => {
   return Object.hasOwn(PAGES, name) ? name : null;
 };
 
-export async function getPage(request, env) {
-  await ensureSchema(env);
+export const getPage = readOnly(async (request, env) => {
   const name = pageName(request);
   if (!name) return apiError(404, "There's no page like that.");
   const page = await env.DB.prepare("SELECT body, updated FROM pages WHERE name = ?").bind(name).first();
   return fresh({ name, title: PAGES[name], body: page?.body ?? "", updated: page?.updated ?? null });
-}
+});
 
 export async function savePage(request, env) {
   await ensureSchema(env);
